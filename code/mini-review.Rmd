@@ -12,6 +12,8 @@ knitr::opts_chunk$set(echo = TRUE)
 remove(list = ls())
 
 ## Load common packages and directories
+getwd()
+setwd(dirname(getwd()))
 source("./code/_pkgs_dirs.R")
 
 ## Additional packages
@@ -32,29 +34,7 @@ df <- readr::read_csv(file = paste0(csv_dir, csv))
 
 ## data cleaning 
 
-```{r include=FALSE}
-## keep columns of interest, and clean data
-dt <- df %>%
-  select(1:4, matches("Country|Mental health")) %>%
-  select(!matches("duration", ignore.case = T)) %>%
-  dplyr::rename(
-    "Country" = "Country in which the study conducted",
-    "Reviewer" = "Reviewer Name"
-  ) %>%
-  dplyr::mutate(Country = gsub("Other: ", "", Country)) %>%
-  dplyr::mutate(`Mental health indicators` = gsub("\\*|Other\\: ", "", `Mental health indicators`)) %>%
-  dplyr::arrange(!is.na(`Mental health indicators`), Reviewer)
-names(dt)
-
-## stat
-dt.bymhi <- dt %>%
-  dplyr::filter(str_detect(string = `Mental health indicators`, pattern = "exclude", negate = T)) %>%
-  group_by(`Mental health indicators`) %>%
-  dplyr::count() %>%
-  ungroup() %>%
-  as.data.frame()
-
-
+```{r - functions}
 expand_col_to_long <- function(data, target_col = "Mental health indicators") {
   data_long <- data %>%
     dplyr::rename("col_split" = target_col) %>%
@@ -67,7 +47,10 @@ expand_col_to_long <- function(data, target_col = "Mental health indicators") {
       stripWhite = T
     ) %>% # clean white space
     dplyr::mutate(across(where(is.factor), as.character)) %>%
-    dplyr::mutate(col_split = str_to_sentence(col_split)) %>%
+    dplyr::mutate(col_split = ifelse(
+      nchar(col_split) > 10, 
+      str_to_sentence(col_split), 
+      col_split)) %>%
     as.data.frame() %>%
     group_by(col_split) %>%
     dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
@@ -79,7 +62,85 @@ expand_col_to_long <- function(data, target_col = "Mental health indicators") {
   return(data_long)
 }
 
+
+
+plot_freq <- function(data, var = "Mental health indicators") {
+  p <- ggplot(
+    data = data,
+    aes(
+      x = reorder(eval(parse(text = var)), n),
+      y = n,
+      # fill = n
+  )) +
+  geom_col() +
+  theme_bw() +
+  # theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
+  coord_flip() +
+  # scale_fill_distiller(name = '', palette = "Blues", guide = "colorbar", direction = 1) +
+  xlab("")
+  
+  return(p)
+}
+```
+
+
+```{r - indicator, include=FALSE}
+## keep columns of interest, and clean data
+dt <- df %>%
+  select(1:4, matches("Country|Mental health")) %>%
+  select(!matches("duration", ignore.case = T)) %>%
+  dplyr::rename(
+    "Country" = "Country in which the study conducted",
+    "Reviewer" = "Reviewer Name"
+  ) %>%
+  dplyr::mutate(Country = gsub("Other: ", "", Country)) %>%
+  dplyr::mutate(`Mental health indicators` = gsub("\\*|Other\\: ", "", `Mental health indicators`)) %>%
+  dplyr::arrange(!is.na(`Mental health indicators`), Reviewer)
+
+
+names(dt)
+
+
+## stat
+## - by indicator
+dt.bymhi <- dt %>%
+  dplyr::filter(str_detect(string = `Mental health indicators`, pattern = "exclude", negate = T)) %>%
+  group_by(`Mental health indicators`) %>%
+  dplyr::count() %>%
+  ungroup() %>%
+  as.data.frame()
+
+
+## - clean and format
 dt.bymhi.clean <- expand_col_to_long(data = dt.bymhi, target_col = "Mental health indicators")
+```
+
+
+```{r - tools, include=FALSE}
+## - by scale
+dt.bytool <- dt %>%
+  ### -clean up the names of the tools
+  rename("Tools" = "Mental health measurement tools") %>%
+  select(1:5, Tools, -Title) %>%
+  dplyr::mutate(Tools = gsub("\\*|Other\\: ", "", Tools)) %>%
+  filter(nchar(Tools) < 180) %>%
+  dplyr::filter(str_detect(string = Tools, pattern = "exclude", negate = T)) %>%
+  mutate(
+    Tool = gsub("scales|Scales", "scale", Tools),
+    Tool = gsub("\\s*\\([^\\)]+\\)", "", Tool)) %>% ## remove any strings in a ()
+  ### - stat
+  group_by(Tool) %>%
+  dplyr::count() %>%
+  ungroup() %>%
+  dplyr::filter(Tool != 'NA') %>%
+  as.data.frame()
+
+dt.bytool.clean <- expand_col_to_long(data = dt.bytool, target_col = "Tool") %>%
+  mutate(
+    Tool = gsub(".*Likert.*|.*likert.*", "Likert scale", Tool)) %>% 
+  group_by(Tool) %>%
+    dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
+  as.data.frame()
 ```
 
 
@@ -105,5 +166,13 @@ dt.bymhi.clean %>%
   ggtitle("Frequency of Mental health indicators")
 
 fname <- paste0(dir.fig, "mini-review_mh_freq.png")
+ggsave(filename = fname, plot = last_plot(), width = 16 / 2, height = 9 / 2, units = "in", dpi = 300, bg = NULL)
+
+
+
+plot_freq(data = dt.bytool.clean, var = 'Tool') +
+  ggtitle("Frequency of Mental health measurement tools")
+
+fname <- paste0(dir.fig, "mini-review_mh_tool_freq.png")
 ggsave(filename = fname, plot = last_plot(), width = 16 / 2, height = 9 / 2, units = "in", dpi = 300, bg = NULL)
 ```
