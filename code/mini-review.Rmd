@@ -18,6 +18,8 @@ source("./code/_pkgs_dirs.R")
 
 ## Additional packages
 library(splitstackshape) ## `cSplit()`
+library(Hmisc)
+today <- format(Sys.time(), "%Y%m%d"); today ## "%Y%m%d%H%M"
 ```
 
 
@@ -26,7 +28,7 @@ library(splitstackshape) ## `cSplit()`
 ```{r include=FALSE}
 csv_dir <- "./data/covidence_export/data extraction/"
 csv <- "review_278532_20230305161741-test mini-review-analysis.csv"
-
+csv <- "review_278532_20230318025032.csv"
 df <- readr::read_csv(file = paste0(csv_dir, csv))
 ```
 
@@ -47,10 +49,14 @@ expand_col_to_long <- function(data, target_col = "Mental health indicators") {
       stripWhite = T
     ) %>% # clean white space
     dplyr::mutate(across(where(is.factor), as.character)) %>%
+    dplyr::mutate(col_split = trimws(col_split)) %>%
     dplyr::mutate(col_split = ifelse(
-      nchar(col_split) > 10, 
-      str_to_sentence(col_split), 
-      col_split)) %>%
+      nchar(col_split) > 10,
+      str_to_sentence(col_split),
+      col_split
+    )) %>%
+    ## capitalizes first word but not subsequent words
+    dplyr::mutate(col_split = Hmisc::capitalize(col_split)) %>%
     as.data.frame() %>%
     group_by(col_split) %>%
     dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
@@ -87,8 +93,8 @@ plot_freq <- function(data, var = "Mental health indicators") {
 ```{r - indicator, include=FALSE}
 ## keep columns of interest, and clean data
 dt <- df %>%
-  select(1:4, matches("Country|Mental health")) %>%
-  select(!matches("duration", ignore.case = T)) %>%
+  dplyr::select(1:4, matches("Country|Mental health")) %>%
+  dplyr::select(!matches("duration", ignore.case = T)) %>%
   dplyr::rename(
     "Country" = "Country in which the study conducted",
     "Reviewer" = "Reviewer Name"
@@ -112,7 +118,13 @@ dt.bymhi <- dt %>%
 
 
 ## - clean and format
-dt.bymhi.clean <- expand_col_to_long(data = dt.bymhi, target_col = "Mental health indicators")
+dt.bymhi.clean <- expand_col_to_long(data = dt.bymhi, target_col = "Mental health indicators") %>%
+  dplyr::rename('Indicator' = 'Mental health indicators') %>%
+  dplyr::mutate(
+    Indicator = gsub("emotions|Emotions", "Emotion", Indicator)) %>% 
+  group_by(Indicator) %>%
+    dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
+  as.data.frame()
 ```
 
 
@@ -120,12 +132,12 @@ dt.bymhi.clean <- expand_col_to_long(data = dt.bymhi, target_col = "Mental healt
 ## - by scale
 dt.bytool <- dt %>%
   ### -clean up the names of the tools
-  rename("Tools" = "Mental health measurement tools") %>%
-  select(1:5, Tools, -Title) %>%
+  dplyr::rename("Tools" = "Mental health measurement tools") %>%
+  dplyr::select(1:5, Tools, -Title) %>%
   dplyr::mutate(Tools = gsub("\\*|Other\\: ", "", Tools)) %>%
-  filter(nchar(Tools) < 180) %>%
+  dplyr::filter(nchar(Tools) < 180) %>%
   dplyr::filter(str_detect(string = Tools, pattern = "exclude", negate = T)) %>%
-  mutate(
+  dplyr::mutate(
     Tool = gsub("scales|Scales", "scale", Tools),
     Tool = gsub("\\s*\\([^\\)]+\\)", "", Tool)) %>% ## remove any strings in a ()
   ### - stat
@@ -136,7 +148,7 @@ dt.bytool <- dt %>%
   as.data.frame()
 
 dt.bytool.clean <- expand_col_to_long(data = dt.bytool, target_col = "Tool") %>%
-  mutate(
+  dplyr::mutate(
     Tool = gsub(".*Likert.*|.*likert.*", "Likert scale", Tool)) %>% 
   group_by(Tool) %>%
     dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
@@ -152,8 +164,9 @@ dt.bytool.clean <- expand_col_to_long(data = dt.bytool, target_col = "Tool") %>%
 
 ```{r}
 dt.bymhi.clean %>%
+  dplyr::slice_max(order_by = n, n = 20) %>%
   ggplot(aes(
-    x = reorder(`Mental health indicators`, n),
+    x = reorder(Indicator, n),
     y = n,
     # fill = n
   )) +
@@ -165,14 +178,15 @@ dt.bymhi.clean %>%
   xlab("") +
   ggtitle("Frequency of Mental health indicators")
 
-fname <- paste0(dir.fig, "mini-review_mh_freq.png")
+fname <- paste0(dir.fig, "mini-review_mh_freq_", today, ".png")
 ggsave(filename = fname, plot = last_plot(), width = 16 / 2, height = 9 / 2, units = "in", dpi = 300, bg = NULL)
 
 
-
-plot_freq(data = dt.bytool.clean, var = 'Tool') +
+dt.bytool.clean %>%
+  dplyr::slice_max(order_by = n, n = 20) %>%
+  plot_freq(data = ., var = 'Tool') +
   ggtitle("Frequency of Mental health measurement tools")
 
-fname <- paste0(dir.fig, "mini-review_mh_tool_freq.png")
+fname <- paste0(dir.fig, "mini-review_mh_tool_freq_", today, ".png")
 ggsave(filename = fname, plot = last_plot(), width = 16 / 2, height = 9 / 2, units = "in", dpi = 300, bg = NULL)
 ```
