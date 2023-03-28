@@ -2,12 +2,12 @@
 title: "mini-review"
 author: "Yingjie"
 date: "2023-03-05"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-
 # To clear your environment
 remove(list = ls())
 
@@ -158,7 +158,7 @@ dt.bytool.clean <- expand_col_to_long(data = dt.bytool, target_col = "Tool") %>%
 
 
 
-```{r - by region map}
+```{r - by region}
 region <- dt %>%
   dplyr::select(1, Country) %>%
   dplyr::filter(!is.na(Country)) %>%
