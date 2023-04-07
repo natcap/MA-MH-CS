@@ -20,46 +20,75 @@ source("./code/_pkgs_dirs.R")
 library(splitstackshape) ## `cSplit()`
 library(Hmisc)
 today <- format(Sys.time(), "%Y%m%d"); today ## "%Y%m%d%H%M"
+
+dir.raw   <- "./data/covidence_export/data extraction/"
+dir_share <- 'G:/Shared drives/Urban nature-health/projects/meta-analysis/figures/'
 ```
 
 
 
 # Data import
+
 ```{r include=FALSE}
-csv_dir <- "./data/covidence_export/data extraction/"
 csv <- "review_278532_20230305161741-test mini-review-analysis.csv"
 csv <- "review_278532_20230328115335.csv"
-df <- readr::read_csv(file = paste0(csv_dir, csv))
+df <- readr::read_csv(file = paste0(dir.raw, csv))
+
+
+fs <- list.files(path = dir.raw, full.names = T, pattern = '.csv$'); fs
+# csv <- fs[1]
+# names(df)
+
+dfs <- data.frame()
+
+for (csv in fs) {
+  t <- basename(csv) %>% gsub('review_278532_', '', .) %>%
+    str_sub(start = 1, end = 14)  %>%
+    as.POSIXct(.,format="%Y%m%d%H%M%S") 
+  t
+  
+  d <- readr::read_csv(file = csv) %>%
+    dplyr::select(1:4, matches('Mental', ignore.case = F)) %>%
+    dplyr::mutate(date = t) %>%
+    as.data.frame()
+  
+  dfs <- rbind(dfs, d)
+}
 ```
 
 
 
-## data cleaning 
+## Data cleaning 
 
 ```{r - functions}
 expand_col_to_long <- function(data, target_col = "Mental health indicators") {
   data_long <- data %>%
     dplyr::rename("col_split" = target_col) %>%
+    ## unify the separator as ";"
+    dplyr::mutate(col_split = gsub(';|,', ';', col_split)) %>%
     cSplit(
       indt = .,
       splitCols = c("col_split"),
-      sep = ";|,",
+      sep = ";",
       drop = F, # drop the original col or not
       direction = "long", # this is better than "wide"
       stripWhite = T
     ) %>% # clean white space
     dplyr::mutate(across(where(is.factor), as.character)) %>%
     dplyr::mutate(col_split = trimws(col_split)) %>%
-    dplyr::mutate(col_split = ifelse(
-      nchar(col_split) > 10,
-      str_to_sentence(col_split),
-      col_split
-    )) %>%
-    ## capitalizes first word but not subsequent words
+    
+    ## - convert long input in sentence format -----------------------
+    # dplyr::mutate(col_split = ifelse(
+    #   nchar(col_split) > 10,
+    #   str_to_sentence(col_split),
+    #   col_split
+    # )) %>%
+  
+    ## - capitalizes first word but not subsequent words -------------
     dplyr::mutate(col_split = Hmisc::capitalize(col_split)) %>%
     as.data.frame() %>%
-    group_by(col_split) %>%
-    dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
+    # group_by(col_split) %>%
+    # dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
     as.data.frame()
 
   ## change back to the original column name
@@ -87,175 +116,103 @@ plot_freq <- function(data, var = "Mental health indicators") {
   
   return(p)
 }
+
+
+func_bar <- function(fname, w = 7, h = 4) {
+  ggsave(filename = fname, plot = last_plot(), width = w, height = h, units = "in", dpi = 300)
+}
+
 ```
 
 
+
+### indicator
 ```{r - indicator, include=FALSE}
 ## keep columns of interest, and clean data
+
+func_clean_indicators <-  function(data) {
+  d <- data %>%
+    dplyr::mutate(
+    Indicator = str_squish(Indicator),
+    Indicator = gsub("Other\\: |in general\\*", "", Indicator),
+    Indicator = gsub("\\(include schizophrenia\\)", "", Indicator),
+    Indicator = gsub("\\s*\\([^\\)]+\\)", "", Indicator), # remove text within parenthesis 
+    Indicator = gsub("\\/Restorativeness", "", Indicator),
+    Indicator = gsub("Restoration experience|Restorative experience|Restorativeness", "Restorative effects", Indicator, ignore.case = T), 
+    Indicator = gsub("Behavioural", "Behavioral", Indicator, ignore.case = T), ##  
+    Indicator = gsub("Behavioral problems", "Behavioral disorder", Indicator, ignore.case = T), ## 
+    Indicator = gsub("Burnout symptom", "Burnout", Indicator),
+    Indicator = gsub("Burnout fatigue|burnout fatigue", "Burnout", Indicator),
+    Indicator = gsub("Quality of life|Quality of Life", "Quality of life;", Indicator),# 
+    Indicator = gsub("Psychological distress|psychological distress", "Mental distress", Indicator),# # 
+    Indicator = gsub("Symptoms of psychosis", "Psychosis", Indicator, ignore.case = T), #### 
+
+    Indicator = gsub(",", ";", Indicator),
+    Indicator = trimws(Indicator)
+    ) %>%
+    as.data.frame()
+  
+  return(d)
+}
+
+
+
 dt <- df %>%
   dplyr::select(1:4, matches("Country|Mental health")) %>%
   dplyr::select(!matches("duration", ignore.case = T)) %>%
   dplyr::rename(
+    'id' = 'Covidence #',
     "Country" = "Country in which the study conducted",
-    "Reviewer" = "Reviewer Name"
+    "Reviewer" = "Reviewer Name",
+    'Indicator' = 'Mental health indicators',
+    "Tools" = "Mental health measurement tools"
   ) %>%
-  dplyr::mutate(Country = gsub("Other: ", "", Country)) %>%
-  dplyr::mutate(`Mental health indicators` = gsub("\\*|Other\\: ", "", `Mental health indicators`)) %>%
-  dplyr::arrange(!is.na(`Mental health indicators`), Reviewer)
+  dplyr::mutate(Tools = gsub("Other: ", "", Tools)) %>%
+  dplyr::mutate(Country = gsub("Other\\: ", "", Country)) %>%
+  func_clean_indicators(data = .) %>%
+  dplyr::arrange(!is.na(Indicator), Reviewer)
 
 
-names(dt)
+
+
+# names(dt)
 
 
 ## stat
 ## - by indicator
-dt.bymhi <- dt %>%
-  dplyr::filter(str_detect(string = `Mental health indicators`, pattern = "exclude", negate = T)) %>%
-  group_by(`Mental health indicators`) %>%
+dt.ind <- dt %>%
+  dplyr::filter(str_detect(string = Indicator, pattern = "exclude", negate = T)) %>%
+  group_by(Indicator, Tools, Country) %>%
   dplyr::count() %>%
   ungroup() %>%
   as.data.frame()
+
+
+## - need to better match indicator and scales
+dt.ind_match_scale <- dt.ind %>%
+  dplyr::mutate(
+    n_ind  = str_count(Indicator, ",|;"),
+    n_tool = str_count(Tools, ",|;")) %>%
+  dplyr::filter(n_ind >0 & n_tool >0)
+  
 
 
 ## - clean and format
-dt.bymhi.clean <- expand_col_to_long(data = dt.bymhi, target_col = "Mental health indicators") %>%
-  dplyr::rename('Indicator' = 'Mental health indicators') %>%
+dt.ind.cl <- expand_col_to_long(data = dt.ind, target_col = "Indicator") %>%
   dplyr::mutate(
-    Indicator = gsub("emotions|Emotions", "Emotion", Indicator)) %>% 
+    Indicator = gsub("emotions|Emotions", "Emotion", Indicator),
+    Indicator = gsub(";", "", Indicator),
+    ) 
+
+dt.ind.clean <- dt.ind.cl %>% 
   group_by(Indicator) %>%
-    dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
+  dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
   as.data.frame()
 ```
 
 
-```{r - tools, include=FALSE}
-## - by scale
-dt.bytool <- dt %>%
-  ### -clean up the names of the tools
-  dplyr::rename("Tools" = "Mental health measurement tools") %>%
-  dplyr::select(1:5, Tools, -Title) %>%
-  dplyr::mutate(Tools = gsub("\\*|Other\\: ", "", Tools)) %>%
-  dplyr::filter(nchar(Tools) < 180) %>%
-  dplyr::filter(str_detect(string = Tools, pattern = "exclude", negate = T)) %>%
-  dplyr::mutate(
-    Tool = gsub("scales|Scales", "scale", Tools),
-    Tool = gsub("\\s*\\([^\\)]+\\)", "", Tool)) %>% ## remove any strings in a ()
-  ### - stat
-  group_by(Tool) %>%
-  dplyr::count() %>%
-  ungroup() %>%
-  dplyr::filter(Tool != 'NA') %>%
-  as.data.frame()
-
-dt.bytool.clean <- expand_col_to_long(data = dt.bytool, target_col = "Tool") %>%
-  dplyr::mutate(
-    Tool = gsub(".*Likert.*|.*likert.*", "Likert scale", Tool)) %>% 
-  group_by(Tool) %>%
-    dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
-  as.data.frame()
-```
-
-
-
-
-```{r - by region}
-region <- dt %>%
-  dplyr::select(1, Country) %>%
-  dplyr::filter(!is.na(Country)) %>%
-  dplyr::filter(!Country %in% c('m', 'NA', 'Global', 'Europe', 'all over the world')) %>%
-  dplyr::mutate(
-    Country = case_when(
-      str_detect(string = Country, pattern = 'Scotland|UK') ~ 'United Kingdom',
-      str_detect(string = Country, pattern = 'Indonasia') ~ 'Indonesia',
-      str_detect(string = Country, pattern = 'Malasia') ~ 'Malaysia',
-      str_detect(string = Country, pattern = 'Danmark') ~ 'Denmark',
-      str_detect(string = Country, pattern = 'Beigium') ~ 'Belgium',
-      str_detect(string = Country, pattern = 'Brasil') ~ 'Brazil',
-      str_detect(string = Country, pattern = 'Chili') ~ 'Chile',
-      T ~ Country)
-    )
-
-
-library(SDGdetector)
-packageVersion('SDGdetector')
-
-library(dplyr)
-library(stringr)
-library(ggplot2)
-library(cowplot)
-
-
-codelist.supp <- data.frame(
-  country.name.en = c('USA'),
-  iso3c = c('USA')
-)
-codelist <- SDGdetector::codelist_panel %>%
-  dplyr::distinct(country.name.en, iso3c) %>%
-  rbind(., codelist.supp) %>%
-  dplyr::mutate(
-    country.name.en = case_when(
-      str_detect(string = iso3c, pattern = 'HKG') ~ 'Hong Kong',
-      T ~ country.name.en)
-  ) %>%
-  dplyr::distinct(country.name.en, iso3c)
-  
-shp <- SDGdetector::shp
-
-
-dt_match <- region %>%
-  merge(x = ., 
-        y = codelist, 
-        by.x = 'Country', 
-        by.y = 'country.name.en', all.x = T) %>%
-  arrange(!is.na(iso3c))
-
-
-region_count <- dt_match %>%
-  group_by(iso3c) %>%
-  tally()
-```
-
-
-```{r - by region map}
-
-dt_sf <- region_count %>%
-  merge(x= shp, y = ., by.x = 'iso_a3', by.y  = 'iso3c', all.x = T) 
-
-
-dt_sf %>%
-  dplyr::filter(name != 'Antarctica') %>%
-  ggplot(.) +
-  geom_sf(aes(fill = n), size = 0.1, color = 'gray80') +
-  # geom_sf_text(aes(label = iso_a3), colour = "gray", size =1) + 
-  scale_fill_distiller(name= 'Count', palette = 'YlGnBu', direction = 1, na.value = "gray90") +
-  # theme_bw() +
-  theme_nothing() +
-  theme(legend.position = c(0.06, 0.4))
-
-fname <- paste0(dir.fig, 'mini-review_paper_count_', 'map.png'); fname
-ggsave(filename = fname, plot = last_plot(), width = 6.4*2, height = 3.2*2, units = 'in', dpi = 300)
-```
-
-
-# Viz
-
-## proregss
-```{r}
-dt %>%
-  group_by(Reviewer) %>%
-  tally() %>%
-  ggplot(aes(x = reorder(Reviewer, n), y = n)) +
-  geom_col() +
-  geom_text(aes(label = n), vjust = 0.5, hjust = 0, color = 'gray20') +
-  coord_flip() +
-  theme_bw()
-```
-
-
-## Count by indicator
-
-```{r}
-dt.bymhi.clean %>%
+```{r - indicator bar}
+dt.ind.clean %>%
   dplyr::slice_max(order_by = n, n = 20) %>%
   ggplot(aes(
     x = reorder(Indicator, n),
@@ -270,19 +227,479 @@ dt.bymhi.clean %>%
   xlab("") +
   ggtitle("Frequency of Mental health indicators")
 
-fname <- paste0(dir.fig, "mini-review_mh_freq_", today, ".png")
-ggsave(filename = fname, plot = last_plot(), width = 16 / 2, height = 9 / 2, units = "in", dpi = 300, bg = NULL)
+f <- "mini-review_mh_indicators.png"
+fname <- paste0(dir.fig, f)
+w = 6
+h = 4
+func_bar(fname = fname, w = w, h = h)
+
+fname <- paste0(dir_share, f); fname
+func_bar(fname = fname, w = w, h = h)
 ```
 
 
-## Count by tool
 
-```{r}
+
+### tool
+
+```{r - tool, include=FALSE}
+## - by scale
+
+func_clean_tools <- function(data) {
+  d <- data %>%
+    dplyr::filter(str_detect(string = Tools, pattern = "exclude", negate = T)) %>%
+    dplyr::mutate(
+      Tool = gsub("Other: ", "", Tools),
+      Tool = gsub("scales|Scales", "scale", Tool, ignore.case = T),
+      Tool = gsub("\\s*\\([^\\)]+\\)", "", Tool), # remove text within parenthesis 
+      Tool = gsub("Anti\\-depressant prescribing|Antidepressant prescriptions|Antidepressant prescription rates", 
+                  "Antidepressant prescription", Tool, ignore.case = T),
+      Tool = gsub("CES\\-D\\-10|CESD\\-10", "CES\\-D10", Tool, ignore.case = T),
+      Tool = gsub("Diagnosed|Diagnoses|Diagnosis by professionals|Diagnosis of mental health disorders", "Diagnosis", Tool, ignore.case = T),
+      Tool = gsub("K\\-10", "K10", Tool, ignore.case = F),
+      Tool = gsub("Life Satisfaction approach", 'Life satisfaction approach', Tool, ignore.case = T),
+      Tool = gsub("Official/National mental health", 'Official MH', Tool, ignore.case = T),#
+      Tool = gsub(",+", ",", Tool), ## Removing repeated punctuation character from a string
+      Tool = gsub(";+", ";", Tool), ## Removing repeated punctuation character from a string
+      Tool = trimws(Tool),
+      Tool = str_squish(Tool)
+
+      ) %>% ## remove any strings in a ()
+    dplyr::filter(Tool != 'NA') %>%
+    as.data.frame()
+}
+
+
+dt.bytool <- dt %>%
+  ### -clean up the names of the tools
+  dplyr::select(1:5, Tools, -Title) %>%
+  func_clean_tools(data = .) %>%
+  dplyr::filter(nchar(Tool) < 180) %>%
+  ### - stat
+  group_by(Tool) %>%
+  dplyr::count() %>%
+  ungroup() %>%
+  as.data.frame()
+
+dt.bytool.clean <- dt.bytool %>% 
+  expand_col_to_long(data = ., target_col = "Tool") %>%
+  dplyr::mutate(
+    Tool = gsub(".*Likert.*|.*likert.*", "Likert scale", Tool),
+    # Tool = gsub(";", "", Tool),
+    ) %>% 
+  group_by(Tool) %>%
+    dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
+  ungroup() %>%
+  arrange(Tool) %>%
+  as.data.frame()
+```
+
+
+
+```{r - tool bar}
+
 dt.bytool.clean %>%
   dplyr::slice_max(order_by = n, n = 20) %>%
   plot_freq(data = ., var = 'Tool') +
   ggtitle("Frequency of Mental health measurement tools")
 
-fname <- paste0(dir.fig, "mini-review_mh_tool_freq_", today, ".png")
-ggsave(filename = fname, plot = last_plot(), width = 16 / 2, height = 9 / 2, units = "in", dpi = 300, bg = NULL)
+f <- "mini-review_mh_tools.png"
+fname <- paste0(dir.fig, f)
+func_bar(fname = fname, w = w, h = h)
+
+fname <- paste0(dir_share, f); fname
+func_bar(fname = fname, w = w, h = h)
+
 ```
+
+
+
+### check data 
+
+```{r - errors, include=FALSE}
+dt_err <- dt %>%
+  # dplyr::filter(str_detect(Indicator, fixed('Antidepressants', ignore_case = T))) %>% ##  
+  # dplyr::filter(str_detect(Indicator, fixed('Hyperactivity', ignore_case = T))) %>% ##  
+  # dplyr::filter(str_detect(Tools, fixed('4DSQ', ignore_case = T))) %>%
+  dplyr::filter(str_detect(Tools, fixed('PRS', ignore_case = T))) %>%
+  as.data.frame()
+
+# dt_err_ <- dt %>%
+#   # dplyr::filter(id == '320') %>%
+#   dplyr::filter(id == '134') %>%
+#   dplyr::distinct(id, .keep_all = T) %>%
+#   as.data.frame()
+```
+
+
+
+```{r - to-do list}
+```
+ [] current indicator-scale matching approach needs to be improved. 
+
+
+
+### region 
+
+```{r - region - bar}
+
+func_clean_country <- function(data) {
+  d <- data %>%
+    dplyr::mutate(
+      ## clean and correct country names
+      Country = case_when(
+        str_detect(string = Country, pattern = 'Scotland|UK|England|United kingdom') ~ 'United Kingdom',
+        str_detect(string = Country, pattern = 'Indonasia') ~ 'Indonesia',
+        str_detect(string = Country, pattern = 'Malasia') ~ 'Malaysia',
+        str_detect(string = Country, pattern = 'Danmark') ~ 'Denmark',
+        str_detect(string = Country, pattern = 'Beigium') ~ 'Belgium',
+        str_detect(string = Country, pattern = 'Brasil') ~ 'Brazil',
+        str_detect(string = Country, pattern = 'Chili') ~ 'Chile',
+        str_detect(string = Country, pattern = 'Czech') ~ 'Czechia',
+        # 
+        T ~ Country)
+      ) %>%
+    dplyr::mutate(Country = trimws(Country)) %>%
+    as.data.frame()
+  return(d)
+}
+
+region <- dt %>%
+  dplyr::select(1, Country) %>%
+  dplyr::filter(!is.na(Country)) %>%
+  dplyr::filter(!Country %in% c('m', 'NA', 'Global', 'Europe', 'all over the world')) %>%
+  func_clean_country(.) %>%
+  group_by(Country) %>%
+  tally() %>%
+  as.data.frame()
+
+region <- region %>%
+  expand_col_to_long(data = ., target_col = "Country") %>%
+  dplyr::mutate(Country = ifelse(
+      nchar(Country) > 3,
+      str_to_title(Country),
+      Country
+    )) %>%
+  as.data.frame()
+
+
+library(SDGdetector)
+packageVersion('SDGdetector')
+
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(cowplot)
+
+
+codelist.supp <- data.frame(
+  country.name.en = c('USA'),
+  iso3c = c('USA'),
+  region = c('North America')
+)
+codelist <- SDGdetector::codelist_panel %>%
+  dplyr::distinct(country.name.en, iso3c, region) %>%
+  rbind(., codelist.supp) %>%
+  dplyr::mutate(
+    country.name.en = case_when(
+      str_detect(string = iso3c, pattern = 'HKG') ~ 'Hong Kong',
+      T ~ country.name.en)
+  ) %>%
+  dplyr::distinct(country.name.en, iso3c, region
+)
+  
+shp <- SDGdetector::shp
+
+
+region_match <- region %>%
+  merge(x = ., 
+        y = codelist, 
+        by.x = 'Country', 
+        by.y = 'country.name.en', all.x = T) %>%
+  arrange(!is.na(iso3c))
+
+
+region_count <- region_match %>%
+  group_by(iso3c, Country, region) %>%
+  dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
+  as.data.frame()
+
+
+region_count %>% 
+  dplyr::slice_max(order_by = n, n = 20) %>%
+  ggplot(aes(x = reorder(iso3c, n), 
+             y = n,
+             fill = region
+             )) +
+  geom_col() +
+  geom_text(aes(label = n), vjust = 0.5, hjust = 0, color = 'gray20') +
+  xlab('')+
+  coord_flip() +
+  theme_bw() +
+  theme(legend.position = c(.8, .2))
+
+f <- 'mini-review_paper_count_bar.png'
+fname <- paste0(dir.fig, f); fname
+ggsave(filename = fname, plot = last_plot(), width = 7, height = 4, units = 'in', dpi = 300)
+```
+
+
+```{r - region - map}
+
+region_count_sf <- region_count %>%
+  merge(x= shp, y = ., by.x = 'iso_a3', by.y  = 'iso3c', all.x = T) 
+
+
+region_count_sf %>%
+  dplyr::filter(name != 'Antarctica') %>%
+  ggplot(.) +
+  geom_sf(aes(fill = n), size = 0.1, color = 'gray80') +
+  # geom_sf_text(aes(label = iso_a3), colour = "gray", size =1) + 
+  scale_fill_distiller(name= 'Count', palette = 'YlGnBu', direction = 1, na.value = "gray90") +
+  # theme_bw() +
+  theme_nothing() +
+  theme(legend.position = c(0.06, 0.4))
+
+f <- 'mini-review_paper_count_map.png'
+fname <- paste0(dir.fig, f); fname
+ggsave(filename = fname, plot = last_plot(), width = 6.4*2, height = 3.2*2, units = 'in', dpi = 300)
+
+fname <- paste0(dir_share, f); fname
+ggsave(filename = fname, plot = last_plot(), width = 6.4*2, height = 3.2*2, units = 'in', dpi = 300)
+
+```
+
+
+
+
+```{r - by indi + tool + region}
+library(tidyverse)
+
+
+## 1. selected countries for plot
+country_selected <- region_count %>%
+  slice_max(n = 3, order_by = n)
+country_selected <- country_selected$iso3c
+n_ctr <- length(country_selected)
+
+## 2. all countries for plot
+country_selected <- c()
+n_ctr <- length(country_selected)
+
+
+
+dt.ind.tool  <- dt.ind.cl  %>%
+  
+  ## - clean `tools` ---------------------------------------------------------------------
+  func_clean_tools(data = .) %>%
+  dplyr::filter(nchar(Tool) < 180) %>%
+  dplyr::select(-Tools) %>%
+  expand_col_to_long(data = ., target_col = "Tool") %>%
+  dplyr::mutate(
+    Tool = gsub(".*Likert.*|.*likert.*", "Likert scale", Tool),
+    Tool = gsub("\\s*\\([^\\)]+\\)", "", Tool), # remove text within parenthesis 
+    Tool = trimws(Tool)
+    ) %>% 
+  as.data.frame()
+  
+
+dt.ind.tool.ctr  <- dt.ind.tool  %>%  
+  ## - clean `country` -------------------------------------------------------------------
+  func_clean_country(.) %>%
+  expand_col_to_long(data = ., target_col = "Country") %>%
+  merge(x = ., 
+        y = codelist, 
+        by.x = 'Country', 
+        by.y = 'country.name.en', all.x = T) %>%
+  arrange(!is.na(iso3c)) %>%
+  as.data.frame()
+
+if (n_ctr > 0) {
+  dt.ind.tool.ctr2 <- dt.ind.tool.ctr %>%
+    dplyr::filter(iso3c %in% country_selected)
+} else {
+  n_ctr <- ''
+  dt.ind.tool.ctr2 <- dt.ind.tool.ctr
+}
+  
+
+dt.ind.tool.region <- dt.ind.tool.ctr2 %>%
+  dplyr::rename('Region' = 'region') %>%
+  group_by(Indicator, Tool, Region) %>%
+  dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
+  # arrange(type_top) %>%
+  dplyr::mutate(id = row_number()) %>%
+  as.data.frame()
+
+
+dtt  <- dt.ind.tool.region  %>%  
+  ## - prep input for `ggalluvial` -------------------------------------------------------
+  pivot_longer(names_to = 'dimension', 
+               values_to = 'layers', 
+               cols = c('Indicator', 'Tool', 'Region')) %>%
+  group_by(dimension) %>%
+  dplyr::mutate(id_within_layers = row_number(dimension)) %>%
+  arrange(dimension) %>%
+  dplyr::rename(freq = n) %>%
+  dplyr::mutate(
+    dimension = factor(dimension, levels = c('Indicator', 'Tool', 'Region')),
+    # layers = factor(layers, levels = org_levels)
+    ) %>%
+  group_by(layers) %>%
+  dplyr::mutate(total = sum(freq, na.rm = T)) %>%
+  as.data.frame()
+
+
+library(ggalluvial)
+width_my <- 1/2.5
+sorted <- T  ## sorted by flow size
+sorted <- NA ## default setting, sorted alphabetically 
+
+indicator_n_min <- 5 ## only map indicators with more than 5 times
+
+# Labeling small strata
+labele_small <- 15
+
+dtt %>%
+  dplyr::filter(freq >= indicator_n_min) %>%
+  ggplot(
+    .,
+    aes(
+      x = dimension,
+      y = freq,
+      alluvium = id_within_layers,
+      stratum = layers,
+      fill = layers
+    )
+  ) +
+  scale_x_discrete(expand = c(0, 0)) +
+  # scale_fill_manual(values = getPalette(colourCount)) +
+  # geom_flow(width = width_my) +
+  geom_flow(
+    width = width_my,
+    # aes.bind = TRUE,
+    decreasing = sorted
+  ) +
+  geom_stratum(
+    alpha = .6, width = width_my,
+    decreasing = sorted
+  ) +
+  stat_stratum(
+    geom = "text",
+    aes(label = ifelse(as.numeric(total) >= labele_small, layers, NA)),
+    decreasing = sorted
+  ) +
+  ggrepel::geom_text_repel(
+    decreasing = sorted,
+    aes(label = ifelse(as.numeric(total) < labele_small, as.character(layers), NA)),
+    # segment.square  = F,
+    # segment.inflect = T,
+    segment.size = 0.3,
+    segment.alpha = .7,
+    segment.curvature = 0.2, ## negative for left-hand and positive for right-hand curves, 0 for straight lines
+    # segment.curvature = -1e-20,
+    segment.ncp = 3,
+    segment.angle = 20, ## values greater than 90 would skew toward the end
+
+    nudge_x = .4,
+    nudge_y = .5,
+    force_pull = 1,
+    direction = "both",
+    stat = "stratum",
+    size = 3
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.title = element_blank(),
+    axis.line = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.x = element_text(
+      size = rel(1.4),
+      vjust = 10,
+      margin = margin(t = 0, r = 0, b = 0, l = 0)
+    )
+  )
+
+f <- paste0('mini-review_mh_indicator_tool_pairs_min', indicator_n_min, '_ctr', n_ctr, '_', today, '.png')
+fname <- paste0(dir.fig, f); fname
+ggsave(filename = fname, plot = last_plot(), width = 10, height = 10, units = 'in', dpi = 300)
+
+fname <- paste0(dir_share, f); fname
+# ggsave(filename = fname, plot = last_plot(), width = 10, height = 10, units = 'in', dpi = 300)
+
+```
+
+
+
+
+# Proregss
+```{r}
+dfs1 <-
+  dfs %>%
+  # dplyr::select(1:4, matches("Country|Mental health")) %>%
+  dplyr::select(!matches("duration", ignore.case = T)) %>%
+  dplyr::rename(
+    'id' = 'Covidence #',
+    "Reviewer" = "Reviewer Name",
+    'Indicator' = 'Mental health indicators',
+    "Tools" = "Mental health measurement tools"
+  ) %>%
+  func_clean_indicators(data = .) %>%
+  ### - keep old data and remove data in newest dates
+  # arrange(desc(date)) %>%
+  dplyr::distinct(id, Reviewer, .keep_all = T) %>%
+  as.data.frame()
+  
+dfs1_check <- dfs1 %>%
+  group_by(id) %>%
+  add_count() %>%
+  # dplyr::filter(n == 3) %>%  ## passed `consensus`
+  dplyr::filter(n >= 2) %>%    ## need `consensus`
+  arrange(id) %>%
+  as.data.frame()
+  
+
+dt %>%
+  # dplyr::select(1:4, matches("Country|Mental health")) %>%
+  dplyr::select(!matches("duration", ignore.case = T)) %>%
+  group_by(Reviewer) %>%
+  tally() %>%
+  ggplot(aes(x = reorder(Reviewer, n), y = n)) +
+  geom_col() +
+  geom_text(aes(label = n), vjust = 0.5, hjust = 0, color = 'gray20') +
+  coord_flip() +
+  theme_bw()
+```
+
+
+```{r}
+# 
+dfs1 %>%
+  group_by(Reviewer, date) %>%
+  tally() %>%
+  add_count(Reviewer, wt = n, name = 'n_total') %>%
+  # dplyr::mutate(date = as.Date(date)) %>%
+  ggplot(aes(x = reorder(Reviewer, n_total), y = n, fill = date)) +
+  geom_col(show.legend = F) +
+  geom_text(aes(label = n), 
+            # vjust = 0.5, hjust = 0, 
+            position = position_stack(vjust = 0.5),
+            color = 'gray90') +
+  
+  geom_text(
+    aes(label = after_stat(y), group = Reviewer), 
+    stat = 'summary', fun = sum, vjust = .5, hjust = 0, color = 'red', fontface = 'bold', size = 5
+  ) +
+
+  xlab('') +
+  coord_flip() +
+  theme_bw()
+```
+
+
+
+
+
+
+
