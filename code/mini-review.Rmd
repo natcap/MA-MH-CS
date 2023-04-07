@@ -188,15 +188,6 @@ dt.ind <- dt %>%
   as.data.frame()
 
 
-## - need to better match indicator and scales
-dt.ind_match_scale <- dt.ind %>%
-  dplyr::mutate(
-    n_ind  = str_count(Indicator, ",|;"),
-    n_tool = str_count(Tools, ",|;")) %>%
-  dplyr::filter(n_ind >0 & n_tool >0)
-  
-
-
 ## - clean and format
 dt.ind.cl <- expand_col_to_long(data = dt.ind, target_col = "Indicator") %>%
   dplyr::mutate(
@@ -237,6 +228,17 @@ fname <- paste0(dir_share, f); fname
 func_bar(fname = fname, w = w, h = h)
 ```
 
+
+```{r - indicator-tool matching}
+
+## - need to better match indicator and scales for N vs N cases
+dt.ind_match_scale <- dt.ind %>%
+  dplyr::mutate(
+    n_ind  = str_count(Indicator, ",|;"),
+    n_tool = str_count(Tools, ",|;")) %>%
+  dplyr::filter(n_ind >0 & n_tool >0)
+  
+```
 
 
 
