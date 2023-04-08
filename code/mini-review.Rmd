@@ -26,6 +26,17 @@ dir_share <- 'G:/Shared drives/Urban nature-health/projects/meta-analysis/figure
 ```
 
 
+```{r - helper data}
+data(countryRegions,envir=environment(),package="rworldmap")
+# str(countryRegions)
+
+# ISO3:       ISO 3 letter country code
+# ADMIN:      country name
+# REGION:     7 region continent classification
+# continent:  6 continents classification
+```
+
+
 
 # Data import
 
@@ -189,7 +200,8 @@ dt.ind <- dt %>%
 
 
 ## - clean and format
-dt.ind.cl <- expand_col_to_long(data = dt.ind, target_col = "Indicator") %>%
+dt.ind.cl <- dt.ind %>% 
+  expand_col_to_long(data = ., target_col = "Indicator") %>%
   dplyr::mutate(
     Indicator = gsub("emotions|Emotions", "Emotion", Indicator),
     Indicator = gsub(";", "", Indicator),
@@ -211,16 +223,19 @@ dt.ind.clean %>%
     # fill = n
   )) +
   geom_col() +
-  theme_bw() +
-  # theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
   coord_flip() +
   # scale_fill_distiller(name = '', palette = "Blues", guide = "colorbar", direction = 1) +
   xlab("") +
-  ggtitle("Frequency of Mental health indicators")
+  ggtitle("Frequency of Mental health indicators") +
+  theme_bw() +
+  theme(
+    # axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+    plot.title = element_text(size = 10, hjust = 1.2, face = 'bold')
+    )
 
-f <- "mini-review_mh_indicators.png"
+f <- "mini-review_indicators.png"
 fname <- paste0(dir.fig, f)
-w = 6
+w = 3
 h = 4
 func_bar(fname = fname, w = w, h = h)
 
@@ -232,11 +247,14 @@ func_bar(fname = fname, w = w, h = h)
 ```{r - indicator-tool matching}
 
 ## - need to better match indicator and scales for N vs N cases
-dt.ind_match_scale <- dt.ind %>%
+dt.ind_match_scale <- dt %>%
+  dplyr::select(-`Study ID`, -Title, -Country) %>%
   dplyr::mutate(
     n_ind  = str_count(Indicator, ",|;"),
     n_tool = str_count(Tools, ",|;")) %>%
-  dplyr::filter(n_ind >0 & n_tool >0)
+  dplyr::filter(n_ind >0 & n_tool >0) %>%
+  dplyr::filter(Reviewer == 'Yingjie Li') %>%
+  arrange(Indicator)
   
 ```
 
@@ -303,14 +321,21 @@ dt.bytool.clean <- dt.bytool %>%
 dt.bytool.clean %>%
   dplyr::slice_max(order_by = n, n = 20) %>%
   plot_freq(data = ., var = 'Tool') +
-  ggtitle("Frequency of Mental health measurement tools")
+  ggtitle("Frequency of Mental health\nmeasurement tools") +
+  theme_bw() +
+  theme(
+    plot.title = element_text(size = 10, 
+                              hjust = .5,
+                              face = 'bold'),
+    plot.title.position = "plot", #NEW parameter. Apply for subtitle too.
+    )
 
-f <- "mini-review_mh_tools.png"
+f <- "mini-review_tools_bar.png"
 fname <- paste0(dir.fig, f)
-func_bar(fname = fname, w = w, h = h)
+func_bar(fname = fname, w = w, h = 5)
 
 fname <- paste0(dir_share, f); fname
-func_bar(fname = fname, w = w, h = h)
+# func_bar(fname = fname, w = w, h = h)
 
 ```
 
@@ -413,16 +438,32 @@ codelist <- SDGdetector::codelist_panel %>%
 shp <- SDGdetector::shp
 
 
-region_match <- region %>%
-  merge(x = ., 
-        y = codelist, 
-        by.x = 'Country', 
-        by.y = 'country.name.en', all.x = T) %>%
-  arrange(!is.na(iso3c))
+func_add_region <- function(data) {
+  d <- data %>%
+    merge(x = ., 
+          y = codelist, 
+          by.x = 'Country', 
+          by.y = 'country.name.en', all.x = T) %>%
+    ## add more detailed region name info
+    merge(x = ., 
+          y = countryRegions %>%
+            dplyr::select(ISO3, REGION, continent), 
+          by.x = 'iso3c', 
+          by.y = 'ISO3', all.x = T) %>%
+    ## remove `region`, and rename `REGION` to `Region`
+    dplyr::select(-region) %>%
+    dplyr::rename('Region' = 'REGION') %>%
+    arrange(!is.na(iso3c))
+  
+  return(d)
+}
 
+region_match <- region %>%
+  func_add_region(.)
+ 
 
 region_count <- region_match %>%
-  group_by(iso3c, Country, region) %>%
+  group_by(iso3c, Country, Region) %>%
   dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
   as.data.frame()
 
@@ -431,7 +472,7 @@ region_count %>%
   dplyr::slice_max(order_by = n, n = 20) %>%
   ggplot(aes(x = reorder(iso3c, n), 
              y = n,
-             fill = region
+             fill = Region
              )) +
   geom_col() +
   geom_text(aes(label = n), vjust = 0.5, hjust = 0, color = 'gray20') +
@@ -471,10 +512,177 @@ ggsave(filename = fname, plot = last_plot(), width = 6.4*2, height = 3.2*2, unit
 
 ```
 
+```{r - ind + ctr}
+dt.ind.cl_ctr  <- dt.ind.cl  %>%
+  ## - clean `country` -------------------------------------------------------------------
+  func_clean_country(.) %>%
+  expand_col_to_long(data = ., target_col = "Country") %>%
+  func_add_region(.) %>%
+  group_by(Indicator, Region) %>%
+  tally() %>%
+  as.data.frame()
+
+
+dt.ind.cl_ctr_flow  <- dt.ind.cl_ctr  %>%  
+  pivot_longer(names_to  = 'dimension', 
+               values_to = 'layers', 
+               cols = c('Indicator', 'Region')) %>%
+  group_by(dimension) %>%
+  dplyr::mutate(id_within_layers = row_number(dimension)) %>%
+  arrange(dimension) %>%
+  dplyr::rename(freq = n) %>%
+  dplyr::mutate(
+    dimension = factor(dimension, levels = c('Indicator', 'Region')),
+    ) %>%
+  group_by(layers) %>%
+  dplyr::mutate(total = sum(freq, na.rm = T)) %>%
+  as.data.frame()
 
 
 
-```{r - by indi + tool + region}
+library(ggalluvial)
+width_my <- 1/2.5
+sorted <- T  ## sorted by flow size
+sorted <- NA ## default setting, sorted alphabetically 
+
+indicator_n_min <- 5 ## only map indicators with more than 5 times
+# Labeling small strata
+labele_small <- 15
+
+
+func_alluvial <- function(data, 
+                          sorted = NA,
+                          indicator_n_min = 5, 
+                          width_my = 1/2.5, 
+                          w_p = 6,
+                          labele_small = 15,
+                          n_ctr = '',
+                          filename.postfix = '') {
+  p <- data %>%
+    dplyr::filter(freq >= indicator_n_min) %>%
+    ggplot(
+      .,
+      aes(
+        x = dimension,
+        y = freq,
+        alluvium = id_within_layers,
+        stratum = layers,
+        fill = layers
+      )
+    ) +
+    scale_x_discrete(expand = c(0, 0)) +
+    # scale_fill_manual(values = getPalette(colourCount)) +
+    # geom_flow(width = width_my) +
+    geom_flow(
+      width = width_my,
+      # aes.bind = TRUE,
+      decreasing = sorted
+    ) +
+    geom_stratum(
+      alpha = .6, width = width_my,
+      decreasing = sorted
+    ) +
+    stat_stratum(
+      geom = "text",
+      aes(label = ifelse(as.numeric(total) >= labele_small, layers, NA)),
+      decreasing = sorted
+    ) +
+    ggrepel::geom_text_repel(
+      decreasing = sorted,
+      aes(label = ifelse(as.numeric(total) < labele_small, as.character(layers), NA)),
+      # segment.square  = F,
+      # segment.inflect = T,
+      segment.size = 0.3,
+      segment.alpha = .7,
+      segment.curvature = 0.2, ## negative for left-hand and positive for right-hand curves, 0 for straight lines
+      # segment.curvature = -1e-20,
+      segment.ncp = 3,
+      segment.angle = 20, ## values greater than 90 would skew toward the end
+  
+      nudge_x = .4,
+      nudge_y = .5,
+      force_pull = 1,
+      direction = "both",
+      stat = "stratum",
+      size = 3
+    ) +
+    theme_classic() +
+    theme(
+      legend.position = "none",
+      plot.margin = margin(0, 0, 0, 0, "in"),
+      panel.spacing = unit(0, "in"),
+      axis.title = element_blank(),
+      axis.line = element_blank(),
+      
+      axis.ticks.x = element_blank(),
+      axis.text.y = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0)),
+      axis.text.x = element_text(
+        size = rel(1.4),
+        vjust = 10,
+        margin = margin(t = 0, r = 0, b = 0, l = 0)
+      )
+    )
+  
+  
+  f <- paste0('mini-review_', filename.postfix, '_min', indicator_n_min, '_ctr', n_ctr, '_', today, '.png')
+  fname <- paste0(dir.fig, f); fname
+  ggsave(filename = fname, plot = p, width = w_p, height = 8, units = 'in', dpi = 300)
+
+  return(p)
+}
+
+
+func_alluvial(data = dt.ind.cl_ctr_flow, indicator_n_min = 5, filename.postfix = 'indicator_region')
+
+
+
+```
+
+
+
+```{r - tool + ctr}
+dt.tool_ctr  <- dt.ind  %>%
+  dplyr::select(-Indicator) %>%
+  ## - clean `tools` ---------------------------------------------------------------------
+  func_clean_tools(data = .) %>%
+  dplyr::filter(nchar(Tool) < 180) %>%
+  dplyr::select(-Tools) %>%
+  expand_col_to_long(data = ., target_col = "Tool") %>%
+  dplyr::mutate(
+    Tool = gsub(".*Likert.*|.*likert.*", "Likert scale", Tool),
+    Tool = gsub("\\s*\\([^\\)]+\\)", "", Tool), # remove text within parenthesis 
+    Tool = trimws(Tool)
+    ) %>% 
+  # as.data.frame() 
+  ## clean `country` ---------------------------------------------------------------------
+  func_clean_country(.) %>%
+  expand_col_to_long(data = ., target_col = "Country") %>%
+  func_add_region(.) %>%
+  group_by(Tool, Region) %>%
+  tally() %>%
+  as.data.frame()
+
+
+dt.tool_ctr_flow  <- dt.tool_ctr  %>%  
+  pivot_longer(names_to  = 'dimension', 
+               values_to = 'layers', 
+               cols = c('Tool', 'Region')) %>%
+  group_by(dimension) %>%
+  dplyr::mutate(id_within_layers = row_number(dimension)) %>%
+  arrange(dimension) %>%
+  dplyr::rename(freq = n) %>%
+  dplyr::mutate(
+    dimension = factor(dimension, levels = c('Tool', 'Region')),
+    ) %>%
+  group_by(layers) %>%
+  dplyr::mutate(total = sum(freq, na.rm = T)) %>%
+  as.data.frame()
+
+func_alluvial(data = dt.tool_ctr_flow, indicator_n_min = 5, labele_small = 1, filename.postfix = 'tool_region')
+```
+
+
+```{r - ind + tool + region}
 library(tidyverse)
 
 
@@ -489,10 +697,8 @@ country_selected <- c()
 n_ctr <- length(country_selected)
 
 
-
+## - clean `tools` ---------------------------------------------------------------------
 dt.ind.tool  <- dt.ind.cl  %>%
-  
-  ## - clean `tools` ---------------------------------------------------------------------
   func_clean_tools(data = .) %>%
   dplyr::filter(nchar(Tool) < 180) %>%
   dplyr::select(-Tools) %>%
@@ -502,18 +708,18 @@ dt.ind.tool  <- dt.ind.cl  %>%
     Tool = gsub("\\s*\\([^\\)]+\\)", "", Tool), # remove text within parenthesis 
     Tool = trimws(Tool)
     ) %>% 
+  group_by(Indicator, Tool, Country) %>%
+  dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
   as.data.frame()
   
 
+## - clean `country` -------------------------------------------------------------------
 dt.ind.tool.ctr  <- dt.ind.tool  %>%  
-  ## - clean `country` -------------------------------------------------------------------
   func_clean_country(.) %>%
   expand_col_to_long(data = ., target_col = "Country") %>%
-  merge(x = ., 
-        y = codelist, 
-        by.x = 'Country', 
-        by.y = 'country.name.en', all.x = T) %>%
-  arrange(!is.na(iso3c)) %>%
+  func_add_region(.) %>%
+  group_by(Indicator, Tool, Country, Region) %>%
+  dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
   as.data.frame()
 
 if (n_ctr > 0) {
@@ -526,7 +732,6 @@ if (n_ctr > 0) {
   
 
 dt.ind.tool.region <- dt.ind.tool.ctr2 %>%
-  dplyr::rename('Region' = 'region') %>%
   group_by(Indicator, Tool, Region) %>%
   dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
   # arrange(type_top) %>%
@@ -534,8 +739,8 @@ dt.ind.tool.region <- dt.ind.tool.ctr2 %>%
   as.data.frame()
 
 
+## - prep input for `ggalluvial` ---------------------------------------------------------
 dtt  <- dt.ind.tool.region  %>%  
-  ## - prep input for `ggalluvial` -------------------------------------------------------
   pivot_longer(names_to = 'dimension', 
                values_to = 'layers', 
                cols = c('Indicator', 'Tool', 'Region')) %>%
@@ -552,82 +757,13 @@ dtt  <- dt.ind.tool.region  %>%
   as.data.frame()
 
 
-library(ggalluvial)
-width_my <- 1/2.5
-sorted <- T  ## sorted by flow size
-sorted <- NA ## default setting, sorted alphabetically 
+func_alluvial(data = dtt, w_p = 10, filename.postfix = 'indicator_tool_region')
 
-indicator_n_min <- 5 ## only map indicators with more than 5 times
-
-# Labeling small strata
-labele_small <- 15
-
-dtt %>%
-  dplyr::filter(freq >= indicator_n_min) %>%
-  ggplot(
-    .,
-    aes(
-      x = dimension,
-      y = freq,
-      alluvium = id_within_layers,
-      stratum = layers,
-      fill = layers
-    )
-  ) +
-  scale_x_discrete(expand = c(0, 0)) +
-  # scale_fill_manual(values = getPalette(colourCount)) +
-  # geom_flow(width = width_my) +
-  geom_flow(
-    width = width_my,
-    # aes.bind = TRUE,
-    decreasing = sorted
-  ) +
-  geom_stratum(
-    alpha = .6, width = width_my,
-    decreasing = sorted
-  ) +
-  stat_stratum(
-    geom = "text",
-    aes(label = ifelse(as.numeric(total) >= labele_small, layers, NA)),
-    decreasing = sorted
-  ) +
-  ggrepel::geom_text_repel(
-    decreasing = sorted,
-    aes(label = ifelse(as.numeric(total) < labele_small, as.character(layers), NA)),
-    # segment.square  = F,
-    # segment.inflect = T,
-    segment.size = 0.3,
-    segment.alpha = .7,
-    segment.curvature = 0.2, ## negative for left-hand and positive for right-hand curves, 0 for straight lines
-    # segment.curvature = -1e-20,
-    segment.ncp = 3,
-    segment.angle = 20, ## values greater than 90 would skew toward the end
-
-    nudge_x = .4,
-    nudge_y = .5,
-    force_pull = 1,
-    direction = "both",
-    stat = "stratum",
-    size = 3
-  ) +
-  theme_classic() +
-  theme(
-    legend.position = "none",
-    axis.title = element_blank(),
-    axis.line = element_blank(),
-    axis.ticks.x = element_blank(),
-    axis.text.x = element_text(
-      size = rel(1.4),
-      vjust = 10,
-      margin = margin(t = 0, r = 0, b = 0, l = 0)
-    )
-  )
-
-f <- paste0('mini-review_mh_indicator_tool_pairs_min', indicator_n_min, '_ctr', n_ctr, '_', today, '.png')
-fname <- paste0(dir.fig, f); fname
-ggsave(filename = fname, plot = last_plot(), width = 10, height = 10, units = 'in', dpi = 300)
-
-fname <- paste0(dir_share, f); fname
+# f <- paste0('mini-review_mh_indicator_tool_pairs_min', indicator_n_min, '_ctr', n_ctr, '_', today, '.png')
+# fname <- paste0(dir.fig, f); fname
+# ggsave(filename = fname, plot = last_plot(), width = 10, height = 10, units = 'in', dpi = 300)
+# 
+# fname <- paste0(dir_share, f); fname
 # ggsave(filename = fname, plot = last_plot(), width = 10, height = 10, units = 'in', dpi = 300)
 
 ```
