@@ -129,7 +129,7 @@ plot_freq <- function(data, var = "Mental health indicators") {
 }
 
 
-func_bar <- function(fname, w = 7, h = 4) {
+func_ggsave <- function(fname, w = 7, h = 4) {
   ggsave(filename = fname, plot = last_plot(), width = w, height = h, units = "in", dpi = 300)
 }
 
@@ -236,11 +236,11 @@ dt.ind.clean %>%
 f <- "mini-review_indicators.png"
 fname <- paste0(dir.fig, f)
 w = 3
-h = 4
-func_bar(fname = fname, w = w, h = h)
+h = 5
+func_ggsave(fname = fname, w = w, h = h)
 
 fname <- paste0(dir_share, f); fname
-func_bar(fname = fname, w = w, h = h)
+func_ggsave(fname = fname, w = w, h = h)
 ```
 
 
@@ -332,10 +332,10 @@ dt.bytool.clean %>%
 
 f <- "mini-review_tools_bar.png"
 fname <- paste0(dir.fig, f)
-func_bar(fname = fname, w = w, h = 5)
+func_ggsave(fname = fname, w = w, h = h)
 
 fname <- paste0(dir_share, f); fname
-# func_bar(fname = fname, w = w, h = h)
+func_ggsave(fname = fname, w = w, h = h)
 
 ```
 
@@ -483,7 +483,7 @@ region_count %>%
 
 f <- 'mini-review_paper_count_bar.png'
 fname <- paste0(dir.fig, f); fname
-ggsave(filename = fname, plot = last_plot(), width = 7, height = 4, units = 'in', dpi = 300)
+func_ggsave(fname = fname, w = 7, h = 4)
 ```
 
 
@@ -504,11 +504,14 @@ region_count_sf %>%
   theme(legend.position = c(0.06, 0.4))
 
 f <- 'mini-review_paper_count_map.png'
+w_map = 6.4*2
+h_map = 3.2*2
+
 fname <- paste0(dir.fig, f); fname
-ggsave(filename = fname, plot = last_plot(), width = 6.4*2, height = 3.2*2, units = 'in', dpi = 300)
+func_ggsave(fname = fname, w = w_map, h = h_map)
 
 fname <- paste0(dir_share, f); fname
-ggsave(filename = fname, plot = last_plot(), width = 6.4*2, height = 3.2*2, units = 'in', dpi = 300)
+func_ggsave(fname = fname, w = w_map, h = h_map)
 
 ```
 
@@ -633,9 +636,6 @@ func_alluvial <- function(data,
 
 
 func_alluvial(data = dt.ind.cl_ctr_flow, indicator_n_min = 5, filename.postfix = 'indicator_region')
-
-
-
 ```
 
 
@@ -757,7 +757,7 @@ dtt  <- dt.ind.tool.region  %>%
   as.data.frame()
 
 
-func_alluvial(data = dtt, w_p = 10, filename.postfix = 'indicator_tool_region')
+func_alluvial(data = dtt, indicator_n_min = 3, labele_small = 30, w_p = 10, filename.postfix = 'indicator_tool_region')
 
 # f <- paste0('mini-review_mh_indicator_tool_pairs_min', indicator_n_min, '_ctr', n_ctr, '_', today, '.png')
 # fname <- paste0(dir.fig, f); fname
