@@ -17,12 +17,17 @@ setwd(dirname(getwd()))
 source("./code/_pkgs_dirs.R")
 
 ## Additional packages
+library(tidyverse)
 library(splitstackshape) ## `cSplit()`
 library(Hmisc)
 today <- format(Sys.time(), "%Y%m%d"); today ## "%Y%m%d%H%M"
 
 dir.raw   <- "./data/covidence_export/data extraction/"
 dir_share <- 'G:/Shared drives/Urban nature-health/projects/meta-analysis/figures/'
+
+
+save_plot <- F
+# save_plot <- T
 ```
 
 
@@ -129,8 +134,12 @@ plot_freq <- function(data, var = "Mental health indicators") {
 }
 
 
-func_ggsave <- function(fname, w = 7, h = 4) {
-  ggsave(filename = fname, plot = last_plot(), width = w, height = h, units = "in", dpi = 300)
+func_ggsave <- function(fname, w = 7, h = 4, save_png = save_plot) {
+  if (save_png == T) {
+    ggsave(filename = fname, plot = last_plot(), width = w, height = h, units = "in", dpi = 300)
+  } else {
+    print('The plot will not be saved.')
+  }
 }
 
 ```
@@ -150,10 +159,12 @@ func_clean_indicators <-  function(data) {
     Indicator = gsub("\\s*\\([^\\)]+\\)", "", Indicator), # remove text within parenthesis 
     Indicator = gsub("\\/Restorativeness", "", Indicator),
     Indicator = gsub("Restoration experience|Restorative experience|Restorativeness", "Restorative effects", Indicator, ignore.case = T), 
+    Indicator = gsub("Attention capacity|Sustained attention", "Attention", Indicator, ignore.case = T), ##  
     Indicator = gsub("Behavioural", "Behavioral", Indicator, ignore.case = T), ##  
     Indicator = gsub("Behavioral problems", "Behavioral disorder", Indicator, ignore.case = T), ## 
-    Indicator = gsub("Burnout symptom", "Burnout", Indicator),
-    Indicator = gsub("Burnout fatigue|burnout fatigue", "Burnout", Indicator),
+    Indicator = gsub("Burnout symptom", "Burnout", Indicator, ignore.case = T),
+    Indicator = gsub("Burnout fatigue|burnout fatigue", "Burnout", Indicator, ignore.case = T),
+    Indicator = gsub("Cognitions and Conduct", "Cognitive functioning", Indicator, ignore.case = T), # 
     Indicator = gsub("Quality of life|Quality of Life", "Quality of life;", Indicator),# 
     Indicator = gsub("Psychological distress|psychological distress", "Mental distress", Indicator),# # 
     Indicator = gsub("Symptoms of psychosis", "Psychosis", Indicator, ignore.case = T), #### 
@@ -205,7 +216,10 @@ dt.ind.cl <- dt.ind %>%
   dplyr::mutate(
     Indicator = gsub("emotions|Emotions", "Emotion", Indicator),
     Indicator = gsub(";", "", Indicator),
-    ) 
+    ) %>%
+  dplyr::filter(!Indicator %in% c('', NA)) %>%
+  dplyr::filter(!Tools %in% c('', NA)) %>%
+  as.data.frame()
 
 dt.ind.clean <- dt.ind.cl %>% 
   group_by(Indicator) %>%
@@ -244,19 +258,7 @@ func_ggsave(fname = fname, w = w, h = h)
 ```
 
 
-```{r - indicator-tool matching}
 
-## - need to better match indicator and scales for N vs N cases
-dt.ind_match_scale <- dt %>%
-  dplyr::select(-`Study ID`, -Title, -Country) %>%
-  dplyr::mutate(
-    n_ind  = str_count(Indicator, ",|;"),
-    n_tool = str_count(Tools, ",|;")) %>%
-  dplyr::filter(n_ind >0 & n_tool >0) %>%
-  dplyr::filter(Reviewer == 'Yingjie Li') %>%
-  arrange(Indicator)
-  
-```
 
 
 
@@ -272,13 +274,18 @@ func_clean_tools <- function(data) {
       Tool = gsub("Other: ", "", Tools),
       Tool = gsub("scales|Scales", "scale", Tool, ignore.case = T),
       Tool = gsub("\\s*\\([^\\)]+\\)", "", Tool), # remove text within parenthesis 
-      Tool = gsub("Anti\\-depressant prescribing|Antidepressant prescriptions|Antidepressant prescription rates", 
-                  "Antidepressant prescription", Tool, ignore.case = T),
+      Tool = gsub(
+        paste("Anti\\-depressant prescribing", "Antidepressant prescriptions", 
+              "Antidepressant prescription rates", "Antidepressant use", sep = "|"),
+        "Antidepressant prescription", Tool, ignore.case = T),
       Tool = gsub("CES\\-D\\-10|CESD\\-10", "CES\\-D10", Tool, ignore.case = T),
       Tool = gsub("Diagnosed|Diagnoses|Diagnosis by professionals|Diagnosis of mental health disorders", "Diagnosis", Tool, ignore.case = T),
+      Tool = gsub("Digit Span Backward", "DSB", Tool, ignore.case = F), ## 
       Tool = gsub("K\\-10", "K10", Tool, ignore.case = F),
       Tool = gsub("Life Satisfaction approach", 'Life satisfaction approach', Tool, ignore.case = T),
       Tool = gsub("Official/National mental health", 'Official MH', Tool, ignore.case = T),#
+      Tool = gsub("RAND-36", 'RAND36', Tool, ignore.case = T), # # 
+      Tool = gsub("Restoration Outcome Scale", 'ROS', Tool, ignore.case = T), # 
       Tool = gsub(",+", ",", Tool), ## Removing repeated punctuation character from a string
       Tool = gsub(";+", ";", Tool), ## Removing repeated punctuation character from a string
       Tool = trimws(Tool),
@@ -339,6 +346,127 @@ func_ggsave(fname = fname, w = w, h = h)
 
 ```
 
+### Matching
+
+```{r - indicator-tool matching}
+set.seed(123)
+
+## - need to better match indicator and scales for N vs N cases
+dt.ind_match_scale <- dt %>%
+  dplyr::select(-`Study ID`, -Title, -Country) %>%
+  dplyr::mutate(
+    n_ind  = 1+str_count(Indicator, ",|;"),
+    n_tool = 1+str_count(Tools, ",|;")) %>%
+  dplyr::filter(n_ind >1 & n_tool >1) %>%
+  # dplyr::filter(Reviewer == 'Yingjie Li') %>%
+  arrange(Indicator) %>%
+  dplyr::slice(., sample(1:n()))
+  
+
+
+## YYM and YJL will each take a proportion, and manually fix the indicator-tool matching issue.  
+dt.ind_match_scale1 <- dt.ind_match_scale %>%
+  dplyr::slice_head(., prop = .51) %>%
+  arrange(Indicator)
+
+
+dt.ind_match_scale2 <- dt.ind_match_scale %>%
+  dplyr::slice_tail(., prop = .51)%>%
+  arrange(Indicator)
+
+
+intersect(dt.ind_match_scale1$id, dt.ind_match_scale2$id)
+intersect(dt.ind_match_scale2$id, dt.ind_match_scale1$id)
+
+# readr::write_csv(x = dt.ind_match_scale1, file = paste0('./data/fix_indicator-tool_matching/', 'dt.ind_match_scale1.csv'))
+# readr::write_csv(x = dt.ind_match_scale2, file = paste0('./data/fix_indicator-tool_matching/', 'dt.ind_match_scale2.csv'))
+
+rm(dt.ind_match_scale1, dt.ind_match_scale2)
+
+```
+
+
+```{r - manual match, include=FALSE}
+library(googlesheets4)
+link <- 'https://docs.google.com/spreadsheets/d/1Tu7m6A7LOplbuXaLTYV0X3JUs0AhX90T0v-TcFTW3Yg/edit?usp=sharing'
+
+### Footprint indicators
+mat <- googlesheets4::read_sheet(link, sheet = 'MH_indicators_tools', skip = 1) 
+
+matching <- mat %>%
+  dplyr::select(MH_indicator, MH_tool_abbr) %>%
+  # dplyr::distinct(ind, .keep_all = T) %>%
+  dplyr::filter(
+    !MH_indicator %in% c('x', '?', NA), 
+    !MH_tool_abbr %in% c('x', '?', NA)
+  ) %>%  
+  dplyr::mutate(
+    MH_indicator = gsub("\\s*\\([^\\)]+\\)", "", MH_indicator), # remove text within parenthesis 
+    MH_tool_abbr = gsub("\\s*\\([^\\)]+\\)", "", MH_tool_abbr), # remove text within parenthesis 
+    MH_indicator = Hmisc::capitalize(str_squish(trimws(MH_indicator))),
+    MH_tool_abbr = Hmisc::capitalize(str_squish(trimws(MH_tool_abbr))),
+  ) %>%  
+  arrange(MH_indicator, MH_tool_abbr) %>%
+  as.data.frame()
+```
+
+
+
+
+```{r - columns to be cleaned}
+to.clean.ind <- dt.ind_match_scale %>% 
+  expand_col_to_long(data = ., target_col = "Indicator") %>%
+  dplyr::mutate(
+    Indicator = gsub("emotions|Emotions", "Emotion", Indicator),
+    Indicator = gsub(";", "", Indicator),
+    ) %>% 
+  group_by(Indicator) %>%
+  tally() %>%
+  dplyr::filter(!Indicator %in% c('', NA)) %>%
+  as.data.frame()
+
+to.clean.tool <- dt.ind_match_scale %>%
+  dplyr::select(1:2, Tools) %>%
+  func_clean_tools(data = .) %>%
+  expand_col_to_long(data = ., target_col = "Tool") %>%
+  dplyr::mutate(
+    Tool = gsub(".*Likert.*|.*likert.*", "Likert scale", Tool),
+    Tool = str_squish(trimws(Tool))
+    ) %>% 
+  dplyr::distinct(Tool, .keep_all = T) %>%
+  dplyr::filter(str_starts(negate = T, pattern = "'|’", string = Tool)) %>%
+  ungroup() %>%
+  arrange(Tool) %>%
+  as.data.frame()
+```
+
+
+
+
+```{r - varify matching, include=FALSE}
+## make sure the indicator and tool names are cleaned and unified ------------------------
+matching.1 <- matching %>%
+  merge(x = ., y = to.clean.ind,  by.x = 'MH_indicator', by.y = 'Indicator', all = T) %>%
+  arrange(!is.na(MH_tool_abbr)) %>%
+  dplyr::select(-n) %>%
+  merge(x = ., y = to.clean.tool, by.x = 'MH_tool_abbr', by.y = 'Tool', all = T) %>%
+  arrange(!is.na(MH_indicator))
+  
+
+
+matching.final <- matching.1 %>%
+  dplyr::filter(!is.na(MH_indicator) & !is.na(MH_tool_abbr)) %>%
+  dplyr::select(1:2) %>%
+  dplyr::mutate(pair = paste0(MH_indicator, '-', MH_tool_abbr))
+
+f <- paste0('./data/MH_indicator_tool_matching_database.rds')
+### Save a single object to a file
+# saveRDS(object = matching, file = f)
+
+### Restore it under a different name
+# matching <- readRDS(file = f)
+```
+
 
 
 ### check data 
@@ -348,7 +476,8 @@ dt_err <- dt %>%
   # dplyr::filter(str_detect(Indicator, fixed('Antidepressants', ignore_case = T))) %>% ##  
   # dplyr::filter(str_detect(Indicator, fixed('Hyperactivity', ignore_case = T))) %>% ##  
   # dplyr::filter(str_detect(Tools, fixed('4DSQ', ignore_case = T))) %>%
-  dplyr::filter(str_detect(Tools, fixed('PRS', ignore_case = T))) %>%
+  # dplyr::filter(str_detect(Tools, fixed('PRS', ignore_case = T))) %>% # 
+  dplyr::filter(str_detect(Country, fixed('Virginia', ignore_case = T))) %>% # 
   as.data.frame()
 
 # dt_err_ <- dt %>%
@@ -362,7 +491,8 @@ dt_err <- dt %>%
 
 ```{r - to-do list}
 ```
- [] current indicator-scale matching approach needs to be improved. 
+ [x] current indicator-scale matching approach needs to be improved, `dt.ind.tool`
+ [] clean data in `matching.1`
 
 
 
@@ -383,6 +513,7 @@ func_clean_country <- function(data) {
         str_detect(string = Country, pattern = 'Brasil') ~ 'Brazil',
         str_detect(string = Country, pattern = 'Chili') ~ 'Chile',
         str_detect(string = Country, pattern = 'Czech') ~ 'Czechia',
+        str_detect(string = Country, pattern = 'Virginia') ~ 'USA',
         # 
         T ~ Country)
       ) %>%
@@ -463,27 +594,37 @@ region_match <- region %>%
  
 
 region_count <- region_match %>%
-  group_by(iso3c, Country, Region) %>%
+  group_by(
+           # Country, 
+           Region,
+           iso3c
+           ) %>%
   dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
+  arrange(n, Region, iso3c) %>%
   as.data.frame()
 
 
 region_count %>% 
-  dplyr::slice_max(order_by = n, n = 20) %>%
+  dplyr::mutate(facet = ifelse(n>=5, 0, 1)) %>%
+  # dplyr::slice_max(order_by = n, n = 20) %>%
   ggplot(aes(x = reorder(iso3c, n), 
              y = n,
              fill = Region
              )) +
   geom_col() +
-  geom_text(aes(label = n), vjust = 0.5, hjust = 0, color = 'gray20') +
+  geom_text(aes(label = n), vjust = 0.5, hjust = 0, size = 3, color = 'gray20') +
   xlab('')+
   coord_flip() +
+  facet_wrap(~facet, scales = 'free') +
   theme_bw() +
-  theme(legend.position = c(.8, .2))
+  theme(legend.position = c(.35, .27),
+        strip.background = element_blank(), 
+        strip.text = element_blank()
+  )
 
 f <- 'mini-review_paper_count_bar.png'
 fname <- paste0(dir.fig, f); fname
-func_ggsave(fname = fname, w = 7, h = 4)
+func_ggsave(fname = fname, w = 7, h = 4, save_png = T)
 ```
 
 
@@ -527,7 +668,7 @@ dt.ind.cl_ctr  <- dt.ind.cl  %>%
 
 
 dt.ind.cl_ctr_flow  <- dt.ind.cl_ctr  %>%  
-  pivot_longer(names_to  = 'dimension', 
+  tidyr::pivot_longer(names_to  = 'dimension', 
                values_to = 'layers', 
                cols = c('Indicator', 'Region')) %>%
   group_by(dimension) %>%
@@ -628,7 +769,7 @@ func_alluvial <- function(data,
   
   
   f <- paste0('mini-review_', filename.postfix, '_min', indicator_n_min, '_ctr', n_ctr, '_', today, '.png')
-  fname <- paste0(dir.fig, f); fname
+  fname <- paste0(dir.fig, f); print(fname)
   ggsave(filename = fname, plot = p, width = w_p, height = 8, units = 'in', dpi = 300)
 
   return(p)
@@ -698,7 +839,34 @@ n_ctr <- length(country_selected)
 
 
 ## - clean `tools` ---------------------------------------------------------------------
-dt.ind.tool  <- dt.ind.cl  %>%
+dt.ind.cl.1 <- dt.ind.cl %>%
+  dplyr::mutate(
+    n_tool = 1+str_count(Tools, ",|;")) %>%
+  dplyr::filter(n_tool <= 1) %>%
+  as.data.frame()
+
+dt.ind.cl.2 <- dt.ind.cl %>%
+  dplyr::mutate(
+    n_tool = 1+str_count(Tools, ",|;")) %>%
+  dplyr::filter(n_tool >1) %>%
+  as.data.frame()
+
+
+dt.ind.tool.1  <- dt.ind.cl.1  %>%
+  func_clean_tools(data = .) %>%
+  dplyr::filter(nchar(Tool) < 180) %>%
+  dplyr::select(-Tools) %>%
+  dplyr::mutate(
+    Tool = gsub(".*Likert.*|.*likert.*", "Likert scale", Tool),
+    Tool = gsub("\\s*\\([^\\)]+\\)", "", Tool), # remove text within parenthesis 
+    Tool = trimws(Tool)
+    ) %>% 
+  group_by(Indicator, Tool, Country) %>%
+  dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
+  as.data.frame()
+
+
+dt.ind.tool.2  <- dt.ind.cl.2  %>%
   func_clean_tools(data = .) %>%
   dplyr::filter(nchar(Tool) < 180) %>%
   dplyr::select(-Tools) %>%
@@ -710,7 +878,13 @@ dt.ind.tool  <- dt.ind.cl  %>%
     ) %>% 
   group_by(Indicator, Tool, Country) %>%
   dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
+  ## matching 
+  dplyr::mutate(matching = paste0(Indicator, '-', Tool)) %>%
+  dplyr::filter(matching %in% unique(matching.final$pair)) %>%
+  dplyr::select(-matching) %>%
   as.data.frame()
+  
+dt.ind.tool <- rbind(dt.ind.tool.1, dt.ind.tool.2)
   
 
 ## - clean `country` -------------------------------------------------------------------
@@ -757,7 +931,7 @@ dtt  <- dt.ind.tool.region  %>%
   as.data.frame()
 
 
-func_alluvial(data = dtt, indicator_n_min = 3, labele_small = 30, w_p = 10, filename.postfix = 'indicator_tool_region')
+func_alluvial(data = dtt, indicator_n_min = 3, labele_small = 20, w_p = 10, filename.postfix = 'indicator_tool_region')
 
 # f <- paste0('mini-review_mh_indicator_tool_pairs_min', indicator_n_min, '_ctr', n_ctr, '_', today, '.png')
 # fname <- paste0(dir.fig, f); fname
@@ -773,8 +947,7 @@ func_alluvial(data = dtt, indicator_n_min = 3, labele_small = 30, w_p = 10, file
 
 # Proregss
 ```{r}
-dfs1 <-
-  dfs %>%
+dfs1 <- dfs %>%
   # dplyr::select(1:4, matches("Country|Mental health")) %>%
   dplyr::select(!matches("duration", ignore.case = T)) %>%
   dplyr::rename(
