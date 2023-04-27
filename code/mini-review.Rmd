@@ -27,7 +27,7 @@ dir_share <- 'G:/Shared drives/Urban nature-health/projects/meta-analysis/figure
 
 
 save_plot <- F
-# save_plot <- T
+save_plot <- T
 ```
 
 
@@ -121,9 +121,9 @@ plot_freq <- function(data, var = "Mental health indicators") {
     aes(
       x = reorder(eval(parse(text = var)), n),
       y = n,
-      # fill = n
+      # fill = n > 10
   )) +
-  geom_col() +
+  geom_col(show.legend = F) +
   theme_bw() +
   # theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
   coord_flip() +
@@ -269,9 +269,8 @@ func_ggsave(fname = fname, w = w, h = h)
 
 func_clean_tools <- function(data) {
   d <- data %>%
-    dplyr::filter(str_detect(string = Tools, pattern = "exclude", negate = T)) %>%
     dplyr::mutate(
-      Tool = gsub("Other: ", "", Tools),
+      Tool = gsub("Other: ", "", Tool),
       Tool = gsub("scales|Scales", "scale", Tool, ignore.case = T),
       Tool = gsub("\\s*\\([^\\)]+\\)", "", Tool), # remove text within parenthesis 
       Tool = gsub(
@@ -279,13 +278,33 @@ func_clean_tools <- function(data) {
               "Antidepressant prescription rates", "Antidepressant use", sep = "|"),
         "Antidepressant prescription", Tool, ignore.case = T),
       Tool = gsub("CES\\-D\\-10|CESD\\-10", "CES\\-D10", Tool, ignore.case = T),
-      Tool = gsub("Diagnosed|Diagnoses|Diagnosis by professionals|Diagnosis of mental health disorders", "Diagnosis", Tool, ignore.case = T),
+      Tool = gsub(
+        paste("Diagnosed", "Diagnoses", "Diagnosis by professionals", 
+              "Diagnosis of mental health disorders", sep = "|"), 
+        "Diagnosis", Tool, ignore.case = T),
       Tool = gsub("Digit Span Backward", "DSB", Tool, ignore.case = F), ## 
+      Tool = case_when(Tool %in% c('Digit', 'digit') ~ "Digit Span",
+                       Tool == 'Digit test' ~ "Digit Span",
+                       T ~ Tool),
+      Tool = gsub("Electroencephalography", "EEG", Tool, ignore.case = F), ## # 
+      Tool = gsub("EQ-5D", "EQ5D", Tool, ignore.case = F), ## # 
       Tool = gsub("K\\-10", "K10", Tool, ignore.case = F),
       Tool = gsub("Life Satisfaction approach", 'Life satisfaction approach', Tool, ignore.case = T),
-      Tool = gsub("Official/National mental health", 'Official MH', Tool, ignore.case = T),#
+      Tool = gsub(
+        paste("Official/National mental health", "National survey", "Office for National Statistics", 
+              "UK's Office of National Statistics",
+              sep = "|"),
+        'Official MH survey', Tool, ignore.case = T),#
+      Tool = gsub("survey survey", 'survey', Tool, ignore.case = T),# 
+      Tool = gsub("Profile of mood state questionnaire", 'POMS', Tool, ignore.case = T),# 
+      Tool = gsub("Psychiatric disorders", 'Mental disorder', Tool, ignore.case = T),# 
+      Tool = gsub("Psychiatric disorder", 'Mental disorder', Tool, ignore.case = T),
+      Tool = gsub("PHQ-2|PHQ-4|PHQ-8|PHQ-9", 'PHQ', Tool, ignore.case = T),
       Tool = gsub("RAND-36", 'RAND36', Tool, ignore.case = T), # # 
       Tool = gsub("Restoration Outcome Scale", 'ROS', Tool, ignore.case = T), # 
+      Tool = gsub("RSE or RSES|RSES", 'RSE', Tool, ignore.case = F), # 
+      Tool = gsub("SCL90", 'SCL-90', Tool, ignore.case = F), # 
+      Tool = gsub("SWEMWBS|WEMWBS 7-item", 'WEMWBS', Tool, ignore.case = F), # # 
       Tool = gsub(",+", ",", Tool), ## Removing repeated punctuation character from a string
       Tool = gsub(";+", ";", Tool), ## Removing repeated punctuation character from a string
       Tool = trimws(Tool),
@@ -297,9 +316,11 @@ func_clean_tools <- function(data) {
 }
 
 
-dt.bytool <- dt %>%
+dt.tool <- dt %>%
   ### -clean up the names of the tools
   dplyr::select(1:5, Tools, -Title) %>%
+  dplyr::filter(str_detect(string = Tools, pattern = "exclude", negate = T)) %>%
+  dplyr::mutate(Tool = gsub("Other: ", "", Tools)) %>%
   func_clean_tools(data = .) %>%
   dplyr::filter(nchar(Tool) < 180) %>%
   ### - stat
@@ -308,14 +329,15 @@ dt.bytool <- dt %>%
   ungroup() %>%
   as.data.frame()
 
-dt.bytool.clean <- dt.bytool %>% 
+dt.tool.clean <- dt.tool %>% 
   expand_col_to_long(data = ., target_col = "Tool") %>%
   dplyr::mutate(
     Tool = gsub(".*Likert.*|.*likert.*", "Likert scale", Tool),
     # Tool = gsub(";", "", Tool),
     ) %>% 
+  func_clean_tools(data = .) %>%
   group_by(Tool) %>%
-    dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
+  dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
   ungroup() %>%
   arrange(Tool) %>%
   as.data.frame()
@@ -325,7 +347,7 @@ dt.bytool.clean <- dt.bytool %>%
 
 ```{r - tool bar}
 
-dt.bytool.clean %>%
+dt.tool.clean %>%
   dplyr::slice_max(order_by = n, n = 20) %>%
   plot_freq(data = ., var = 'Tool') +
   ggtitle("Frequency of Mental health\nmeasurement tools") +
@@ -427,6 +449,7 @@ to.clean.ind <- dt.ind_match_scale %>%
 
 to.clean.tool <- dt.ind_match_scale %>%
   dplyr::select(1:2, Tools) %>%
+  dplyr::mutate(Tool = gsub("Other: ", "", Tools)) %>%
   func_clean_tools(data = .) %>%
   expand_col_to_long(data = ., target_col = "Tool") %>%
   dplyr::mutate(
@@ -785,6 +808,7 @@ func_alluvial(data = dt.ind.cl_ctr_flow, indicator_n_min = 5, filename.postfix =
 dt.tool_ctr  <- dt.ind  %>%
   dplyr::select(-Indicator) %>%
   ## - clean `tools` ---------------------------------------------------------------------
+  dplyr::mutate(Tool = gsub("Other: ", "", Tools)) %>%
   func_clean_tools(data = .) %>%
   dplyr::filter(nchar(Tool) < 180) %>%
   dplyr::select(-Tools) %>%
@@ -794,6 +818,7 @@ dt.tool_ctr  <- dt.ind  %>%
     Tool = gsub("\\s*\\([^\\)]+\\)", "", Tool), # remove text within parenthesis 
     Tool = trimws(Tool)
     ) %>% 
+  func_clean_tools(data = .) %>%
   # as.data.frame() 
   ## clean `country` ---------------------------------------------------------------------
   func_clean_country(.) %>%
@@ -853,6 +878,7 @@ dt.ind.cl.2 <- dt.ind.cl %>%
 
 
 dt.ind.tool.1  <- dt.ind.cl.1  %>%
+  dplyr::mutate(Tool = gsub("Other: ", "", Tools)) %>%
   func_clean_tools(data = .) %>%
   dplyr::filter(nchar(Tool) < 180) %>%
   dplyr::select(-Tools) %>%
@@ -867,6 +893,7 @@ dt.ind.tool.1  <- dt.ind.cl.1  %>%
 
 
 dt.ind.tool.2  <- dt.ind.cl.2  %>%
+  dplyr::mutate(Tool = gsub("Other: ", "", Tools)) %>%
   func_clean_tools(data = .) %>%
   dplyr::filter(nchar(Tool) < 180) %>%
   dplyr::select(-Tools) %>%
