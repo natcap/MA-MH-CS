@@ -27,7 +27,7 @@ dir_share <- 'G:/Shared drives/Urban nature-health/projects/meta-analysis/figure
 
 
 save_plot <- F
-save_plot <- T
+# save_plot <- T
 ```
 
 
@@ -45,16 +45,16 @@ data(countryRegions,envir=environment(),package="rworldmap")
 
 # Data import
 
+## Data list
 ```{r include=FALSE}
-csv <- "review_278532_20230305161741-test mini-review-analysis.csv"
-csv <- "review_278532_20230328115335.csv"
-df <- readr::read_csv(file = paste0(dir.raw, csv))
-
-
 fs <- list.files(path = dir.raw, full.names = T, pattern = '.csv$'); fs
 # csv <- fs[1]
 # names(df)
+```
 
+
+## Data for viz proregss
+```{r include=FALSE}
 dfs <- data.frame()
 
 for (csv in fs) {
@@ -73,8 +73,75 @@ for (csv in fs) {
 ```
 
 
+## Data for analysis
+```{r include=FALSE}
+## Choose the most updated one for formal analysis ---------------------------------------
+# csv <- "review_278532_20230305161741-test mini-review-analysis.csv"
+# csv <- "review_278532_20230328115335.csv"   # 2023-03-28
+csv <- "review_278532_20230427120514.csv"     # 2023-04-27 
 
-## Data cleaning 
+t <- basename(csv) %>% gsub('review_278532_', '', .) %>%
+  str_sub(start = 1, end = 14)  %>%
+  as.POSIXct(.,format="%Y%m%d%H%M%S") 
+t
+
+dd <- readr::read_csv(file = paste0(dir.raw, csv)) %>%
+  dplyr::mutate(date = t) %>%
+  dplyr::rename(
+    'id' = 'Covidence #',
+    "Country" = "Country in which the study conducted",
+    "Reviewer" = "Reviewer Name",
+    'Indicator' = 'Mental health indicators',
+    "Tools" = "Mental health measurement tools",
+    "meet_criteria" = "Does this study meet the criteria for data extraction?"
+  ) %>%
+  dplyr::filter(!meet_criteria %in% c('No')) %>%
+  dplyr::mutate(Tools = gsub("Other: |Other:", "", Tools)) %>%
+  dplyr::mutate(Country = gsub("Other: |Other:", "", Country)) %>%
+  arrange(id, Reviewer) %>%
+  as.data.frame()
+
+# names(dd)
+
+
+df <- dd %>%
+  arrange(id, Reviewer, desc(date)) %>%
+  dplyr::distinct(id, .keep_all = T) %>%
+  as.data.frame()
+```
+
+
+## Check consensus
+```{r}
+
+df_check <- dd %>%
+  arrange(id, Reviewer, desc(date)) %>%
+  dplyr::distinct(id, Reviewer, .keep_all = T) %>%
+  dplyr::select(1:5) %>%
+  group_by(id) %>%
+  add_count() %>%
+  # dplyr::filter(n == 3) %>%  ## passed `consensus`
+  dplyr::filter(n == 2) %>%    ## need `consensus`
+  as.data.frame()
+
+unique(df_check$id)
+
+
+dd1 <- df_check %>%
+  dplyr::distinct(id, Reviewer) %>%
+  arrange(id, Reviewer) %>% 
+  group_by(Reviewer) %>%
+  summarise(id = str_c(id, collapse = ", ") )
+
+
+dd2 <- aggregate(id ~ Reviewer, unique(df_check), paste, collapse = ", ")
+  
+dd2
+```
+
+
+
+# Data cleaning 
 
 ```{r - functions}
 expand_col_to_long <- function(data, target_col = "Mental health indicators") {
@@ -158,7 +225,8 @@ func_clean_indicators <-  function(data) {
     Indicator = gsub("\\(include schizophrenia\\)", "", Indicator),
     Indicator = gsub("\\s*\\([^\\)]+\\)", "", Indicator), # remove text within parenthesis 
     Indicator = gsub("\\/Restorativeness", "", Indicator),
-    Indicator = gsub("Restoration experience|Restorative experience|Restorativeness", "Restorative effects", Indicator, ignore.case = T), 
+    Indicator = gsub("Restoration experience|Restorative experience|Restorativeness", 
+                     "Restorative effects", Indicator, ignore.case = T), 
     Indicator = gsub("Attention capacity|Sustained attention", "Attention", Indicator, ignore.case = T), ##  
     Indicator = gsub("Behavioural", "Behavioral", Indicator, ignore.case = T), ##  
     Indicator = gsub("Behavioral problems", "Behavioral disorder", Indicator, ignore.case = T), ## 
@@ -180,19 +248,11 @@ func_clean_indicators <-  function(data) {
 
 
 dt <- df %>%
-  dplyr::select(1:4, matches("Country|Mental health")) %>%
+  dplyr::select(1:4, matches("Country|Mental health|Indicator|Tools")) %>%
   dplyr::select(!matches("duration", ignore.case = T)) %>%
-  dplyr::rename(
-    'id' = 'Covidence #',
-    "Country" = "Country in which the study conducted",
-    "Reviewer" = "Reviewer Name",
-    'Indicator' = 'Mental health indicators',
-    "Tools" = "Mental health measurement tools"
-  ) %>%
-  dplyr::mutate(Tools = gsub("Other: ", "", Tools)) %>%
-  dplyr::mutate(Country = gsub("Other\\: ", "", Country)) %>%
   func_clean_indicators(data = .) %>%
-  dplyr::arrange(!is.na(Indicator), Reviewer)
+  dplyr::arrange(!is.na(Indicator), Reviewer) %>%
+  as.data.frame()
 
 
 
@@ -283,7 +343,7 @@ func_clean_tools <- function(data) {
               "Diagnosis of mental health disorders", sep = "|"), 
         "Diagnosis", Tool, ignore.case = T),
       Tool = gsub("Digit Span Backward", "DSB", Tool, ignore.case = F), ## 
-      Tool = case_when(Tool %in% c('Digit', 'digit') ~ "Digit Span",
+      Tool = case_when(Tool %in% c('Digit', 'digit', 'Digit-span Task') ~ "Digit Span",
                        Tool == 'Digit test' ~ "Digit Span",
                        T ~ Tool),
       Tool = gsub("Electroencephalography", "EEG", Tool, ignore.case = F), ## # 
@@ -296,6 +356,7 @@ func_clean_tools <- function(data) {
               sep = "|"),
         'Official MH survey', Tool, ignore.case = T),#
       Tool = gsub("survey survey", 'survey', Tool, ignore.case = T),# 
+      Tool = gsub("PNAS", 'PANAS', Tool, ignore.case = T),# 
       Tool = gsub("Profile of mood state questionnaire", 'POMS', Tool, ignore.case = T),# 
       Tool = gsub("Psychiatric disorders", 'Mental disorder', Tool, ignore.case = T),# 
       Tool = gsub("Psychiatric disorder", 'Mental disorder', Tool, ignore.case = T),
@@ -494,13 +555,15 @@ f <- paste0('./data/MH_indicator_tool_matching_database.rds')
 
 ### check data 
 
-```{r - errors, include=FALSE}
+```{r - ❌ errors, include=FALSE}
 dt_err <- dt %>%
   # dplyr::filter(str_detect(Indicator, fixed('Antidepressants', ignore_case = T))) %>% ##  
   # dplyr::filter(str_detect(Indicator, fixed('Hyperactivity', ignore_case = T))) %>% ##  
   # dplyr::filter(str_detect(Tools, fixed('4DSQ', ignore_case = T))) %>%
   # dplyr::filter(str_detect(Tools, fixed('PRS', ignore_case = T))) %>% # 
-  dplyr::filter(str_detect(Country, fixed('Virginia', ignore_case = T))) %>% # 
+  # dplyr::filter(str_detect(Tools, fixed('Both SF', ignore_case = T))) %>% #
+  dplyr::filter(str_detect(Tools, fixed('PNAS', ignore_case = T))) %>% # 
+  # dplyr::filter(str_detect(Country, fixed('Virginia', ignore_case = T))) %>% # 
   as.data.frame()
 
 # dt_err_ <- dt %>%
@@ -512,10 +575,13 @@ dt_err <- dt %>%
 
 
 
-```{r - to-do list}
+```{r - ✅ to-do list}
 ```
- [x] current indicator-scale matching approach needs to be improved, `dt.ind.tool`
- [] clean data in `matching.1`
+  [x] current indicator-scale matching approach needs to be improved, `dt.ind.tool`
+  [] clean data in `matching.1`
+  [] address consensus and keep unique paper id in the data `df`
+  []
+  []
 
 
 
@@ -958,7 +1024,7 @@ dtt  <- dt.ind.tool.region  %>%
   as.data.frame()
 
 
-func_alluvial(data = dtt, indicator_n_min = 3, labele_small = 20, w_p = 10, filename.postfix = 'indicator_tool_region')
+func_alluvial(data = dtt, indicator_n_min = 3, labele_small = 20, w_p = 10, filename.postfix = 'indicator_tool_region2')
 
 # f <- paste0('mini-review_mh_indicator_tool_pairs_min', indicator_n_min, '_ctr', n_ctr, '_', today, '.png')
 # fname <- paste0(dir.fig, f); fname
@@ -972,7 +1038,10 @@ func_alluvial(data = dtt, indicator_n_min = 3, labele_small = 20, w_p = 10, file
 
 
 
-# Proregss
+
+# SM
+
+## Viz Proregss
 ```{r}
 dfs1 <- dfs %>%
   # dplyr::select(1:4, matches("Country|Mental health")) %>%
@@ -1034,7 +1103,6 @@ dfs1 %>%
   coord_flip() +
   theme_bw()
 ```
-
 
 
 
