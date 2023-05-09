@@ -11,19 +11,23 @@ output:
 # To clear your environment
 remove(list = ls())
 
-## Load common packages and directories
+## Load directories
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 getwd()
 setwd(dirname(getwd()))
-source("./code/_pkgs_dirs.R")
 
+dir.raw   <- "./data/0005-covidence_export/data extraction/"
+dir_share <- 'G:/Shared drives/Urban nature-health/projects/meta-analysis/figures/'
+
+## Load common packages
+source("./code/_pkgs_dirs.R")
 ## Additional packages
+library(rprojroot)
 library(tidyverse)
 library(splitstackshape) ## `cSplit()`
 library(Hmisc)
+library(rworldmap)
 today <- format(Sys.time(), "%Y%m%d"); today ## "%Y%m%d%H%M"
-
-dir.raw   <- "./data/covidence_export/data extraction/"
-dir_share <- 'G:/Shared drives/Urban nature-health/projects/meta-analysis/figures/'
 
 
 save_plot <- F
@@ -213,7 +217,7 @@ func_ggsave <- function(fname, w = 7, h = 4, save_png = save_plot) {
 
 
 
-### indicator
+## Indicator
 ```{r - indicator, include=FALSE}
 ## keep columns of interest, and clean data
 
@@ -322,7 +326,7 @@ func_ggsave(fname = fname, w = w, h = h)
 
 
 
-### tool
+## Tool
 
 ```{r - tool, include=FALSE}
 ## - by scale
@@ -383,25 +387,41 @@ dt.tool <- dt %>%
   dplyr::filter(str_detect(string = Tools, pattern = "exclude", negate = T)) %>%
   dplyr::mutate(Tool = gsub("Other: ", "", Tools)) %>%
   func_clean_tools(data = .) %>%
-  dplyr::filter(nchar(Tool) < 180) %>%
-  ### - stat
-  group_by(Tool) %>%
-  dplyr::count() %>%
-  ungroup() %>%
   as.data.frame()
 
-dt.tool.clean <- dt.tool %>% 
+dt.tool.expand <- dt.tool %>% 
+  dplyr::filter(nchar(Tool) < 180) %>%
   expand_col_to_long(data = ., target_col = "Tool") %>%
   dplyr::mutate(
     Tool = gsub(".*Likert.*|.*likert.*", "Likert scale", Tool),
     # Tool = gsub(";", "", Tool),
     ) %>% 
-  func_clean_tools(data = .) %>%
+  func_clean_tools(data = .) 
+
+dt.tool.clean <- dt.tool.expand %>%
   group_by(Tool) %>%
-  dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
+  # dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
+  tally() %>%
   ungroup() %>%
   arrange(Tool) %>%
   as.data.frame()
+```
+
+
+
+```{r - tools selected for MA, include=FALSE}
+## select the most used measures in lit for meta-analysis
+tools_selected <- c('POMS', 'GHQ-12', 'PANAS')
+
+dt.tool.expand.selected <- dt.tool.expand %>% 
+  dplyr::filter(Tool %in% tools_selected) %>%
+  dplyr::select(-Tools) %>%
+  arrange(Tool, id) %>%
+  dplyr::mutate(id = paste0('#', id)) %>%
+  as.data.frame()
+
+f <- paste0('./data/0301-MA-input/', 'paperID_byTopTools.CSV')
+readr::write_csv(x = dt.tool.expand.selected, file = f)
 ```
 
 
@@ -429,7 +449,7 @@ func_ggsave(fname = fname, w = w, h = h)
 
 ```
 
-### Matching
+## Matching
 
 ```{r - indicator-tool matching}
 set.seed(123)
@@ -553,7 +573,7 @@ f <- paste0('./data/MH_indicator_tool_matching_database.rds')
 
 
 
-### check data 
+## check data 
 
 ```{r - ❌ errors, include=FALSE}
 dt_err <- dt %>%
@@ -585,7 +605,7 @@ dt_err <- dt %>%
 
 
 
-### region 
+## region 
 
 ```{r - region - bar}
 
