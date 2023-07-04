@@ -77,13 +77,14 @@ for (csv in fs) {
 ```
 
 
-## Data for analysis
+## Data for analysis 📁 
 ```{r include=FALSE}
 ## Choose the most updated one for formal analysis ---------------------------------------
 # csv <- "review_278532_20230305161741-test mini-review-analysis.csv"
 # csv <- "review_278532_20230328115335.csv"   # 2023-03-28
 csv <- "review_278532_20230427120514.csv"     # 2023-04-27 
-csv <- "review_278532_20230513100914.csv"     # 2023-05-13, addressed 85 consensus 
+csv <- "review_278532_20230616074045.csv"     # 2023-05-13, addressed 85 consensus 
+csv <- "review_278532_20230703085230.csv"
 
 t <- basename(csv) %>% gsub('review_278532_', '', .) %>%
   str_sub(start = 1, end = 14)  %>%
@@ -110,9 +111,21 @@ dd <- readr::read_csv(file = paste0(dir.raw, csv)) %>%
 
 
 df <- dd %>%
-  arrange(id, Reviewer, desc(date)) %>%
+  dplyr::mutate(Reviewer_id = case_when(
+    Reviewer == 'Yingjie Li'    ~ 1, 
+    Reviewer == 'Yuanyuan Mao'  ~ 2, 
+    Reviewer == 'Emily Brieant' ~ 3, 
+    Reviewer == 'Katherine Wu'  ~ 4,
+    Reviewer == 'Mary Lee'      ~ 5,
+    Reviewer == 'Consensus'     ~ 99
+  )) %>%
+  dplyr::select(id:Reviewer, Reviewer_id, everything()) %>%
+  arrange(id, Reviewer_id, desc(date)) %>%
   dplyr::distinct(id, .keep_all = T) %>%
   as.data.frame()
+
+## save data for other analysis
+saveRDS(df, "./data/0301-MA-input/df_covidenceFull.rds")
 ```
 
 
@@ -149,62 +162,9 @@ dd2
 # Data cleaning 
 
 ```{r - functions}
-expand_col_to_long <- function(data, target_col = "Mental health indicators") {
-  data_long <- data %>%
-    dplyr::rename("col_split" = target_col) %>%
-    ## unify the separator as ";"
-    dplyr::mutate(col_split = gsub(';|,', ';', col_split)) %>%
-    cSplit(
-      indt = .,
-      splitCols = c("col_split"),
-      sep = ";",
-      drop = F, # drop the original col or not
-      direction = "long", # this is better than "wide"
-      stripWhite = T
-    ) %>% # clean white space
-    dplyr::mutate(across(where(is.factor), as.character)) %>%
-    dplyr::mutate(col_split = trimws(col_split)) %>%
-    
-    ## - convert long input in sentence format -----------------------
-    # dplyr::mutate(col_split = ifelse(
-    #   nchar(col_split) > 10,
-    #   str_to_sentence(col_split),
-    #   col_split
-    # )) %>%
-  
-    ## - capitalizes first word but not subsequent words -------------
-    dplyr::mutate(col_split = Hmisc::capitalize(col_split)) %>%
-    as.data.frame() %>%
-    # group_by(col_split) %>%
-    # dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
-    as.data.frame()
+source('./code/func_expand_col_to_long.R')
 
-  ## change back to the original column name
-  names(data_long)[names(data_long) == "col_split"] <- target_col
-
-  return(data_long)
-}
-
-
-
-plot_freq <- function(data, var = "Mental health indicators") {
-  p <- ggplot(
-    data = data,
-    aes(
-      x = reorder(eval(parse(text = var)), n),
-      y = n,
-      # fill = n > 10
-  )) +
-  geom_col(show.legend = F) +
-  theme_bw() +
-  # theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
-  coord_flip() +
-  # scale_fill_distiller(name = '', palette = "Blues", guide = "colorbar", direction = 1) +
-  xlab("")
-  
-  return(p)
-}
-
+source('./code/func_plot_freq.R')
 
 func_ggsave <- function(fname, w = 7, h = 4, save_png = save_plot) {
   if (save_png == T) {
