@@ -17,11 +17,11 @@ expand_col_to_long <- function(data, target_col = "Mental health indicators") {
     dplyr::mutate(col_split = trimws(col_split)) %>%
     
     ## - convert long input in sentence format -----------------------
-  # dplyr::mutate(col_split = ifelse(
-  #   nchar(col_split) > 10,
-  #   str_to_sentence(col_split),
-  #   col_split
-  # )) %>%
+    # dplyr::mutate(col_split = ifelse(
+    #   nchar(col_split) > 10,
+    #   str_to_sentence(col_split),
+    #   col_split
+    # )) %>%
   
   ## - capitalizes first word but not subsequent words -------------
   dplyr::mutate(col_split = Hmisc::capitalize(col_split)) %>%
