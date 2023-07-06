@@ -16,11 +16,12 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 getwd()
 setwd(dirname(getwd()))
 
+## Load common packages
+source("./code/_pkgs_dirs.R")
 dir.raw   <- "./data/0005-covidence_export/data extraction/"
 dir_share <- 'G:/Shared drives/Urban nature-health/projects/meta-analysis/figures/'
 
-## Load common packages
-source("./code/_pkgs_dirs.R")
+
 ## Additional packages
 library(rprojroot)
 library(tidyverse)
@@ -163,16 +164,8 @@ dd2
 
 ```{r - functions}
 source('./code/func_expand_col_to_long.R')
-
 source('./code/func_plot_freq.R')
-
-func_ggsave <- function(fname, w = 7, h = 4, save_png = save_plot) {
-  if (save_png == T) {
-    ggsave(filename = fname, plot = last_plot(), width = w, height = h, units = "in", dpi = 300)
-  } else {
-    print('The plot will not be saved.')
-  }
-}
+source('./code/func_ggsave.R')
 
 ```
 
