@@ -9,6 +9,7 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+Sys.setenv(LANG = "en")
 
 ### To clear your environment
 remove(list = ls())
@@ -16,11 +17,16 @@ remove(list = ls())
 ## Load directories
 knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 getwd()
-setwd(dirname(getwd()))
+dir.root <- dirname(getwd())
+setwd(dir.root)
 
 getwd()
 ## Load common packages
 source("./code/_pkgs_dirs.R")
+source('./code/func_expand_col_to_long.R')
+source('./code/func_plot_freq.R')
+source('./code/func_ggsave.R')
+
 ## Additional packages
 library(rprojroot)
 library(tidyverse)
@@ -31,8 +37,16 @@ library(rworldmap)
 today <- format(Sys.time(), "%Y%m%d"); today ## "%Y%m%d%H%M"
 
 
-source('./code/func_expand_col_to_long.R')
-source('./code/func_plot_freq.R')
+### packages for meta-analysis
+
+# install.packages("remotes")
+# remotes::install_github("guido-s/meta", ref = "develop")
+### or an old version that supports R3.6
+# url <- 'https://cran.r-project.org/src/contrib/Archive/meta/meta_4.15-0.tar.gz'
+# install.packages(url, repos=NULL, type="source")
+library(meta)
+
+library(metafor)
 ```
 
 
@@ -40,7 +54,15 @@ source('./code/func_plot_freq.R')
 ## load data
 ```{r}
 
-df <- readRDS(file = "./data/0301-MA-input/df_covidenceFull.rds")
+df <- readRDS(file = "./data/0301-MA-input/df_covidenceFull.rds") %>%
+  dplyr::rename(
+    'exposure_type' = 'Nature exposure type',
+    'nature_type' = "General category of urban nature",
+    'nature_quantity' = "Nature quantity measure metric") %>%
+  dplyr::mutate(
+    nature_quantity = gsub("Normalized Difference Vegetation Index \\(NDVI\\)", "NDVI", nature_quantity),
+    ) %>%
+  as.data.frame()
 # names(df)
 ```
 
@@ -48,9 +70,10 @@ df <- readRDS(file = "./data/0301-MA-input/df_covidenceFull.rds")
 ## clean data
 ```{r}
 
+cols_keep <- c('Indicator', 'Tools', 'nature_type',  'nature_quantity', 'exposure_type')
+
 df_exp <- df %>%
-  dplyr::rename('exposure_type' = 'Nature exposure type') %>%
-  dplyr::select(1:6, exposure_type) %>%
+  dplyr::select(1:7, all_of(cols_keep)) %>%
   dplyr::filter(!is.na(exposure_type)) %>%
   dplyr::mutate(exposure_type = gsub("Other: |Other:", "", exposure_type)) %>%
   dplyr::mutate(exposure_type = gsub("\\s*\\([^\\)]+\\)", "", exposure_type)) %>% # remove text within parenthesis
@@ -58,7 +81,6 @@ df_exp <- df %>%
 
 df_exp_l <- df_exp %>% 
   expand_col_to_long(data = ., target_col = 'exposure_type') %>%
-  
   as.data.frame()
 
 
@@ -81,9 +103,15 @@ df_exp_l_stat <- df_exp_l %>%
 ```{r}
 plot_freq(data = df_exp_l_stat, var = 'exposure_type') +
    geom_text(aes(label = n), vjust = .5, hjust = 0)
+
+f <- 'mini-review_nature exposure.png'
+fname <- paste0(dir.fig, f); fname
+func_ggsave(fname = fname, w = 7, h = 4, save_png = T)
 ```
 
-## analysis
+
+
+## analysis - subset exposure_type
 ```{r}
 exp_sub <- df_exp_l %>%
   dplyr::filter(exposure_type == 'L1 - neighborhood/residential exposure')
@@ -93,13 +121,17 @@ exp_sub_id <- unique(exp_sub$id)
 exp_sub_df <- df %>%
   dplyr::filter(id %in% exp_sub_id) %>%
   dplyr::filter(str_detect(Tools, "GHQ-12")) %>%
-  dplyr::mutate(Effect_size_indices = gsub("Other: |Other:", "", `Effect size indices`),
-                Effect_size_indices = gsub("=.*", "", Effect_size_indices),
-                Effect_size_indices = gsub("corr_linear|corr_logi|regression coefficient", "coefficients", Effect_size_indices),
-                Effect_size_indices = trimws(Effect_size_indices)
+  dplyr::mutate(effect_size_indices = gsub("Other: |Other:", "", `Effect size indices`),
+                effect_size_indices = gsub("=.*", "", effect_size_indices),
+                effect_size_indices = gsub("corr_linear|corr_logi|regression coefficient", "coefficients", effect_size_indices),
+                effect_size_indices = trimws(effect_size_indices)
                 ) %>%
-  dplyr::select(id:`Effect size indices`, Effect_size_indices, everything()) %>%
-  dplyr::select(id, Effect_size_indices:ncol(.)) %>%
+  dplyr::select(id:`Effect size indices`, effect_size_indices, 
+                everything()) %>%
+  dplyr::select(id:Country, 
+                all_of(cols_keep),
+                effect_size_indices:ncol(.)) %>%
+  dplyr::select(-c(Title:meet_criteria)) %>%
   as.data.frame()
 
 
@@ -116,10 +148,12 @@ for (i in 1:20) {
   # print(i)
   mod_id <- paste0("Model ", i, " ")
   exp_sub_mod <- exp_sub_df %>%
-    dplyr::select(id, Effect_size_indices, `Health outcome direction`, 
+    dplyr::select(id, 
+                  all_of(cols_keep),
+                  effect_size_indices, `Health outcome direction`, 
                   starts_with(mod_id) & !contains("measurement", ignore.case = TRUE)) %>%
     dplyr::mutate(model_id = i) %>%
-    dplyr::select(id, Effect_size_indices, model_id, `Health outcome direction`, everything())
+    dplyr::select(id, effect_size_indices, model_id, `Health outcome direction`, everything())
   
   colnames(exp_sub_mod) <- sub(mod_id, "", colnames(exp_sub_mod))
   
@@ -140,7 +174,7 @@ sign <- m[1] %>% substr(., 1, 1)
 # mm <- gsub(sign, '-', m)
 # mm
 # as.numeric(mm)
-
+rm(test)
 
 
 exp_sub_mods <- exp_sub_mod_l %>%
@@ -155,8 +189,8 @@ exp_sub_mods <- exp_sub_mod_l %>%
     Mean = trimws(Mean),
     Mean = as.numeric(Mean),
     Mean = case_when(
-      Effect_size_indices == 'coefficients' & `Health outcome direction` == "Higher is better" ~ -Mean,
-      Effect_size_indices == 'or' & `Health outcome direction` == "Higher is better" ~ 1-(Mean-1),
+      effect_size_indices == 'coefficients' & `Health outcome direction` == "Higher is better" ~ -Mean,
+      effect_size_indices == 'or' & `Health outcome direction` == "Higher is better" ~ 1-(Mean-1),
       TRUE ~ Mean
       ),
     
@@ -172,19 +206,20 @@ exp_sub_mods <- exp_sub_mod_l %>%
     
     
     ) %>%
-  dplyr::select(id:Mean_raw, Mean, CI_95_lower_raw, CI_95_lower, everything()) %>%
-  arrange(Effect_size_indices, id, model_id) %>%
+  dplyr::select(id, all_of(cols_keep),
+                effect_size_indices:Mean_raw, Mean, CI_95_lower_raw, CI_95_lower, everything()) %>%
+  arrange(effect_size_indices, id, model_id) %>%
   as.data.frame()
 ```
 
 
 ### Coefficients
 ```{r}
-unique(exp_sub_mods$Effect_size_indices)
+unique(exp_sub_mods$effect_size_indices)
 
 
 exp_sub_mods_coef <- exp_sub_mods %>%
-  dplyr::filter(Effect_size_indices == 'coefficients') %>%
+  dplyr::filter(effect_size_indices == 'coefficients') %>%
   as.data.frame()
 ```
 
@@ -232,14 +267,11 @@ meta.object <- ma_res
 heterogeneity(meta.object)-> meta.object
 plot_forest(meta.object)-> meta.object
 plot_funnel(meta.object)-> meta.object
+
 meta.object$heterogeneity$`analysis id: 1`$individual_correction$true_score
 meta.object$forest$`analysis id: 1`$unmoderated$individual_correction$ts
 meta.object$funnel$`analysis id: 1`$individual_correction$true_score
-
 ```
-
-
-
 
 ```{r}
 ### - sensitivity analyses
@@ -255,6 +287,7 @@ meta.object$funnel$`analysis id: 1`$individual_correction$true_score
 #                       boot_ci_type = "norm")
 ```
 
+
 #### metafor
 ```{r}
 # load the metafor package
@@ -264,17 +297,29 @@ library(metafor)
 ##     and job performance (using r-to-z transformed correlation for the analysis)
 #' example data -- `dat.mcdaniel1994`
 #' 
+#' The (Pearson or product-moment) correlation coefficient quantifies the direction and strength of the (linear) relationship between two quantitative variables and is therefore frequently used as the outcome measure for meta-analyses. Two alternative measures are a bias-corrected version of the correlation coefficient and Fisher's r-to-z transformed correlation coefficient.
+#' 
+#' ri, the vector with the raw correlation coefficients
+#' ni, the corresponding sample sizes. 
+#' The options for the measure argument are then:
+#'  "COR" for the raw correlation coefficient,
+#'  "UCOR" for the raw correlation coefficient corrected for its slight negative bias (based on equation 2.3 in Olkin & Pratt, 1958),
+#'  "ZCOR" for Fisher's r-to-z transformed correlation coefficient (Fisher, 1921).
+
+
 dat <- escalc(measure="ZCOR", ri=Mean, ni=N, data=exp_sub_mods_coef)
-res <- rma(yi, vi, data=dat)
+study_label <- paste(dat$id, dat$model_id, sep = '_')
+
+res <- rma(yi, vi, data=dat, slab = study_label)
 res
-predict(res, transf=transf.ztor)
+predict(res, transf=transf.ztor) ## ztor: z to r
 
 # outlier/influence diagnostics
 par(mar=c(5,6,4,2))
 plot(influence(res), cex=0.8, las=1)
 ```
 
-
+  https://wviechtb.github.io/metafor/reference/forest.rma.html
 ```{r - forest}
 ### forest plot --------------------------------------------------------------------------
 # forest(res)
@@ -287,21 +332,95 @@ png(file=paste0('./figures/', 'plot_forest.png'),
     width = 1000, height = 1000, units = "px", pointsize = 22,
     # res = 200
     ) 
-forest(res, addpred=TRUE, header=TRUE, xlim=xlim_custmize, slab = paste(dat$id, dat$model_id, sep = '_'))
+forest(res, addpred=TRUE, header=TRUE, xlim=xlim_custmize, slab = study_label)
 dev.off() 
 
+forest(res, addpred=TRUE, header=TRUE, xlim=xlim_custmize, slab = study_label) # showweights=TRUE
 forest(res, addpred=TRUE, header=TRUE, xlim=xlim_custmize, atransf=exp)
+#' optional argument to specify a function to transform the x-axis labels and annotations (e.g., atransf=exp)
 forest(res, addpred=TRUE, header=TRUE, xlim=xlim_custmize, atransf=exp, at=log(c(.6, .8, 1, 1.2, 1.4)))
 ```
 
 
 
+```{r - forest plots with subgroups - to be fixed, eval=FALSE, include=FALSE}
+# a little helper function to add Q-test, I^2, and tau^2 estimate info
+mlabfun <- function(text, res) {
+   list(bquote(paste(.(text),
+      " (Q = ", .(formatC(res$QE, digits=2, format="f")),
+      ", df = ", .(res$k - res$p),
+      ", p ", .(metafor:::.pval(res$QEp, digits=2, showeq=TRUE, sep=" ")), "; ",
+      I^2, " = ", .(formatC(res$I2, digits=1, format="f")), "%, ",
+      tau^2, " = ", .(formatC(res$tau2, digits=2, format="f")), ")")))}
+
+# set up forest plot (with 2x2 table counts added; the 'rows' argument is
+# used to specify in which rows the outcomes will be plotted)
+# forest(res, addpred=TRUE, header=TRUE, xlim=xlim_custmize, slab = study_label)
+forest(res, 
+       addpred=TRUE, 
+       slab = study_label,
+       # xlim=c(-16, 4.6), at=log(c(0.05, 0.25, 1, 4)), 
+       # atransf=exp,
+       # ilab=cbind(dat$tpos, dat$tneg, dat$cpos, dat$cneg),
+       # ilab.xpos=c(-9.5,-8,-6,-4.5), cex=0.90, 
+       # ylim=c(-1, 27),            ## add extra space in plot
+       order=dat$nature_quantity, 
+       # rows=c(3:4,9:15,20:23),    ## set positions
+       mlab=mlabfun("RE Model for All Studies", res),
+       psize=1, header="Author(s) and Year")
+
+# set font expansion factor (as in forest() above) and use a bold font
+op <- par(cex=0.90, font=2)
+
+
+# switch to bold italic font
+par(font=4)
+
+# add text for the subgroups
+text(-16, c(24,16,5), pos=4, c("Systematic Allocation",
+                               "Random Allocation",
+                               "Alternate Allocation"))
+
+# set par back to the original settings
+par(op)
+
+# fit random-effects model in the three subgroups
+res.s <- rma(yi, vi, subset=(nature_quantity=="NDVI"), data=dat)
+res.r <- rma(yi, vi, subset=(nature_quantity=="Percentage of greenspace"),     data=dat)
+res.a <- rma(yi, vi, subset=(nature_quantity=="Other: Percentage of greenspace; Percentage of bluespace; presence of a garden"),  data=dat)
+
+# add summary polygons for the three subgroups
+addpoly(res.s, row=18.5, cex=0.90, 
+        # atransf=exp, 
+        mlab=mlabfun("RE Model for Subgroup", res.s))
+addpoly(res.r, row= 7.5, cex=0.90, 
+        # atransf=exp, 
+        mlab=mlabfun("RE Model for Subgroup", res.r))
+addpoly(res.a, row= 1.5, cex=0.90, 
+        # atransf=exp, 
+        mlab=mlabfun("RE Model for Subgroup", res.a))
+
+# fit meta-regression model to test for subgroup differences
+res <- rma(yi, vi, mods = ~ nature_quantity, data=dat)
+
+# add text for the test of subgroup differences
+text(x = -16, y = -1.8, pos=4, cex=0.90, bquote(paste("Test for Subgroup Differences: ",
+     Q[M], " = ", .(formatC(res$QM, digits=2, format="f")), ", df = ", .(res$p - 1),
+     ", p = ", .(formatC(res$QMp, digits=2, format="f")))))
+```
+
+
+
+#### publication bias
   Given our assumptions, and in the case when there is no publication bias, all studies would lie symmetrically around our pooled effect size (the vertical line in the middle), within the form of the funnel. 
   
   When *publication bias* is present, we would assume that the funnel would look asymmetrical, because only the small studies with a large effect size very published, while small studies without a significant, large effect would be missing.
   
   We can see in the plot that while some studies have statistically significant effect sizes (the gray areas), others do not (white background). 
-  (Link)[https://cjvanlissa.github.io/Doing-Meta-Analysis-in-R/smallstudyeffects.html]
+  
+  - https://cjvanlissa.github.io/Doing-Meta-Analysis-in-R/smallstudyeffects.html
+  
+  - https://wviechtb.github.io/metafor/reference/funnel.html
   
 ```{r - funnel}
 ### funnel plot --------------------------------------------------------------------------
@@ -342,16 +461,13 @@ funnel(
   back="grey90",
   hlines=NULL)
 dev.off() 
+
 ```
 
 
 
 #### metacor
 ```{r}
-# install.packages("remotes")
-# remotes::install_github("guido-s/meta", ref = "develop")
-url <- 'https://cran.r-project.org/src/contrib/Archive/meta/meta_4.15-0.tar.gz'
-# install.packages(url, repos=NULL, type="source")
 library(meta)
 m.cor <- metacor(cor = Mean, 
                  n = N,
@@ -361,7 +477,26 @@ m.cor <- metacor(cor = Mean,
                  # random = TRUE,
                  method.tau = "REML",
                  hakn = TRUE,
-                 title = "Health and Wellbeing")
+                 title = "Nature-Health")
 summary(m.cor)
+```
+
+
+
+#### auto-report
+```{r }
+### reporter() function
+reporter(res, dir = paste0(dir.root, '/figures/'))
+
+# reporter(res, format="pdf", 
+#          dir = paste0(dir.root, '/figures/'), 
+#          filename = 'report_metafor.PDF')
+#          
+# reporter(res, format="word")
+
+### add an outlier
+# dat$yi[6] <- 2.5
+# res <- rma(yi, vi, data=dat)
+# reporter(res)
 ```
 
