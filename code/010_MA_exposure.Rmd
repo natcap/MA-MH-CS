@@ -7,7 +7,9 @@ editor_options:
   chunk_output_type: inline
 ---
 
-```{r setup, include=FALSE}
+
+# Setup 
+```{r, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 Sys.setenv(LANG = "en")
 
@@ -18,7 +20,7 @@ remove(list = ls())
 knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 getwd()
 dir.root <- dirname(getwd())
-setwd(dir.root)
+# setwd(dir.root)
 
 getwd()
 ## Load common packages
@@ -51,7 +53,9 @@ library(metafor)
 
 
 
-## load data
+# Data
+
+## Load data from Covidence
 ```{r}
 
 df <- readRDS(file = "./data/0301-MA-input/df_covidenceFull.rds") %>%
@@ -67,25 +71,28 @@ df <- readRDS(file = "./data/0301-MA-input/df_covidenceFull.rds") %>%
 ```
 
 
-## clean data
+## Clean data
 ```{r}
-
+## selected variables for further analysis
 cols_keep <- c('Indicator', 'Tools', 'nature_type',  'nature_quantity', 'exposure_type')
 
 df_exp <- df %>%
   dplyr::select(1:7, all_of(cols_keep)) %>%
+  ## clean text in `exposure_type`
   dplyr::filter(!is.na(exposure_type)) %>%
   dplyr::mutate(exposure_type = gsub("Other: |Other:", "", exposure_type)) %>%
   dplyr::mutate(exposure_type = gsub("\\s*\\([^\\)]+\\)", "", exposure_type)) %>% # remove text within parenthesis
   as.data.frame()
 
+
 df_exp_l <- df_exp %>% 
+  ## expand `exposure_type` if there are > 1 exposure types in a study
   expand_col_to_long(data = ., target_col = 'exposure_type') %>%
   as.data.frame()
 
 
 df_exp_l_stat <- df_exp_l %>% 
-  ## clean the text data
+  ## clean the messy text data due to manual entry 
   dplyr::mutate(
     exposure_type = gsub("L4 physical activity", "L4 - physical activity in nature", exposure_type),
     exposure_type = gsub("L1 surrounding greenness", "L1 - neighborhood/residential exposure", exposure_type),
@@ -99,19 +106,21 @@ df_exp_l_stat <- df_exp_l %>%
 ```
 
 
-## plot
+## Stat on exposure_type
 ```{r}
 plot_freq(data = df_exp_l_stat, var = 'exposure_type') +
    geom_text(aes(label = n), vjust = .5, hjust = 0)
 
-f <- 'mini-review_nature exposure.png'
+f <- paste0('mini-review_nature exposure_', today, '.png')
 fname <- paste0(dir.fig, f); fname
 func_ggsave(fname = fname, w = 7, h = 4, save_png = T)
 ```
 
 
 
-## analysis - subset exposure_type
+## Input data 
+
+### subset one exposure_type
 ```{r}
 exp_sub <- df_exp_l %>%
   dplyr::filter(exposure_type == 'L1 - neighborhood/residential exposure')
@@ -121,6 +130,7 @@ exp_sub_id <- unique(exp_sub$id)
 exp_sub_df <- df %>%
   dplyr::filter(id %in% exp_sub_id) %>%
   dplyr::filter(str_detect(Tools, "GHQ-12")) %>%
+  ## clean messy text in `effect_size_indices`
   dplyr::mutate(effect_size_indices = gsub("Other: |Other:", "", `Effect size indices`),
                 effect_size_indices = gsub("=.*", "", effect_size_indices),
                 effect_size_indices = gsub("corr_linear|corr_logi|regression coefficient", "coefficients", effect_size_indices),
@@ -133,16 +143,22 @@ exp_sub_df <- df %>%
                 effect_size_indices:ncol(.)) %>%
   dplyr::select(-c(Title:meet_criteria)) %>%
   as.data.frame()
+```
 
 
-## for model 1
+### format table
+
+  Now, each paper can include data from multiple models, and they are presented in columns. 
+We need to put all data on models in rows. 
+```{r}
+##' Test code for formatting one model
 # exp_sub_mod1 <- exp_sub_df %>%
 #   dplyr::select(id, starts_with("Model 1 ") & !contains("measurement", ignore.case = TRUE))
 # 
 # exp_sub_mod11 <- exp_sub_df %>%
 #   dplyr::select(id, starts_with("Model 11 "))
 
-
+##' loop all 20 models (in the Covidence form, we have 20 rows for data extraction)
 exp_sub_mod_l <- data.frame()
 for (i in 1:20) {
   # print(i)
@@ -155,6 +171,7 @@ for (i in 1:20) {
     dplyr::mutate(model_id = i) %>%
     dplyr::select(id, effect_size_indices, model_id, `Health outcome direction`, everything())
   
+  ##' remove model id so that they can be rbind (require the same column names)
   colnames(exp_sub_mod) <- sub(mod_id, "", colnames(exp_sub_mod))
   
   exp_sub_mod_l <- rbind(exp_sub_mod_l, exp_sub_mod)
@@ -181,6 +198,7 @@ exp_sub_mods <- exp_sub_mod_l %>%
   dplyr::filter(!is.na(Mean)) %>%
   dplyr::rename(Mean_raw = Mean) %>%
   dplyr::rename(CI_95_lower_raw = CI_95_lower) %>%
+  ##' clean the special character "-" in text
   dplyr::mutate(
     Mean = as.character(Mean_raw),
     Mean = gsub(sign, "-", Mean_raw),
@@ -193,7 +211,7 @@ exp_sub_mods <- exp_sub_mod_l %>%
       effect_size_indices == 'or' & `Health outcome direction` == "Higher is better" ~ 1-(Mean-1),
       TRUE ~ Mean
       ),
-    
+    ##' clean the special character "-" in text too
     CI_95_lower = as.character(CI_95_lower_raw),
     CI_95_lower = gsub(sign, "-", CI_95_lower),
     CI_95_lower = gsub(" ", "", CI_95_lower), 
@@ -203,8 +221,6 @@ exp_sub_mods <- exp_sub_mod_l %>%
     
     N = gsub(" ", "", N), 
     N = as.numeric(N),
-    
-    
     ) %>%
   dplyr::select(id, all_of(cols_keep),
                 effect_size_indices:Mean_raw, Mean, CI_95_lower_raw, CI_95_lower, everything()) %>%
@@ -213,7 +229,14 @@ exp_sub_mods <- exp_sub_mod_l %>%
 ```
 
 
-### Coefficients
+
+
+## Meta-analysis
+
+### select one `effect_size_indice` for meta-analysis
+
+  * 1. Coefficients
+  
 ```{r}
 unique(exp_sub_mods$effect_size_indices)
 
@@ -222,9 +245,13 @@ exp_sub_mods_coef <- exp_sub_mods %>%
   dplyr::filter(effect_size_indices == 'coefficients') %>%
   as.data.frame()
 ```
+  
 
+### MA R packages
 
-#### psychmeta
+  There are several R packages for meta-analysis. 
+
+#### `psychmeta`
 ```{r}
 # devtools::install_github("psychmeta/psychmeta")
 library(psychmeta)
@@ -260,20 +287,20 @@ get_plots(ma_res)[["forest"]][[1]][["moderated"]][["barebones"]]
 get_plots(ma_res)[["forest"]][[1]][["unmoderated"]][["barebones"]]
 ```
 
-
+  Not working well ... 
 ```{r}
-meta.object <- ma_res
+# meta.object <- ma_res
+# 
+# heterogeneity(meta.object)-> meta.object
+# plot_forest(meta.object)-> meta.object
+# plot_funnel(meta.object)-> meta.object
+# 
+# meta.object$heterogeneity$`analysis id: 1`$individual_correction$true_score
+# meta.object$forest$`analysis id: 1`$unmoderated$individual_correction$ts
+# meta.object$funnel$`analysis id: 1`$individual_correction$true_score
 
-heterogeneity(meta.object)-> meta.object
-plot_forest(meta.object)-> meta.object
-plot_funnel(meta.object)-> meta.object
 
-meta.object$heterogeneity$`analysis id: 1`$individual_correction$true_score
-meta.object$forest$`analysis id: 1`$unmoderated$individual_correction$ts
-meta.object$funnel$`analysis id: 1`$individual_correction$true_score
-```
 
-```{r}
 ### - sensitivity analyses
 # ma_obj <- sensitivity(ma_res,
 #                       leave1out = TRUE,
@@ -288,7 +315,7 @@ meta.object$funnel$`analysis id: 1`$individual_correction$true_score
 ```
 
 
-#### metafor
+#### `metafor`
 ```{r}
 # load the metafor package
 library(metafor)
@@ -411,7 +438,8 @@ text(x = -16, y = -1.8, pos=4, cex=0.90, bquote(paste("Test for Subgroup Differe
 
 
 
-#### publication bias
+##### - funnel for publication bias
+
   Given our assumptions, and in the case when there is no publication bias, all studies would lie symmetrically around our pooled effect size (the vertical line in the middle), within the form of the funnel. 
   
   When *publication bias* is present, we would assume that the funnel would look asymmetrical, because only the small studies with a large effect size very published, while small studies without a significant, large effect would be missing.
@@ -422,7 +450,7 @@ text(x = -16, y = -1.8, pos=4, cex=0.90, bquote(paste("Test for Subgroup Differe
   
   - https://wviechtb.github.io/metafor/reference/funnel.html
   
-```{r - funnel}
+```{r}
 ### funnel plot --------------------------------------------------------------------------
 # funnel(res)
 # funnel(res, ylim=c(0,.08), las=1)
@@ -449,7 +477,7 @@ funnel(trimfill(res), # , side = 'left'
 #        hlines=NULL, ylab="Precision (1/se)")
 
 
-png(file=paste0('./figures/', 'plot_funnel.png'), 
+png(file=paste0('./figures/', 'plot_funnel_', today, '.png'), 
     width = 1000, height = 1000, units = "px", pointsize = 22) 
 funnel(
   # trimfill(res, side = 'right'),
@@ -466,7 +494,7 @@ dev.off()
 
 
 
-#### metacor
+#### `meta`
 ```{r}
 library(meta)
 m.cor <- metacor(cor = Mean, 
@@ -483,10 +511,11 @@ summary(m.cor)
 
 
 
-#### auto-report
-```{r }
+
+```{r - auto-report}
 ### reporter() function
-reporter(res, dir = paste0(dir.root, '/figures/'))
+dir.report <- paste0('./figures/'); dir.report
+reporter(res, dir = dir.report)
 
 # reporter(res, format="pdf", 
 #          dir = paste0(dir.root, '/figures/'), 
