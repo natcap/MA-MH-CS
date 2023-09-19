@@ -7,16 +7,21 @@ output:
   html_document: default
 ---
 
-```{r setup, include=FALSE}
+
+# Setup
+```{r, include=FALSE}
 # To clear your environment
 remove(list = ls())
 
+Sys.setenv(LANG = "en")
+
 ## Load directories
-knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
-getwd()
-setwd(dirname(getwd()))
+# knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+# getwd()
+# setwd(dirname(getwd()))
 
 ## Load common packages
+getwd()
 source("./code/_pkgs_dirs.R")
 dir.raw   <- "./data/0005-covidence_export/data extraction/"
 dir_share <- 'G:/Shared drives/Urban nature-health/projects/meta-analysis/figures/'
@@ -32,7 +37,7 @@ today <- format(Sys.time(), "%Y%m%d"); today ## "%Y%m%d%H%M"
 
 
 save_plot <- F
-# save_plot <- T
+save_plot <- T
 ```
 
 
@@ -47,6 +52,15 @@ data(countryRegions,envir=environment(),package="rworldmap")
 ```
 
 
+```{r - functions}
+source('./code/func_expand_col_to_long.R')
+source('./code/func_clean_indicators.R')
+source('./code/func_plot_freq.R')
+source('./code/func_ggsave.R')
+
+```
+
+
 
 # Data import
 
@@ -58,26 +72,6 @@ fs <- list.files(path = dir.raw, full.names = T, pattern = '.csv$'); fs
 ```
 
 
-## Data for viz proregss
-```{r include=FALSE}
-dfs <- data.frame()
-
-for (csv in fs) {
-  t <- basename(csv) %>% gsub('review_278532_', '', .) %>%
-    str_sub(start = 1, end = 14)  %>%
-    as.POSIXct(.,format="%Y%m%d%H%M%S") 
-  t
-  
-  d <- readr::read_csv(file = csv) %>%
-    dplyr::select(1:4, matches('Mental', ignore.case = F)) %>%
-    dplyr::mutate(date = t) %>%
-    as.data.frame()
-  
-  dfs <- rbind(dfs, d)
-}
-```
-
-
 ## Data for analysis 📁 
 ```{r include=FALSE}
 ## Choose the most updated one for formal analysis ---------------------------------------
@@ -86,13 +80,14 @@ for (csv in fs) {
 csv <- "review_278532_20230427120514.csv"     # 2023-04-27 
 csv <- "review_278532_20230616074045.csv"     # 2023-05-13, addressed 85 consensus 
 csv <- "review_278532_20230703085230.csv"
+csv <- "review_278532_20230919160759.csv"     # 2023-9-18, 30 consensus done for Extraction
 
 t <- basename(csv) %>% gsub('review_278532_', '', .) %>%
   str_sub(start = 1, end = 14)  %>%
   as.POSIXct(.,format="%Y%m%d%H%M%S") 
 t
 
-dd <- readr::read_csv(file = paste0(dir.raw, csv)) %>%
+dd <- readr::read_csv(file = paste0(dir.raw, csv), show_col_types = F) %>%
   dplyr::mutate(date = t) %>%
   dplyr::rename(
     'id' = 'Covidence #',
@@ -109,15 +104,17 @@ dd <- readr::read_csv(file = paste0(dir.raw, csv)) %>%
   as.data.frame()
 
 # names(dd)
-
+unique(dd$Reviewer)
 
 df <- dd %>%
   dplyr::mutate(Reviewer_id = case_when(
     Reviewer == 'Yingjie Li'    ~ 1, 
     Reviewer == 'Yuanyuan Mao'  ~ 2, 
-    Reviewer == 'Emily Brieant' ~ 3, 
-    Reviewer == 'Katherine Wu'  ~ 4,
-    Reviewer == 'Mary Lee'      ~ 5,
+    Reviewer == 'Zander Galli'  ~ 3, 
+    Reviewer == 'Xin Lan'       ~ 4, 
+    Reviewer == 'Emily Brieant' ~ 5, 
+    Reviewer == 'Katherine Wu'  ~ 6,
+    Reviewer == 'Mary Lee'      ~ 7,
     Reviewer == 'Consensus'     ~ 99
   )) %>%
   dplyr::select(id:Reviewer, Reviewer_id, everything()) %>%
@@ -126,11 +123,12 @@ df <- dd %>%
   as.data.frame()
 
 ## save data for other analysis
-saveRDS(df, "./data/0301-MA-input/df_covidenceFull.rds")
+f <- paste0('./data/0301-MA-input/df_covidenceFull_', today, '.rds'); f
+saveRDS(df, file = f)
 ```
 
 
-## Check consensus
+## Check consensus status
 ```{r}
 
 df_check <- dd %>%
@@ -152,59 +150,25 @@ dd1 <- df_check %>%
   group_by(Reviewer) %>%
   summarise(id = str_c(id, collapse = ", ") )
 
-
+##' a list of papers that have NOT been sent for concensus
 dd2 <- aggregate(id ~ Reviewer, unique(df_check), paste, collapse = ", ")
-  
-dd2
 ```
 
 
 
 # Data cleaning 
 
-```{r - functions}
-source('./code/func_expand_col_to_long.R')
-source('./code/func_plot_freq.R')
-source('./code/func_ggsave.R')
-
-```
-
-
 
 ## Indicator
+
 ```{r - indicator, include=FALSE}
+
+## load data
+f <- paste0('./data/0301-MA-input/df_covidenceFull_', today, '.rds'); f
+df <- readRDS(file = f)
+
+
 ## keep columns of interest, and clean data
-
-func_clean_indicators <-  function(data) {
-  d <- data %>%
-    dplyr::mutate(
-    Indicator = str_squish(Indicator),
-    Indicator = gsub("Other\\: |in general\\*", "", Indicator),
-    Indicator = gsub("\\(include schizophrenia\\)", "", Indicator),
-    Indicator = gsub("\\s*\\([^\\)]+\\)", "", Indicator), # remove text within parenthesis 
-    Indicator = gsub("\\/Restorativeness", "", Indicator),
-    Indicator = gsub("Restoration experience|Restorative experience|Restorativeness", 
-                     "Restorative effects", Indicator, ignore.case = T), 
-    Indicator = gsub("Attention capacity|Sustained attention", "Attention", Indicator, ignore.case = T), ##  
-    Indicator = gsub("Behavioural", "Behavioral", Indicator, ignore.case = T), ##  
-    Indicator = gsub("Behavioral problems", "Behavioral disorder", Indicator, ignore.case = T), ## 
-    Indicator = gsub("Burnout symptom", "Burnout", Indicator, ignore.case = T),
-    Indicator = gsub("Burnout fatigue|burnout fatigue", "Burnout", Indicator, ignore.case = T),
-    Indicator = gsub("Cognitions and Conduct", "Cognitive functioning", Indicator, ignore.case = T), # 
-    Indicator = gsub("Quality of life|Quality of Life", "Quality of life;", Indicator),# 
-    Indicator = gsub("Psychological distress|psychological distress", "Mental distress", Indicator),# # 
-    Indicator = gsub("Symptoms of psychosis", "Psychosis", Indicator, ignore.case = T), #### 
-
-    Indicator = gsub(",", ";", Indicator),
-    Indicator = trimws(Indicator)
-    ) %>%
-    as.data.frame()
-  
-  return(d)
-}
-
-
-
 dt <- df %>%
   dplyr::select(1:4, matches("Country|Mental health|Indicator|Tools")) %>%
   dplyr::select(!matches("duration", ignore.case = T)) %>%
@@ -265,12 +229,14 @@ dt.ind.clean %>%
     plot.title = element_text(size = 10, hjust = 1.2, face = 'bold')
     )
 
-f <- "mini-review_indicators.png"
+f <- paste0("mini-review_indicators_", today, ".png")
 fname <- paste0(dir.fig, f)
 w = 3
 h = 5
 func_ggsave(fname = fname, w = w, h = h)
 
+
+## save to a shared Drive
 fname <- paste0(dir_share, f); fname
 func_ggsave(fname = fname, w = w, h = h)
 ```
@@ -364,7 +330,7 @@ dt.tool.clean <- dt.tool.expand %>%
 
 
 ```{r - tools selected for MA, include=FALSE}
-## select the most used measures in lit for meta-analysis
+## select the most used measures in literature for meta-analysis
 tools_selected <- c('POMS', 'GHQ-12', 'PANAS')
 
 dt.tool.expand.selected <- dt.tool.expand %>% 
@@ -374,7 +340,7 @@ dt.tool.expand.selected <- dt.tool.expand %>%
   dplyr::mutate(id = paste0('#', id)) %>%
   as.data.frame()
 
-f <- paste0('./data/0301-MA-input/', 'paperID_byTopTools.CSV')
+f <- paste0('./data/0301-MA-input/', 'paperID_byTopTools_', today, '.CSV'); f
 readr::write_csv(x = dt.tool.expand.selected, file = f)
 ```
 
@@ -385,23 +351,24 @@ readr::write_csv(x = dt.tool.expand.selected, file = f)
 dt.tool.clean %>%
   dplyr::slice_max(order_by = n, n = 20) %>%
   plot_freq(data = ., var = 'Tool') +
+  geom_text(
+    aes(label = n), vjust = 0.5, hjust = 1.1, color = 'white', size = 3) +
   ggtitle("Frequency of Mental health\nmeasurement tools") +
   theme_bw() +
   theme(
-    plot.title = element_text(size = 10, 
-                              hjust = .5,
-                              face = 'bold'),
+    plot.title = element_text(size = 10, hjust = .5, face = 'bold'),
     plot.title.position = "plot", #NEW parameter. Apply for subtitle too.
     )
 
-f <- "mini-review_tools_bar.png"
+f <- paste0('mini-review_tools_bar_', today, '.png'); f
 fname <- paste0(dir.fig, f)
 func_ggsave(fname = fname, w = w, h = h)
 
+###' save to a shared Drive
 fname <- paste0(dir_share, f); fname
 func_ggsave(fname = fname, w = w, h = h)
-
 ```
+
 
 ## Matching
 
@@ -568,9 +535,10 @@ func_clean_country <- function(data) {
     dplyr::mutate(
       ## clean and correct country names
       Country = case_when(
-        str_detect(string = Country, pattern = 'Scotland|UK|England|United kingdom') ~ 'United Kingdom',
+        str_detect(string = Country, pattern = 'Scotland|UK|England|United kingdom|The United Kingdom') ~ 'United Kingdom',
         str_detect(string = Country, pattern = 'Indonasia') ~ 'Indonesia',
         str_detect(string = Country, pattern = 'Malasia') ~ 'Malaysia',
+        str_detect(string = Country, pattern = 'The Netherlands') ~ 'Netherlands',
         str_detect(string = Country, pattern = 'Danmark') ~ 'Denmark',
         str_detect(string = Country, pattern = 'Beigium') ~ 'Belgium',
         str_detect(string = Country, pattern = 'Brasil') ~ 'Brazil',
@@ -585,22 +553,24 @@ func_clean_country <- function(data) {
   return(d)
 }
 
-region <- dt %>%
+reg_ <- dt %>%
   dplyr::select(1, Country) %>%
   dplyr::filter(!is.na(Country)) %>%
   dplyr::filter(!Country %in% c('m', 'NA', 'Global', 'Europe', 'all over the world')) %>%
-  func_clean_country(.) %>%
   group_by(Country) %>%
   tally() %>%
   as.data.frame()
 
-region <- region %>%
+region <- reg_ %>%
   expand_col_to_long(data = ., target_col = "Country") %>%
   dplyr::mutate(Country = ifelse(
       nchar(Country) > 3,
       str_to_title(Country),
       Country
     )) %>%
+  func_clean_country(data = .) %>%
+  group_by(Country) %>%
+  dplyr::summarise_at('n', sum, na.rm = TRUE) %>%
   as.data.frame()
 
 
@@ -685,7 +655,7 @@ region_count %>%
         strip.text = element_blank()
   )
 
-f <- 'mini-review_paper_count_bar.png'
+f <- paste0('mini-review_paper_count_bar_', today, '.png'); f
 fname <- paste0(dir.fig, f); fname
 func_ggsave(fname = fname, w = 7, h = 4, save_png = T)
 ```
@@ -707,7 +677,7 @@ region_count_sf %>%
   theme_nothing() +
   theme(legend.position = c(0.06, 0.4))
 
-f <- 'mini-review_paper_count_map.png'
+f <- paste0('mini-review_paper_count_map_', today, '.png'); f
 w_map = 6.4*2
 h_map = 3.2*2
 
@@ -718,6 +688,8 @@ fname <- paste0(dir_share, f); fname
 func_ggsave(fname = fname, w = w_map, h = h_map)
 
 ```
+
+
 
 ```{r - ind + ctr}
 dt.ind.cl_ctr  <- dt.ind.cl  %>%
@@ -1008,142 +980,6 @@ func_alluvial(data = dtt, indicator_n_min = 3, labele_small = 20, w_p = 10, file
 # ggsave(filename = fname, plot = last_plot(), width = 10, height = 10, units = 'in', dpi = 300)
 
 ```
-
-
-
-## Buffer
-
-```{r}
-f <- "./data/0301-MA-input/df_covidenceFull.rds"
-df <- readRDS(file = f)
-
-df_bf <- df %>%
-  dplyr::select(id, `Study ID`, starts_with('Buffer'))
-names(df_bf) <- c('id', 'Study_ID', 'buffer', 'buffer_unit')
-
-df_bf_ <- df_bf %>%
-  dplyr::filter(!is.na(buffer)) %>%
-  expand_col_to_long(data = ., target_col = "buffer") %>%
-  
-  ## fill NA in the unit column 
-  dplyr::mutate(
-    unit = case_when(
-      is.na(buffer_unit) ~ gsub("[^a-zA-Z]", "", buffer),
-      T ~ buffer_unit), 
-    
-    ## clean `unit` format
-    unit = gsub('Kilometers|\\(|\\)', '', unit),
-    unit = gsub('Meters', 'm', unit),
-    unit = trimws(unit),
-    
-    buf = gsub("[[:alpha:]]", "", buffer) %>%
-      as.numeric(.), 
-    
-    ## concert all values to meter
-    buf_m = case_when(
-      unit == 'km' ~ buf * 1000,
-      T ~ buf
-    )
-  
-  ) %>%
-  as.data.frame()
-
-unique(df_bf_$unit)
-n_paper <- length(unique(df_bf_$id))
-n_study <- nrow(df_bf_)
-
-p1 <- df_bf_ %>%
-  ggplot(aes(x = buf_m)) +
-  geom_histogram(binwidth = 500, color = "black", fill = "lightblue", alpha = 0.7) +
-  theme_classic() +
-  labs(title = paste0("Commonly used buffer size in ", n_paper, ' papers (', n_study, ' studies)'), 
-       x = "Buffer (m)", y = "Frequency")
-
-buf_m_upper <- 10000
-
-p2 <- df_bf_ %>%
-  dplyr::filter(buf_m <= buf_m_upper) %>%
-  ggplot(aes(x = buf_m)) +
-  geom_histogram(binwidth = 100, color = "black", fill = "lightblue", alpha = 0.7) +
-  scale_x_continuous(breaks = seq(0, buf_m_upper, 500)) + 
-  
-  theme_classic() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  labs(title = paste0('When narrowed down to the 0 - 10 km range ...'), 
-       x = "Buffer (m)", y = "Frequency")
-
-library(ggpubr)
-ggarrange(p1, p2, ncol = 1)
-
-```
-
-
-
-# SM
-
-## Viz Proregss
-```{r}
-dfs1 <- dfs %>%
-  # dplyr::select(1:4, matches("Country|Mental health")) %>%
-  dplyr::select(!matches("duration", ignore.case = T)) %>%
-  dplyr::rename(
-    'id' = 'Covidence #',
-    "Reviewer" = "Reviewer Name",
-    'Indicator' = 'Mental health indicators',
-    "Tools" = "Mental health measurement tools"
-  ) %>%
-  func_clean_indicators(data = .) %>%
-  ### - keep old data and remove data in newest dates
-  # arrange(desc(date)) %>%
-  dplyr::distinct(id, Reviewer, .keep_all = T) %>%
-  as.data.frame()
-  
-dfs1_check <- dfs1 %>%
-  group_by(id) %>%
-  add_count() %>%
-  # dplyr::filter(n == 3) %>%  ## passed `consensus`
-  dplyr::filter(n >= 2) %>%    ## need `consensus`
-  arrange(id) %>%
-  as.data.frame()
-  
-
-dt %>%
-  # dplyr::select(1:4, matches("Country|Mental health")) %>%
-  dplyr::select(!matches("duration", ignore.case = T)) %>%
-  group_by(Reviewer) %>%
-  tally() %>%
-  ggplot(aes(x = reorder(Reviewer, n), y = n)) +
-  geom_col() +
-  geom_text(aes(label = n), vjust = 0.5, hjust = 0, color = 'gray20') +
-  coord_flip() +
-  theme_bw()
-```
-
-
-```{r}
-# 
-dfs1 %>%
-  group_by(Reviewer, date) %>%
-  tally() %>%
-  add_count(Reviewer, wt = n, name = 'n_total') %>%
-  # dplyr::mutate(date = as.Date(date)) %>%
-  ggplot(aes(x = reorder(Reviewer, n_total), y = n, fill = date)) +
-  geom_col(show.legend = F) +
-  geom_text(aes(label = n), 
-            # vjust = 0.5, hjust = 0, 
-            position = position_stack(vjust = 0.5),
-            color = 'gray90') +
-  
-  geom_text(
-    aes(label = after_stat(y), group = Reviewer), 
-    stat = 'summary', fun = sum, vjust = .5, hjust = 0, color = 'red', fontface = 'bold', size = 5
-  ) +
-
-  xlab('') +
-  coord_flip() +
-  theme_bw()
-```
-
 
 
 
