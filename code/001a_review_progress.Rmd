@@ -1,0 +1,164 @@
+---
+title: "mini-review"
+author: "Yingjie"
+date: "2023-03-05"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+
+# Setup
+```{r, include=FALSE}
+### To clear your environment
+# remove(list = ls())
+
+Sys.setenv(LANG = "en")
+
+## Load directories
+# knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+# getwd()
+# setwd(dirname(getwd()))
+
+## Load common packages
+source("./code/_pkgs_dirs.R")
+dir.raw   <- "./data/0005-covidence_export/data extraction/"
+dir_share <- 'G:/Shared drives/Urban nature-health/projects/meta-analysis/figures/'
+
+
+## Additional packages
+library(rprojroot)
+library(tidyverse)
+library(splitstackshape) ## `cSplit()`
+library(Hmisc)
+library(rworldmap)
+today <- format(Sys.time(), "%Y%m%d"); today ## "%Y%m%d%H%M"
+
+
+save_plot <- F
+# save_plot <- T
+```
+
+
+```{r - helper data}
+data(countryRegions,envir=environment(),package="rworldmap")
+# str(countryRegions)
+
+# ISO3:       ISO 3 letter country code
+# ADMIN:      country name
+# REGION:     7 region continent classification
+# continent:  6 continents classification
+```
+
+
+```{r - functions}
+source('./code/func_expand_col_to_long.R')
+source('./code/func_clean_indicators.R')
+source('./code/func_plot_freq.R')
+source('./code/func_ggsave.R')
+
+```
+
+
+
+# Data import
+
+## Data list
+```{r include=FALSE}
+fs <- list.files(path = dir.raw, full.names = T, pattern = '.csv$'); fs
+# csv <- fs[1]
+# names(df)
+```
+
+
+## Data for viz proregss
+```{r include=FALSE}
+dfs <- data.frame()
+
+for (csv in fs) {
+  t <- basename(csv) %>% gsub('review_278532_', '', .) %>%
+    str_sub(start = 1, end = 14)  %>%
+    as.POSIXct(.,format="%Y%m%d%H%M%S") 
+  t
+  
+  d <- readr::read_csv(file = csv, show_col_types = FALSE) %>%
+    dplyr::select(1:4, matches('Mental', ignore.case = F)) %>%
+    dplyr::mutate(date = t) %>%
+    as.data.frame()
+  
+  dfs <- rbind(dfs, d)
+}
+```
+
+
+
+## Viz Proregss
+```{r}
+dfs1 <- dfs %>%
+  # dplyr::select(1:4, matches("Country|Mental health")) %>%
+  dplyr::select(!matches("duration", ignore.case = T)) %>%
+  dplyr::rename(
+    'id' = 'Covidence #',
+    "Reviewer" = "Reviewer Name",
+    'Indicator' = 'Mental health indicators',
+    "Tools" = "Mental health measurement tools"
+  ) %>%
+  func_clean_indicators(data = .) %>%
+  ### - keep old data and remove data in newest dates
+  # arrange(desc(date)) %>%
+  dplyr::distinct(id, Reviewer, .keep_all = T) %>%
+  as.data.frame()
+  
+dfs1_check <- dfs1 %>%
+  group_by(id) %>%
+  add_count() %>%
+  # dplyr::filter(n == 3) %>%  ## passed `consensus`
+  dplyr::filter(n >= 2) %>%    ## need `consensus`
+  arrange(id) %>%
+  as.data.frame()
+  
+
+dt %>%
+  # dplyr::select(1:4, matches("Country|Mental health")) %>%
+  dplyr::select(!matches("duration", ignore.case = T)) %>%
+  group_by(Reviewer) %>%
+  tally() %>%
+  ggplot(aes(x = reorder(Reviewer, n), y = n)) +
+  geom_col() +
+  geom_text(aes(label = n), vjust = 0.5, hjust = 0, color = 'gray20') +
+  coord_flip() +
+  theme_bw()
+```
+
+
+```{r}
+dfs1.summ <- dfs1 %>%
+  group_by(Reviewer, date) %>%
+  tally() %>%
+  add_count(Reviewer, wt = n, name = 'n_total') 
+
+dfs1.summ %>%
+  # dplyr::mutate(date = as.Date(date)) %>%
+  ggplot(aes(x = reorder(Reviewer, n_total), y = n, fill = date)) +
+  geom_col(show.legend = F) +
+  geom_text(aes(label = n), 
+            # vjust = 0.5, hjust = 0, 
+            position = position_stack(vjust = 0.5),
+            color = 'gray90') +
+  
+  geom_text(
+    aes(label = after_stat(y), group = Reviewer), 
+    stat = 'summary', fun = sum, vjust = .5, hjust = 0, color = 'red', fontface = 'bold', size = 5
+  ) +
+    ylim(0, max(5 + (dfs1.summ$n_total), na.rm = T)) +
+
+  xlab('') +
+  coord_flip() +
+  theme_bw()
+```
+
+
+
+
+
+
