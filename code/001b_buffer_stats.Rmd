@@ -1,0 +1,118 @@
+---
+title: "Untitled"
+author: "Yingjie"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+
+# Setup
+```{r, include=FALSE}
+# To clear your environment
+# remove(list = ls())
+
+Sys.setenv(LANG = "en")
+
+## Load directories
+# knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+# getwd()
+# setwd(dirname(getwd()))
+
+## Load common packages
+getwd()
+source("./code/_pkgs_dirs.R")
+dir.raw   <- "./data/0005-covidence_export/data extraction/"
+dir_share <- 'G:/Shared drives/Urban nature-health/projects/meta-analysis/figures/'
+
+
+## Additional packages
+library(rprojroot)
+library(tidyverse)
+library(splitstackshape) ## `cSplit()`
+library(Hmisc)
+library(rworldmap)
+today <- format(Sys.time(), "%Y%m%d"); today ## "%Y%m%d%H%M"
+
+
+save_plot <- F
+save_plot <- T
+```
+
+
+
+
+## Buffer
+
+```{r}
+
+## load data 
+fs <- list.files(path = "./data/0301-MA-input/", pattern = '^df_covidenceFull', full.names = T)
+fs
+f <- fs[-1]
+df <- readRDS(file = f)
+
+df_bf <- df %>%
+  dplyr::select(id, `Study ID`, starts_with('Buffer'))
+names(df_bf) <- c('id', 'Study_ID', 'buffer', 'buffer_unit')
+
+df_bf_ <- df_bf %>%
+  dplyr::filter(!is.na(buffer)) %>%
+  expand_col_to_long(data = ., target_col = "buffer") %>%
+  
+  ## fill NA in the unit column 
+  dplyr::mutate(
+    unit = case_when(
+      is.na(buffer_unit) ~ gsub("[^a-zA-Z]", "", buffer),
+      T ~ buffer_unit), 
+    
+    ## clean `unit` format
+    unit = gsub('Kilometers|\\(|\\)', '', unit),
+    unit = gsub('Meters', 'm', unit),
+    unit = trimws(unit),
+    
+    buf = gsub("[[:alpha:]]", "", buffer) %>%
+      as.numeric(.), 
+    
+    ## concert all values to meter
+    buf_m = case_when(
+      unit == 'km' ~ buf * 1000,
+      T ~ buf
+    )
+  
+  ) %>%
+  as.data.frame()
+
+unique(df_bf_$unit)
+n_paper <- length(unique(df_bf_$id))
+n_study <- nrow(df_bf_)
+
+p1 <- df_bf_ %>%
+  ggplot(aes(x = buf_m)) +
+  geom_histogram(binwidth = 500, color = "black", fill = "lightblue", alpha = 0.7) +
+  theme_classic() +
+  labs(title = paste0("Commonly used buffer size in ", n_paper, ' papers (', n_study, ' studies)'), 
+       x = "Buffer (m)", y = "Frequency")
+
+buf_m_upper <- 10000
+
+p2 <- df_bf_ %>%
+  dplyr::filter(buf_m <= buf_m_upper) %>%
+  ggplot(aes(x = buf_m)) +
+  geom_histogram(binwidth = 100, color = "black", fill = "lightblue", alpha = 0.7) +
+  scale_x_continuous(breaks = seq(0, buf_m_upper, 500)) + 
+  
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = paste0('When narrowed down to the 0 - 10 km range ...'), 
+       x = "Buffer (m)", y = "Frequency")
+
+library(ggpubr)
+ggarrange(p1, p2, ncol = 1)
+
+
+f <- paste0('buffer_stats_', today, '.png'); f
+fname <- paste0(dir.fig, f)
+func_ggsave(fname = fname, w = 6, h = 6)
+```
+
+
