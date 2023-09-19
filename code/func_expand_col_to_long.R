@@ -1,17 +1,19 @@
 
+library(splitstackshape) ## `cSplit()`
 
 expand_col_to_long <- function(data, target_col = "Mental health indicators") {
   data_long <- data %>%
     dplyr::rename("col_split" = target_col) %>%
     ## unify the separator as ";"
     dplyr::mutate(col_split = gsub(';|,', ';', col_split)) %>%
-    cSplit(
+    splitstackshape::cSplit(
       indt = .,
       splitCols = c("col_split"),
       sep = ";",
       drop = F, # drop the original col or not
       direction = "long", # this is better than "wide"
-      stripWhite = T
+      stripWhite = T,
+      type.convert=FALSE
     ) %>% # clean white space
     dplyr::mutate(across(where(is.factor), as.character)) %>%
     dplyr::mutate(col_split = trimws(col_split)) %>%
