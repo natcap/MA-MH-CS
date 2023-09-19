@@ -36,11 +36,8 @@ library(stringr)
 library(splitstackshape) ## `cSplit()`
 library(Hmisc)
 library(rworldmap)
-today <- format(Sys.time(), "%Y%m%d"); today ## "%Y%m%d%H%M"
-
 
 ### packages for meta-analysis
-
 # install.packages("remotes")
 # remotes::install_github("guido-s/meta", ref = "develop")
 ### or an old version that supports R3.6
@@ -49,6 +46,9 @@ today <- format(Sys.time(), "%Y%m%d"); today ## "%Y%m%d%H%M"
 library(meta)
 
 library(metafor)
+
+
+today <- format(Sys.time(), "%Y%m%d"); today ## "%Y%m%d%H%M"
 ```
 
 
@@ -56,9 +56,15 @@ library(metafor)
 # Data
 
 ## Load data from Covidence
+
 ```{r}
 
-df <- readRDS(file = "./data/0301-MA-input/df_covidenceFull.rds") %>%
+## load data 
+fs <- list.files(path = "./data/0301-MA-input/", pattern = '^df_covidenceFull', full.names = T)
+fs
+f <- fs[-1]
+
+df <- readRDS(file = f) %>%
   dplyr::rename(
     'exposure_type' = 'Nature exposure type',
     'nature_type' = "General category of urban nature",
@@ -106,7 +112,7 @@ df_exp_l_stat <- df_exp_l %>%
 ```
 
 
-## Stat on exposure_type
+### Stat on exposure_type
 ```{r}
 plot_freq(data = df_exp_l_stat, var = 'exposure_type') +
    geom_text(aes(label = n), vjust = .5, hjust = 0)
@@ -118,13 +124,17 @@ func_ggsave(fname = fname, w = 7, h = 4, save_png = T)
 
 
 
-## Input data 
+## Input data for MA
 
-### subset one exposure_type
+### subset one `exposure_type`
 ```{r}
-exp_sub <- df_exp_l %>%
-  dplyr::filter(exposure_type == 'L1 - neighborhood/residential exposure')
 
+exposure_type_i   <- 'L1 - neighborhood/residential exposure'
+effect_size_ind_i <- 'coefficients'
+  
+###' subset papers that examined `exposure_type_i`
+exp_sub <- df_exp_l %>%
+  dplyr::filter(exposure_type == exposure_type_i)
 exp_sub_id <- unique(exp_sub$id)
 
 exp_sub_df <- df %>%
@@ -167,12 +177,21 @@ for (i in 1:20) {
     dplyr::select(id, 
                   all_of(cols_keep),
                   effect_size_indices, `Health outcome direction`, 
+                  ##' loop a model by selecting the column names 
+                  ##' but need to exclude data from table 3 (with column names that contain key word 'measurement')
                   starts_with(mod_id) & !contains("measurement", ignore.case = TRUE)) %>%
     dplyr::mutate(model_id = i) %>%
     dplyr::select(id, effect_size_indices, model_id, `Health outcome direction`, everything())
   
   ##' remove model id so that they can be rbind (require the same column names)
   colnames(exp_sub_mod) <- sub(mod_id, "", colnames(exp_sub_mod))
+  ##' Remove part of string after "."
+  colnames(exp_sub_mod) <- gsub("\\..*","",colnames(exp_sub_mod))
+  
+  ##' Repair duplicate names - specify your own name repair function
+  exp_sub_mod <- exp_sub_mod %>%
+    as_tibble(., .name_repair = make.unique) %>%
+    as.data.frame()
   
   exp_sub_mod_l <- rbind(exp_sub_mod_l, exp_sub_mod)
 }
@@ -185,13 +204,15 @@ rm(exp_sub_mod)
 ```{r}
 ### clean up the negative sign "-" in data
 test <- exp_sub_mod_l %>%
-  dplyr::filter(id == 504)
+  dplyr::filter(id %in% c(504))
+
 m <- gsub(' ', '', test$Mean)
 sign <- m[1] %>% substr(., 1, 1)
 # mm <- gsub(sign, '-', m)
 # mm
 # as.numeric(mm)
 rm(test)
+sign <- paste(sign, '−', sep = '|')
 
 
 exp_sub_mods <- exp_sub_mod_l %>%
@@ -229,30 +250,30 @@ exp_sub_mods <- exp_sub_mod_l %>%
 ```
 
 
+### subset one `effect_size_indice`
 
-
-## Meta-analysis
-
-### select one `effect_size_indice` for meta-analysis
-
-  * 1. Coefficients
-  
 ```{r}
 unique(exp_sub_mods$effect_size_indices)
 
 
 exp_sub_mods_coef <- exp_sub_mods %>%
-  dplyr::filter(effect_size_indices == 'coefficients') %>%
+  dplyr::filter(effect_size_indices == effect_size_ind_i) %>%
   as.data.frame()
 ```
   
+
+
+## Meta-analysis
 
 ### MA R packages
 
   There are several R packages for meta-analysis. 
 
 #### `psychmeta`
-```{r}
+
+  * Not a good one, can skip this section 
+  
+```{r eval=FALSE, include=FALSE}
 # devtools::install_github("psychmeta/psychmeta")
 library(psychmeta)
 
@@ -354,7 +375,8 @@ plot(influence(res), cex=0.8, las=1)
 # print(forest(res, addpred=TRUE, header=TRUE))
 xlim_custmize = c(-1,1)
 
-png(file=paste0('./figures/', 'plot_forest.png'), 
+f <- paste0('./figures/', 'plot_forest_', today ,'.png'); f
+png(file=f, 
     # width = 3.5, height = 4, units = 'in', 
     width = 1000, height = 1000, units = "px", pointsize = 22,
     # res = 200
@@ -476,8 +498,8 @@ funnel(trimfill(res), # , side = 'left'
 #        # back="grey90",
 #        hlines=NULL, ylab="Precision (1/se)")
 
-
-png(file=paste0('./figures/', 'plot_funnel_', today, '.png'), 
+f <- paste0('./figures/', 'plot_funnel_', today, '.png'); f
+png(file=f, 
     width = 1000, height = 1000, units = "px", pointsize = 22) 
 funnel(
   # trimfill(res, side = 'right'),
