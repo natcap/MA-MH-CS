@@ -55,7 +55,9 @@ data(countryRegions,envir=environment(),package="rworldmap")
 ```{r - functions}
 source('./code/func_expand_col_to_long.R')
 source('./code/func_clean_indicators.R')
+source('./code/func_clean_tools.R')
 source('./code/func_plot_freq.R')
+source('./code/func_alluvial.R')
 source('./code/func_ggsave.R')
 
 ```
@@ -72,15 +74,16 @@ fs <- list.files(path = dir.raw, full.names = T, pattern = '.csv$'); fs
 ```
 
 
-## Data for analysis 📁 
-```{r include=FALSE}
+## Data for analysis 
+```{r - data in Covidence, include=FALSE}
 ## Choose the most updated one for formal analysis ---------------------------------------
 # csv <- "review_278532_20230305161741-test mini-review-analysis.csv"
 # csv <- "review_278532_20230328115335.csv"   # 2023-03-28
 csv <- "review_278532_20230427120514.csv"     # 2023-04-27 
 csv <- "review_278532_20230616074045.csv"     # 2023-05-13, addressed 85 consensus 
 csv <- "review_278532_20230703085230.csv"
-csv <- "review_278532_20230919160759.csv"     # 2023-9-18, 30 consensus done for Extraction
+csv <- "review_278532_20230920035224.csv"     # 2023-9-18, 30 consensus done for Extraction
+csv <- "review_278532_20230925164452.csv"
 
 t <- basename(csv) %>% gsub('review_278532_', '', .) %>%
   str_sub(start = 1, end = 14)  %>%
@@ -89,6 +92,7 @@ t
 
 dd <- readr::read_csv(file = paste0(dir.raw, csv), show_col_types = F) %>%
   dplyr::mutate(date = t) %>%
+  as.data.frame() %>%
   dplyr::rename(
     'id' = 'Covidence #',
     "Country" = "Country in which the study conducted",
@@ -98,33 +102,58 @@ dd <- readr::read_csv(file = paste0(dir.raw, csv), show_col_types = F) %>%
     "meet_criteria" = "Does this study meet the criteria for data extraction?"
   ) %>%
   dplyr::filter(!meet_criteria %in% c('No')) %>%
-  dplyr::mutate(Tools = gsub("Other: |Other:", "", Tools)) %>%
-  dplyr::mutate(Country = gsub("Other: |Other:", "", Country)) %>%
+  dplyr::mutate(Tools   = gsub("Other\\: |Other\\:", "", Tools)) %>%
+  dplyr::mutate(Country = gsub("Other\\: |Other\\:", "", Country)) %>%
   arrange(id, Reviewer) %>%
   as.data.frame()
+```
 
+
+```{r - data in gsheet}
+library(googlesheets4)
+
+### Use data from Google Doc
+link <- 'https://docs.google.com/spreadsheets/d/1sVUU2FfSq3NChdM_Vhxc9sbm_eHAJtoKtEP_g3aIMn8/edit?usp=sharing'
+dd.gsheet <- googlesheets4::read_sheet(link, sheet = 1) %>%
+  dplyr::mutate(date = NA) %>%
+  as.data.frame()
+
+```
+
+
+```{r - save as rds 📁,include=FALSE}
 # names(dd)
 unique(dd$Reviewer)
 
-df <- dd %>%
-  dplyr::mutate(Reviewer_id = case_when(
-    Reviewer == 'Yingjie Li'    ~ 1, 
-    Reviewer == 'Yuanyuan Mao'  ~ 2, 
-    Reviewer == 'Zander Galli'  ~ 3, 
-    Reviewer == 'Xin Lan'       ~ 4, 
-    Reviewer == 'Emily Brieant' ~ 5, 
-    Reviewer == 'Katherine Wu'  ~ 6,
-    Reviewer == 'Mary Lee'      ~ 7,
-    Reviewer == 'Consensus'     ~ 99
-  )) %>%
-  dplyr::select(id:Reviewer, Reviewer_id, everything()) %>%
-  arrange(id, Reviewer_id, desc(date)) %>%
-  dplyr::distinct(id, .keep_all = T) %>%
-  as.data.frame()
+
+function_add_reviewer_id <- function(data) {
+  d <- data %>%
+    dplyr::mutate(Reviewer_id = case_when(
+      Reviewer == 'Yingjie Li'    ~ 1, 
+      Reviewer == 'Yuanyuan Mao'  ~ 2, 
+      Reviewer == 'Zander Galli'  ~ 3, 
+      Reviewer == 'Xin Lan'       ~ 4, 
+      Reviewer == 'Emily Brieant' ~ 5, 
+      Reviewer == 'Katherine Wu'  ~ 6,
+      Reviewer == 'test person'   ~ 7,
+      Reviewer == 'Mary Lee'      ~ 8,
+      Reviewer == 'Consensus'     ~ 99
+    )) %>%
+    dplyr::select(id:Reviewer, Reviewer_id, everything()) %>%
+    arrange(id, Reviewer_id, desc(date)) %>%
+    dplyr::distinct(id, .keep_all = T) %>%
+    as.data.frame()
+}
+
+
+df        <- function_add_reviewer_id(data = dd)
+df.gsheet <- function_add_reviewer_id(data = dd.gsheet)
 
 ## save data for other analysis
-f <- paste0('./data/0301-MA-input/df_covidenceFull_', today, '.rds'); f
-saveRDS(df, file = f)
+f1 <- paste0('./data/0301-MA-input/df_covidenceFull_', today, '.rds'); f1
+f2 <- paste0('./data/0301-MA-input/df_covidenceFull_', today, 'gsheet.rds'); f2
+saveRDS(df,        file = f1)
+saveRDS(df.gsheet, file = f2)
 ```
 
 
@@ -250,56 +279,6 @@ func_ggsave(fname = fname, w = w, h = h)
 
 ```{r - tool, include=FALSE}
 ## - by scale
-
-func_clean_tools <- function(data) {
-  d <- data %>%
-    dplyr::mutate(
-      Tool = gsub("Other: ", "", Tool),
-      Tool = gsub("scales|Scales", "scale", Tool, ignore.case = T),
-      Tool = gsub("\\s*\\([^\\)]+\\)", "", Tool), # remove text within parenthesis 
-      Tool = gsub(
-        paste("Anti\\-depressant prescribing", "Antidepressant prescriptions", 
-              "Antidepressant prescription rates", "Antidepressant use", sep = "|"),
-        "Antidepressant prescription", Tool, ignore.case = T),
-      Tool = gsub("CES\\-D\\-10|CESD\\-10", "CES\\-D10", Tool, ignore.case = T),
-      Tool = gsub(
-        paste("Diagnosed", "Diagnoses", "Diagnosis by professionals", 
-              "Diagnosis of mental health disorders", sep = "|"), 
-        "Diagnosis", Tool, ignore.case = T),
-      Tool = gsub("Digit Span Backward", "DSB", Tool, ignore.case = F), ## 
-      Tool = case_when(Tool %in% c('Digit', 'digit', 'Digit-span Task') ~ "Digit Span",
-                       Tool == 'Digit test' ~ "Digit Span",
-                       T ~ Tool),
-      Tool = gsub("Electroencephalography", "EEG", Tool, ignore.case = F), ## # 
-      Tool = gsub("EQ-5D", "EQ5D", Tool, ignore.case = F), ## # 
-      Tool = gsub("K\\-10", "K10", Tool, ignore.case = F),
-      Tool = gsub("Life Satisfaction approach", 'Life satisfaction approach', Tool, ignore.case = T),
-      Tool = gsub(
-        paste("Official/National mental health", "National survey", "Office for National Statistics", 
-              "UK's Office of National Statistics",
-              sep = "|"),
-        'Official MH survey', Tool, ignore.case = T),#
-      Tool = gsub("survey survey", 'survey', Tool, ignore.case = T),# 
-      Tool = gsub("PNAS", 'PANAS', Tool, ignore.case = T),# 
-      Tool = gsub("Profile of mood state questionnaire", 'POMS', Tool, ignore.case = T),# 
-      Tool = gsub("Psychiatric disorders", 'Mental disorder', Tool, ignore.case = T),# 
-      Tool = gsub("Psychiatric disorder", 'Mental disorder', Tool, ignore.case = T),
-      Tool = gsub("PHQ-2|PHQ-4|PHQ-8|PHQ-9", 'PHQ', Tool, ignore.case = T),
-      Tool = gsub("RAND-36", 'RAND36', Tool, ignore.case = T), # # 
-      Tool = gsub("Restoration Outcome Scale", 'ROS', Tool, ignore.case = T), # 
-      Tool = gsub("RSE or RSES|RSES", 'RSE', Tool, ignore.case = F), # 
-      Tool = gsub("SCL90", 'SCL-90', Tool, ignore.case = F), # 
-      Tool = gsub("SWEMWBS|WEMWBS 7-item", 'WEMWBS', Tool, ignore.case = F), # # 
-      Tool = gsub(",+", ",", Tool), ## Removing repeated punctuation character from a string
-      Tool = gsub(";+", ";", Tool), ## Removing repeated punctuation character from a string
-      Tool = trimws(Tool),
-      Tool = str_squish(Tool)
-
-      ) %>% ## remove any strings in a ()
-    dplyr::filter(Tool != 'NA') %>%
-    as.data.frame()
-}
-
 
 dt.tool <- dt %>%
   ### -clean up the names of the tools
@@ -727,88 +706,6 @@ sorted <- NA ## default setting, sorted alphabetically
 indicator_n_min <- 5 ## only map indicators with more than 5 times
 # Labeling small strata
 labele_small <- 15
-
-
-func_alluvial <- function(data, 
-                          sorted = NA,
-                          indicator_n_min = 5, 
-                          width_my = 1/2.5, 
-                          w_p = 6,
-                          labele_small = 15,
-                          n_ctr = '',
-                          filename.postfix = '') {
-  p <- data %>%
-    dplyr::filter(freq >= indicator_n_min) %>%
-    ggplot(
-      .,
-      aes(
-        x = dimension,
-        y = freq,
-        alluvium = id_within_layers,
-        stratum = layers,
-        fill = layers
-      )
-    ) +
-    scale_x_discrete(expand = c(0, 0)) +
-    # scale_fill_manual(values = getPalette(colourCount)) +
-    # geom_flow(width = width_my) +
-    geom_flow(
-      width = width_my,
-      # aes.bind = TRUE,
-      decreasing = sorted
-    ) +
-    geom_stratum(
-      alpha = .6, width = width_my,
-      decreasing = sorted
-    ) +
-    stat_stratum(
-      geom = "text",
-      aes(label = ifelse(as.numeric(total) >= labele_small, layers, NA)),
-      decreasing = sorted
-    ) +
-    ggrepel::geom_text_repel(
-      decreasing = sorted,
-      aes(label = ifelse(as.numeric(total) < labele_small, as.character(layers), NA)),
-      # segment.square  = F,
-      # segment.inflect = T,
-      segment.size = 0.3,
-      segment.alpha = .7,
-      segment.curvature = 0.2, ## negative for left-hand and positive for right-hand curves, 0 for straight lines
-      # segment.curvature = -1e-20,
-      segment.ncp = 3,
-      segment.angle = 20, ## values greater than 90 would skew toward the end
-  
-      nudge_x = .4,
-      nudge_y = .5,
-      force_pull = 1,
-      direction = "both",
-      stat = "stratum",
-      size = 3
-    ) +
-    theme_classic() +
-    theme(
-      legend.position = "none",
-      plot.margin = margin(0, 0, 0, 0, "in"),
-      panel.spacing = unit(0, "in"),
-      axis.title = element_blank(),
-      axis.line = element_blank(),
-      
-      axis.ticks.x = element_blank(),
-      axis.text.y = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0)),
-      axis.text.x = element_text(
-        size = rel(1.4),
-        vjust = 10,
-        margin = margin(t = 0, r = 0, b = 0, l = 0)
-      )
-    )
-  
-  
-  f <- paste0('mini-review_', filename.postfix, '_min', indicator_n_min, '_ctr', n_ctr, '_', today, '.png')
-  fname <- paste0(dir.fig, f); print(fname)
-  ggsave(filename = fname, plot = p, width = w_p, height = 8, units = 'in', dpi = 300)
-
-  return(p)
-}
 
 
 func_alluvial(data = dt.ind.cl_ctr_flow, indicator_n_min = 5, filename.postfix = 'indicator_region')
