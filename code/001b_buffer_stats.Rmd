@@ -31,6 +31,7 @@ library(tidyverse)
 library(splitstackshape) ## `cSplit()`
 library(Hmisc)
 library(rworldmap)
+library(ggpubr)
 today <- format(Sys.time(), "%Y%m%d"); today ## "%Y%m%d%H%M"
 
 
@@ -48,7 +49,7 @@ save_plot <- T
 ## load data 
 fs <- list.files(path = "./data/0301-MA-input/", pattern = '^df_covidenceFull', full.names = T)
 fs
-f <- fs[-1]
+f <- fs[length(fs)-1]; f
 df <- readRDS(file = f)
 
 df_bf <- df %>%

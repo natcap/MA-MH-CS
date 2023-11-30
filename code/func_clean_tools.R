@@ -11,6 +11,7 @@ func_clean_tools <- function(data) {
               "Antidepressant prescription rates", "Antidepressant use", sep = "|"),
         "Antidepressant prescription", Tool, ignore.case = T),
       Tool = gsub("CES\\-D\\-10|CESD\\-10", "CES\\-D10", Tool, ignore.case = T),
+      Tool = gsub("CES\\-D\\-20|CESD\\-20", "CES\\-D20", Tool, ignore.case = T),
       Tool = gsub(
         paste("Diagnosed", "Diagnoses", "Diagnosis by professionals", 
               "Diagnosis of mental health disorders", sep = "|"), 
@@ -29,13 +30,14 @@ func_clean_tools <- function(data) {
               sep = "|"),
         'Official MH survey', Tool, ignore.case = T),#
       Tool = gsub("survey survey", 'survey', Tool, ignore.case = T),# 
+      Tool = gsub("Stroop Test", 'Stroop test', Tool, ignore.case = F),# 
       Tool = gsub("PNAS", 'PANAS', Tool, ignore.case = T),# 
       Tool = gsub("Profile of mood state questionnaire", 'POMS', Tool, ignore.case = T),# 
       Tool = gsub("Psychiatric disorders", 'Mental disorder', Tool, ignore.case = T),# 
       Tool = gsub("Psychiatric disorder", 'Mental disorder', Tool, ignore.case = T),
       Tool = gsub("PHQ-2|PHQ-4|PHQ-8|PHQ-9", 'PHQ', Tool, ignore.case = T),
       Tool = gsub("RAND-36", 'RAND36', Tool, ignore.case = T), # # 
-      Tool = gsub("Restoration Outcome Scale", 'ROS', Tool, ignore.case = T), # 
+      Tool = gsub("Restoration Outcome Scale|ROS\\-S", 'ROS', Tool, ignore.case = T), # 
       Tool = gsub("RSE or RSES|RSES", 'RSE', Tool, ignore.case = F), # 
       Tool = gsub("SCL90", 'SCL-90', Tool, ignore.case = F), # 
       Tool = gsub("SWEMWBS|WEMWBS 7-item", 'WEMWBS', Tool, ignore.case = F), # # 

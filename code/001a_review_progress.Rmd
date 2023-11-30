@@ -155,6 +155,10 @@ dfs1.summ %>%
   xlab('') +
   coord_flip() +
   theme_bw()
+
+
+f <- paste0(dir.fig, "review_progress_", today, ".png")
+func_ggsave(fname = f, w = 7, h = 6, save_png = T)
 ```
 
 
