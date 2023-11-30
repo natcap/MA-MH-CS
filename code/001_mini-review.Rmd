@@ -82,8 +82,8 @@ fs <- list.files(path = dir.raw, full.names = T, pattern = '.csv$'); fs
 csv <- "review_278532_20230427120514.csv"     # 2023-04-27 
 csv <- "review_278532_20230616074045.csv"     # 2023-05-13, addressed 85 consensus 
 csv <- "review_278532_20230703085230.csv"
-csv <- "review_278532_20230920035224.csv"     # 2023-9-18, 30 consensus done for Extraction
-csv <- "review_278532_20230925164452.csv"
+csv <- "review_278532_20230920035224.csv"     # 2023-09-18, 30 consensus done for Extraction
+csv <- "review_278532_20231130065254.csv"     # 2023-11-29, 37 consensus done
 
 t <- basename(csv) %>% gsub('review_278532_', '', .) %>%
   str_sub(start = 1, end = 14)  %>%
@@ -310,7 +310,16 @@ dt.tool.clean <- dt.tool.expand %>%
 
 ```{r - tools selected for MA, include=FALSE}
 ## select the most used measures in literature for meta-analysis
+
+### - 1. top 3
 tools_selected <- c('POMS', 'GHQ-12', 'PANAS')
+
+### - 2. adding more for data extraction 
+tools_selected <- c('ROS',   # Restoration Outcome Scale
+                    'PSS',   # Perceived Stress Scale
+                    'PRS',   # Perceived Restorativeness Scale
+                    'SF-12', # Short From Health Survey 36-item
+                    'SF-36')
 
 dt.tool.expand.selected <- dt.tool.expand %>% 
   dplyr::filter(Tool %in% tools_selected) %>%
@@ -319,7 +328,7 @@ dt.tool.expand.selected <- dt.tool.expand %>%
   dplyr::mutate(id = paste0('#', id)) %>%
   as.data.frame()
 
-f <- paste0('./data/0301-MA-input/', 'paperID_byTopTools_', today, '.CSV'); f
+f <- paste0('./data/0301-MA-input/', 'paperID_byTopTools2_', today, '.CSV'); f
 readr::write_csv(x = dt.tool.expand.selected, file = f)
 ```
 
