@@ -272,11 +272,6 @@ exposure_type_i   <- c('Residential')
 
 effect_size_ind_i <- 'coefficients'
   
-###' subset papers that examined `exposure_type_i`
-exp_sub <- df_exp_l %>%
-  dplyr::filter(exposure_type %in% exposure_type_i)
-exp_sub_id <- unique(exp_sub$id)
-
 
 ## test 
 # df_test <- df %>%
@@ -287,26 +282,47 @@ exp_sub_id <- unique(exp_sub$id)
 #   arrange(desc(len)) %>%
 #   as.data.frame()
 
-exp_sub_df <- df %>%
-  dplyr::filter(id %in% exp_sub_id) %>%
-  dplyr::filter(str_detect(Tools, mh_tool)) %>%
-  func_clean_exposure(data = .) %>%
-  ## clean messy text in `effect_size_indices`
-  dplyr::mutate(effect_size_indices = `Effect size indices`) %>%
-  func_clean_effectsize(data = .) %>%
-  dplyr::mutate(
-    effect_size_indices = gsub("Other: |Other:", "", effect_size_indices),
-    # effect_size_indices = gsub("=.*", "", effect_size_indices), ## remove everything after "="
-    effect_size_indices = trimws(effect_size_indices)
-                ) %>%
-  dplyr::select(id:`Effect size indices`, effect_size_indices, 
-                everything()) %>%
-  dplyr::select(id:Country, 
-                all_of(cols_keep),
-                effect_size_indices:ncol(.)) %>%
-  dplyr::select(-c(Title:meet_criteria)) %>%
-  as.data.frame()
 
+
+###' subset papers that examined `exposure_type_i`
+###' 
+
+func_exp_subset <- function(df, exposure_type_i, mh_tool) {
+  
+  ## get paper id
+  exp_sub <- df_exp_l %>%
+    dplyr::filter(exposure_type %in% exposure_type_i)
+  exp_sub_id <- unique(exp_sub$id)
+
+  ## subset based paper id
+  exp_sub_df <- df %>%
+    dplyr::filter(id %in% exp_sub_id) %>%
+    dplyr::filter(str_detect(Tools, mh_tool)) %>%
+    func_clean_exposure(data = .) %>%
+    ## clean messy text in `effect_size_indices`
+    dplyr::mutate(effect_size_indices = `Effect size indices`) %>%
+    func_clean_effectsize(data = .) %>%
+    dplyr::mutate(
+      effect_size_indices = gsub("Other: |Other:", "", effect_size_indices),
+      # effect_size_indices = gsub("=.*", "", effect_size_indices), ## remove everything after "="
+      effect_size_indices = trimws(effect_size_indices)
+                  ) %>%
+    
+    ## subset cols -------------------------------------------------------------------------
+    dplyr::rename("n_participants" = "Total number of participants") %>%
+    dplyr::select(id:`Effect size indices`, effect_size_indices, 
+                  everything()) %>%
+    dplyr::select(id:Country, 
+                  all_of(cols_keep), n_participants,
+                  effect_size_indices:ncol(.)) %>%
+    dplyr::select(-c(Title:meet_criteria)) %>%
+    as.data.frame()
+  
+  return(exp_sub_df)
+  
+}
+
+exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
 sub_ghq <- exp_sub_df
 
 ## save for later use
@@ -328,34 +344,9 @@ exposure_type_i   <- c('In nature - static', 'In nature - PA')
 effect_size_ind_i <- c(
   "Measure values before and after intervention")
   
-###' subset papers that examined `exposure_type_i`
-exp_sub <- df_exp_l %>%
-  dplyr::filter(exposure_type %in% exposure_type_i)
-exp_sub_id <- unique(exp_sub$id)
 
-exp_sub_df <- df %>%
-  dplyr::filter(id %in% exp_sub_id) %>%
-  dplyr::filter(str_detect(Tools, mh_tool)) %>%
-  func_clean_exposure(data = .) %>%
-  ## clean messy text in `effect_size_indices` -------------------------------------------
-  dplyr::mutate(
-    effect_size_indices = `Effect size indices`) %>%
-  dplyr::mutate(
-    effect_size_indices = gsub("Other: |Other:", "", effect_size_indices),
-    effect_size_indices = trimws(effect_size_indices)) %>%
-  func_clean_effectsize(data = .) %>%
-  
-  ## subset cols -------------------------------------------------------------------------
-  dplyr::select(id:`Effect size indices`, effect_size_indices, 
-                everything()) %>%
-  dplyr::select(id:Country, 
-                all_of(cols_keep),
-                effect_size_indices:ncol(.)) %>%
-  dplyr::select(-c(Title:meet_criteria)) %>%
-  as.data.frame()
 
-# unique(exp_sub_df$id)
-
+exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
 sub_panas <- exp_sub_df
 
 ## save for later use
@@ -381,34 +372,7 @@ effect_size_ind_i <- c(
   "raw values")
   
 ###' subset papers that examined `exposure_type_i`
-exp_sub <- df_exp_l %>%
-  dplyr::filter(exposure_type %in% exposure_type_i)
-exp_sub_id <- unique(exp_sub$id)
-
-exp_sub_df <- df %>%
-  dplyr::filter(id %in% exp_sub_id) %>%
-  dplyr::filter(str_detect(Tools, mh_tool)) %>%
-  func_clean_exposure(data = .) %>%
-  ## clean messy text in `effect_size_indices` -------------------------------------------
-  dplyr::mutate(
-    effect_size_indices = `Effect size indices`) %>%
-  dplyr::mutate(
-    effect_size_indices = gsub("Other: |Other:", "", effect_size_indices),
-    # effect_size_indices = gsub("=.*", "", effect_size_indices),
-    effect_size_indices = trimws(effect_size_indices)) %>%
-  func_clean_effectsize(data = .) %>%
-  
-  ## subset cols -------------------------------------------------------------------------
-  dplyr::select(id:`Effect size indices`, effect_size_indices, 
-                everything()) %>%
-  dplyr::select(id:Country, 
-                all_of(cols_keep),
-                effect_size_indices:ncol(.)) %>%
-  dplyr::select(-c(Title:meet_criteria)) %>%
-  as.data.frame()
-
-# unique(exp_sub_df$id)
-
+exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
 sub_poms <- exp_sub_df
 
 ## save for later use
@@ -457,6 +421,7 @@ for (i in 1:20) {
     dplyr::select(id, 
                   all_of(cols_keep),
                   effect_size_indices, `Health outcome direction`, 
+                  n_participants,
                   ##' loop a model by selecting the column names 
                   ##' but need to exclude data from table 3 (with column names that contain key word 'measurement')
                   starts_with(mod_id) & !contains("measurement", ignore.case = TRUE)) %>%
@@ -484,10 +449,12 @@ rm(exp_sub_mod)
 ```{r - clean numeric values}
 ### clean up the negative sign "-" in data
 test <- exp_sub_mod_l %>%
-  dplyr::filter(id %in% c(504)) ## take the character from this paper
+  dplyr::filter(id %in% c(387)) ## take the character from this paper
 
 m <- gsub(' ', '', test$Mean)
+m <- "−0.23"
 sign <- m[1] %>% substr(., 1, 1)
+sign
 # mm <- gsub(sign, '-', m)
 # mm
 # as.numeric(mm)
@@ -517,10 +484,14 @@ exp_sub_mod_l_clean <- exp_sub_mod_l %>%
     CI_95_lower = ifelse(`Health outcome direction` == "Higher is better", -CI_95_lower, CI_95_lower),
     
     N = gsub(" ", "", N), 
+    ## use "n_participants" to fill data gaps of N in data extraction tables
+    N = ifelse(is.na(N) & !is.na(n_participants), n_participants, N),
     N = as.numeric(N),
+    
     ) %>%
-  dplyr::select(id, all_of(cols_keep),
-                effect_size_indices:Mean_raw, Mean, CI_95_lower_raw, CI_95_lower, everything()) %>%
+  dplyr::select(id, all_of(cols_keep), 
+                effect_size_indices:Mean_raw, Mean, 
+                CI_95_lower_raw, CI_95_lower, everything()) %>%
   arrange(effect_size_indices, id, model_id) %>%
   as.data.frame()
 
@@ -579,201 +550,9 @@ if (mh_tool == 'GHQ-12') {
   }
 ```
   
-
 # Meta-analysis
 
-## Introduction of Theory
-
-### Effect sizes
-  Ref: https://bookdown.org/MathiasHarrer/Doing_Meta_Analysis_in_R/effects.html
-  
-  If possible, it is preferable to use raw data in our meta-analysis. 
-  
-#### 1. Between-Group Mean Difference 
-
-  MD_between = M1 - M2
-
-For a meta-analysis of mean differences, we only have to prepare the following columns in our data set:
-
-  `n.e`       The number of observations in the intervention/experimental group.
-  `mean.e`    The mean of the intervention/experimental group.
-  `sd.e`      The standard deviation in the intervention/experimental group.
-  `n.c`       The number of observations in the control group.
-  `mean.c`    The mean of the control group.
-  `sd.c`      The standard deviation in the control group.
-
-OR 
-  Ne ne Number of patients in the `experimental` (i.e. active) treatment arm 
-  Me ue Mean response in the experimental treatment arm 
-  Se se Standard deviation of the response in the experimental treatment arm
-  
-  Nc nc Number of patients in the `control` (often equivalent to placebo) arm 
-  Mc uc Mean response in the control arm 
-  Sc sc Standard deviation of the response in the control arm
-
-##### 1.1 Unstandardized
-```{r}
-
-# Define the data we need to calculate SMD/d
-# This is just some example data that we made up
-grp1m <- 50   # mean of group 1
-grp2m <- 60   # mean of group 2
-grp1sd <- 10  # sd of group 1
-grp2sd <- 10  # sd of group 2
-grp1n <- 100  # n of group1
-grp2n <- 100  # n of group2
-
-data1 <- data.frame(
-  Ne = grp1n, Me = grp1m, Se = grp1sd,
-  Nc = grp2n, Mc = grp2m, Sc = grp2sd
-)
-
-
-
-Me = data1$Me
-Ne = data1$Ne
-Se = data1$Se
-
-Mc = data1$Mc
-Nc = data1$Nc
-Sc = data1$Sc
-
-
-# 2. Calculate mean difference and its standard error for # study 1 (Boner 1988) of dataset data1: 
-MD <- with(data1[1,], Me - Mc) 
-seMD <- sqrt(Se^2/Ne + Sc^2/Nc) 
-zscore <- MD/seMD 
-round(c(zscore, 2*pnorm(abs(zscore), lower.tail=FALSE)))  
-
-# 3. Print mean difference and limits of 95% confidence 
-# interval using round function to show only two digits:
-round(c(MD, MD + c(-1,1) * qnorm(1-(0.05/2)) * seMD), 2)
-  
-  
-# OR We can also use the `metacont` function from R package meta to calculate mean difference and confidence interval: 
-metacont(Ne, Me, Se, Nc, Mc, Sc, data=data1, subset=1)
-
-```
-
-
-##### 1.2 Cohen's d (standardized MD)
-
-  Standardized mean differences are much more often used in meta-analyses than unstandardized mean differences. This is because `SMD_between` can be compared between studies, even if those studies did not measure the outcome of interest using the same instruments.
-
-  *SMD_between = (mean.e - mean.c)/sd.pooled*
-
-The standardization makes it much easier to evaluate the magnitude of the mean difference. Standardized mean differences are often interpreted using the conventions by Cohen (1988):
-  SMD ≈  0.20: *small* effect.
-  SMD ≈  0.50: *moderate* effect.
-  SMD ≈  0.80: *large* effect.
-
-  The sign of effect sizes becomes particularly important when some studies used measures for which *higher* values mean *better* outcomes, while others used a measure for which lower values indicate better outcomes. In this case, it is essential that all effect sizes are consistently coded in **the same direction**.
-  
-  
-  The `metacont` function allows us to calculate three different types of standardized mean differences. 
-  * method.smd = "Cohen", the uncorrected standardized mean difference (Cohen’s d) is used as the effect size metric. 
-  * method.smd = "Hedges" (*default and recommended*), which calculates Hedges’ g, 
-  * method.smd = "Glass", which will calculate Glass’ Δ (delta). Glass’Δ uses the control group standard deviation instead of the pooled standard deviation to standardize the mean difference. This effect size is sometimes used in primary studies when there is more than one treatment group, but usually not the preferred metric for meta-analyses.
-  
-```{r}
-## here is an example
-
-## 1. use `esc` package
-library(esc)
-
-# Calculate effect size
-esc_mean_sd(grp1m = grp1m, grp2m = grp2m,  ## grp1 - experiment; grp2 - control
-            grp1sd = grp1sd, grp2sd = grp2sd, 
-            grp1n = grp1n, grp2n = grp2n)
-
-
-## 2. use `meta` package
-
-cat('\n...........\n')
-metacont(Ne, Me, Se, Nc, Mc, Sc, data=data1, subset = 1, method.smd = 'Cohen')
-metacont(Ne, Me, Se, Nc, Mc, Sc, data=data1, subset = 1, method.smd = 'Hedges')
-
-```
-
-
-
-##### 1.3 Hedges'g (standardized + correction)
-
-  Often, a small-sample correction is applied to standardized mean differences, which leads to an effect size called Hedges'g
-  Especially when *n ≤ 20 *
-  
-  g  = SMD * ( 1 − 3/(4n−9) )
-```{r}
-# Load esc package
-library(esc)
-
-# Define uncorrected SMD and sample size n
-SMD <- 0.5
-n <- 30
-
-# Convert to Hedges g
-g <- hedges_g(SMD, n)
-g
-```
-
-#### 2. Within-Group Mean Difference
-
-  The *same group of people* is measured at two different time points (e.g. before an intervention and after an intervention).
-  
-  The within-group mean difference `MD_within` is calculated the same way as MD_between, except that we now compare the values of the same group at two different time points, t1 and t2.
-  
-  There is **no full consensus** on how `SMD_within` should be computed. In a blog post, Jake Westfall points out that there are at least *five distinct ways* to calculate it.
-  
-  It general, it should best be avoided to calculate within-group effect sizes for a meta-analysis. Especially when we have data from both an experimental and control group, *it is much better to calculate the between-group (standardized) mean differences* at t2 to measure the effect of a treatment, instead of pre-post comparisons. See more at https://bookdown.org/MathiasHarrer/Doing_Meta_Analysis_in_R/effects.html 
-  
-  Within-group mean difference may be calculated, however, when our meta-analysis focuses solely on studies which did not include a control group.
-  
-```{r}
-# Define example data needed for effect size calculation
-x1 <- 20    # mean at t1
-x2 <- 30    # mean at t2
-sd1 <- 13   # sd at t1
-n <- 80     # sample size
-r <- 0.5    # correlation between t1 and t2
-
-# Calculate the raw mean difference
-md_within <- x2 - x1
-
-# Calculate the smd:
-# Here, we use the standard deviation at t1
-# to standardize the mean difference
-smd_within <- md_within/sd1
-smd_within
-
-# Calculate standard error
-se_within <- sqrt(((2*(1-r))/n) + 
-              (smd_within^2/(2*n)))
-se_within
-```
-
-
-
-
-#### 3. Correlations - Fisher’s z
-
-  In meta-analyses, correlations are therefore usually transformed into Fisher’s z. Like the logit-transformation, this also entails the use of the natural logarithm function to make sure that the sampling distribution is approximately normal. https://bookdown.org/MathiasHarrer/Doing_Meta_Analysis_in_R/effects.html 
-
-  Correlations can be pooled using the `metacor` function, which uses the generic inverse variance pooling method. 
-  The only columns we need in our data set are:
-  * `cor` The (non-transformed) correlation coefficient of a study.
-  * `n` The sample size of the study.
-
-    
-    
-    
-### Different Effect Size Data Formats  
-  
-  Some studies, for example, may not report the raw data of two groups, but only *a calculated standardized mean difference*, and its confidence interval. Others may only report the results of a *t-test* or *analysis of variance (ANOVA)* examining the difference between two groups. If this is the case, it often becomes impossible to use raw effect size data for our meta-analysis. Instead, we have to `pre-calculate the effect size` of each study before we can pool them. 
-  
-  `metagen` function allows us to perform a meta-analysis of effect size data that had to be pre-calculated. To use the function, we have to prepare the following columns in our data set:
-  `TE` The calculated effect size of each study.
-  `seTE` The standard error of each effect size.
-
+  --> Ref to `010a_MA_intro.Rmd` for more background knowledge. 
 
 ```{r functions}
 # Calculate s_pooled - pooled standard deviation (SD) of both groups
@@ -793,100 +572,24 @@ se_pooled <- function(n1, n2, sd1, sd2) {
 ```
 
 
-### MA R packages
-
-  There are several R packages for meta-analysis. 
-
-#### `psychmeta`
-
-  * Not a good one, can skip this section 
-  
-```{r eval=FALSE, include=FALSE}
-# devtools::install_github("psychmeta/psychmeta")
-library(psychmeta)
-
-ma_res <- ma_r(
-  data = exp_sub_mods_coef,
-  rxyi = Mean, 
-  n = N, 
-  # ma_method = "ic", #individual corrections
-  # construct_x = NULL,
-  # construct_y = NULL,
-  sample_id = id, 
-  ### What are your moderators and which ones are categorical?
-  # moderators = NULL, cat_moderators = TRUE,
-  # wt_type = "sample_size",
-  ### What are your reliability coefficients?
-  # rxx = NULL, ryy = NULL,
-  )
-
-summary(ma_res)
-
-ma_res <- plot_funnel(ma_res)
-#> Funnel plots have been added to 'ma_obj' - use get_plots() to retrieve them.
-ma_res <- plot_forest(ma_res)
-#> Forest plots have been added to 'ma_obj' - use get_plots() to retrieve them.
-#> 
-
-# get_plots(ma_res)[["forest"]][[2]]
-
-# get_plots(ma_res)[["funnel"]][[2]]
-
-get_plots(ma_res)[["forest"]][[1]][["moderated"]][["barebones"]]
-get_plots(ma_res)[["forest"]][[1]][["unmoderated"]][["barebones"]]
-```
-
-  Not working well ... 
-```{r}
-# meta.object <- ma_res
-# 
-# heterogeneity(meta.object)-> meta.object
-# plot_forest(meta.object)-> meta.object
-# plot_funnel(meta.object)-> meta.object
-# 
-# meta.object$heterogeneity$`analysis id: 1`$individual_correction$true_score
-# meta.object$forest$`analysis id: 1`$unmoderated$individual_correction$ts
-# meta.object$funnel$`analysis id: 1`$individual_correction$true_score
-
-
-
-### - sensitivity analyses
-# ma_obj <- sensitivity(ma_res,
-#                       leave1out = TRUE,
-#                       bootstrap = TRUE,
-#                       cumulative = TRUE,
-# 
-#                       sort_method = "weight",
-# 
-#                       boot_iter = 100,
-#                       boot_conf_level = 0.95,
-#                       boot_ci_type = "norm")
-```
-
-
-#### `metafor`
+## Correlation
 
   Correlations are restricted in their range, and it can introduce bias when we estimate the standard error for studies with a small sample size (Alexander, Scozzaro, and Borodkin 1989).
+  
+  The (Pearson or product-moment) correlation coefficient quantifies the direction and strength of the (linear) relationship between two quantitative variables and is therefore frequently used as the outcome measure for meta-analyses. Two alternative measures are a bias-corrected version of the correlation coefficient and Fisher's r-to-z transformed correlation coefficient.
+
+  * ri, the vector with the raw correlation coefficients
+  * ni, the corresponding sample sizes. 
+The options for the measure argument are then:
+  * "COR" for the raw correlation coefficient,
+  * "UCOR" for the raw correlation coefficient corrected for its slight negative bias (based on equation 2.3 in Olkin & Pratt, 1958),
+  * "ZCOR" for Fisher's r-to-z transformed correlation coefficient (Fisher, 1921).
 
 ```{r}
 # load the metafor package
 library(metafor)
 
-## meta-analysis on the correlation between employment interview assessments
-##     and job performance (using r-to-z transformed correlation for the analysis)
-#' example data -- `dat.mcdaniel1994`
-#' 
-#' The (Pearson or product-moment) correlation coefficient quantifies the direction and strength of the (linear) relationship between two quantitative variables and is therefore frequently used as the outcome measure for meta-analyses. Two alternative measures are a bias-corrected version of the correlation coefficient and Fisher's r-to-z transformed correlation coefficient.
-#' 
-#' ri, the vector with the raw correlation coefficients
-#' ni, the corresponding sample sizes. 
-#' The options for the measure argument are then:
-#'  "COR" for the raw correlation coefficient,
-#'  "UCOR" for the raw correlation coefficient corrected for its slight negative bias (based on equation 2.3 in Olkin & Pratt, 1958),
-#'  "ZCOR" for Fisher's r-to-z transformed correlation coefficient (Fisher, 1921).
-
-
-dat <- escalc(measure="ZCOR", ri=Mean, ni=N, data=exp_sub_mods_coef)
+dat <- escalc(data=exp_sub_mods_coef, measure="ZCOR", ri=Mean, ni=N)
 study_label <- paste(dat$id, dat$model_id, sep = '_')
 
 res <- rma(yi, vi, data=dat, slab = study_label)
@@ -899,10 +602,10 @@ plot(influence(res), cex=0.8, las=1)
 ```
 
 ```{r}
-m.cor <- metacor(cor = Mean, 
+m.cor <- metacor(data = exp_sub_mods_coef,
+                 cor = Mean, 
                  n = N,
                  studlab = id,
-                 data = exp_sub_mods_coef,
                  fixed = FALSE,
                  random = TRUE,
                  method.tau = "REML",
