@@ -18,6 +18,7 @@ func_clean_indicators <-  function(data) {
       Indicator = gsub("Cognitions and Conduct", "Cognitive functioning", Indicator, ignore.case = T), # 
       Indicator = gsub("Quality of life|Quality of Life", "Quality of life;", Indicator),# 
       Indicator = gsub("Psychological distress|psychological distress", "Mental distress", Indicator),# # 
+      Indicator = gsub("psychiatric morbidity|psychiatric disorder|mental illness", "Mental disorder", Indicator, ignore.case = T),
       Indicator = gsub("Symptoms of psychosis", "Psychosis", Indicator, ignore.case = T), #### 
       
       Indicator = gsub(",", ";", Indicator),

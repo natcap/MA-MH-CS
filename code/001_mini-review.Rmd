@@ -55,6 +55,7 @@ data(countryRegions,envir=environment(),package="rworldmap")
 ```{r - functions}
 source('./code/func_expand_col_to_long.R')
 source('./code/func_clean_indicators.R')
+source('./code/func_clean_indicatorsPro.R')
 source('./code/func_clean_tools.R')
 source('./code/func_plot_freq.R')
 source('./code/func_alluvial.R')
@@ -83,7 +84,7 @@ csv <- "review_278532_20230427120514.csv"     # 2023-04-27
 csv <- "review_278532_20230616074045.csv"     # 2023-05-13, addressed 85 consensus 
 csv <- "review_278532_20230703085230.csv"
 csv <- "review_278532_20230920035224.csv"     # 2023-09-18, 30 consensus done for Extraction
-csv <- "review_278532_20231130065254.csv"     # 2023-11-29, 37 consensus done
+csv <- "review_278532_20231205061733.csv"     # 2023-12-04, 38 consensus done
 
 t <- basename(csv) %>% gsub('review_278532_', '', .) %>%
   str_sub(start = 1, end = 14)  %>%

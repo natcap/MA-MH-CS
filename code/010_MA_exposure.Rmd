@@ -23,12 +23,8 @@ dir.root <- dirname(getwd())
 # setwd(dir.root)
 
 getwd()
-## Load common packages
-source("./code/_pkgs_dirs.R")
-source('./code/func_expand_col_to_long.R')
-source('./code/func_plot_freq.R')
-source('./code/func_ggsave.R')
 
+## Load common packages
 ## Additional packages
 library(googlesheets4)
 library(rprojroot)
@@ -48,6 +44,16 @@ library(ggpubr)
 library(meta)
 
 library(metafor)
+
+
+## load functions
+source("./code/_pkgs_dirs.R")
+source('./code/func_expand_col_to_long.R')
+source('./code/func_clean_indicators.R')
+source('./code/func_clean_indicatorsPro.R')
+source('./code/func_clean_tools.R')
+source('./code/func_plot_freq.R')
+source('./code/func_ggsave.R')
 
 
 today <- format(Sys.time(), "%Y%m%d"); today ## "%Y%m%d%H%M"
@@ -316,6 +322,7 @@ func_exp_subset <- function(df, exposure_type_i, mh_tool) {
                   all_of(cols_keep), n_participants,
                   effect_size_indices:ncol(.)) %>%
     dplyr::select(-c(Title:meet_criteria)) %>%
+    dplyr::select(-contains(c('Please specify the tables', 'Additional comments'))) %>%
     as.data.frame()
   
   return(exp_sub_df)
@@ -413,11 +420,11 @@ load(file = f)
 
 
 ##' loop all 20 models (in the Covidence form, we have 20 rows for data extraction)
-exp_sub_mod_l <- data.frame()
+exp_sub_l <- data.frame()
 for (i in 1:20) {
   # print(i)
   mod_id <- paste0("Model ", i, " ")
-  exp_sub_mod <- exp_sub_df %>%
+  exp_sub_dfi <- exp_sub_df %>%
     dplyr::select(id, 
                   all_of(cols_keep),
                   effect_size_indices, `Health outcome direction`, 
@@ -429,26 +436,64 @@ for (i in 1:20) {
     dplyr::select(id, effect_size_indices, model_id, `Health outcome direction`, everything())
   
   ##' remove model id so that they can be rbind (require the same column names)
-  colnames(exp_sub_mod) <- sub(mod_id, "", colnames(exp_sub_mod))
+  colnames(exp_sub_dfi) <- sub(mod_id, "", colnames(exp_sub_dfi))
   ##' Remove part of string after "."
-  colnames(exp_sub_mod) <- gsub("\\..*","",colnames(exp_sub_mod))
+  colnames(exp_sub_dfi) <- gsub("\\..*","",colnames(exp_sub_dfi))
   
   ##' Repair duplicate names - specify your own name repair function
-  exp_sub_mod <- exp_sub_mod %>%
+  exp_sub_dfi <- exp_sub_dfi %>%
     as_tibble(., .name_repair = make.unique) %>%
     as.data.frame()
   
-  exp_sub_mod_l <- rbind(exp_sub_mod_l, exp_sub_mod)
+  exp_sub_l <- rbind(exp_sub_l, exp_sub_dfi)
 }
 
-rm(exp_sub_mod)
+rm(exp_sub_dfi)
 ```
 
+
+```{r - table options}
+
+## for data extracted in table option 1
+exp_sub_l_o1 <- exp_sub_l %>%
+  dplyr::select(id:Notes) %>%
+  as.data.frame()
+name1 <- names(exp_sub_l_o1) %>%
+  gsub('\\.1|\\.2', '', .) %>%
+  gsub('Other covariates that are beyond the baseline', 'Other_covariates_o1', .)
+name1.1 <- name1[1: (which(name1 == 'MH_indicator')-1)]
+name1.2 <- name1[which(name1 == 'MH_indicator'):length(name1)] %>% paste0(., '_o1')
+names(exp_sub_l_o1) <- c(name1.1, name1.2) 
+names(exp_sub_l_o1)
+
+
+
+## for data extracted in table option 2
+exp_sub_l_o2 <- exp_sub_l %>%
+  dplyr::select(id, model_id, Notes:Notes.1) %>%
+  dplyr::select(-Notes)
+name2 <- names(exp_sub_l_o2) %>%
+  gsub('\\.1|\\.2', '_o2', .) %>%
+  gsub('Other covariates that are beyond the baseline', 'Other_covariates', .)
+names(exp_sub_l_o2) <- name2  
+names(exp_sub_l_o2)
+
+
+exp_sub_long <- exp_sub_l_o1 %>%
+  left_join(., exp_sub_l_o2, by = c("id", "model_id")) %>%
+  func_clean_indicatorsPro(data = ., column_name = 'Indicator') %>%
+  func_clean_indicatorsPro(data = ., column_name = 'MH_indicator_o1') %>%
+  func_clean_indicatorsPro(data = ., column_name = 'MH_indicator_o2') %>%
+  as.data.frame()
+
+## remove these two df after merging
+rm(exp_sub_l_o1, exp_sub_l_o2)
+```
 
 
 ```{r - clean numeric values}
 ### clean up the negative sign "-" in data
-test <- exp_sub_mod_l %>%
+test <- exp_sub_long %>%
   dplyr::filter(id %in% c(387)) ## take the character from this paper
 
 m <- gsub(' ', '', test$Mean)
@@ -462,7 +507,7 @@ rm(test)
 sign <- paste(sign, '−', sep = '|')
 
 
-exp_sub_mod_l_clean <- exp_sub_mod_l %>%
+exp_sub_long_clean <- exp_sub_long %>%
   dplyr::filter(!is.na(Mean) | !is.na(Treatment_Mean) | !is.na(Treatment_Mean)) %>%
   dplyr::rename(Mean_raw = Mean) %>%
   dplyr::rename(CI_95_lower_raw = CI_95_lower) %>%
@@ -498,7 +543,7 @@ exp_sub_mod_l_clean <- exp_sub_mod_l %>%
 
 
 if (effect_size_ind_i == 'coefficients') {
-  exp_sub_mods <- exp_sub_mod_l_clean %>%
+  exp_sub_mods <- exp_sub_long_clean %>%
     dplyr::mutate(
      Mean = case_when(
         effect_size_indices == 'coefficients' & `Health outcome direction` == "Higher is better" ~ -Mean,
@@ -507,7 +552,7 @@ if (effect_size_ind_i == 'coefficients') {
         ),
     )
 } else {
-  exp_sub_mods <- exp_sub_mod_l_clean
+  exp_sub_mods <- exp_sub_long_clean
 }
   
 
