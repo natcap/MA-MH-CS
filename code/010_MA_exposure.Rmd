@@ -66,6 +66,7 @@ source('./code/func_clean_indicators.R')
 source('./code/func_clean_tools.R')
 source('./code/func_clean_exposure.R')
 source('./code/func_clean_effectsize.R')
+source('./code/func_clean_nature.R')
 
 source('./code/func_plot_freq.R')
 source('./code/func_alluvial.R')
@@ -90,12 +91,32 @@ f2 <- fs[(length(fs)-0)]; f2
 
 df <- readRDS(file = f1) %>%
   dplyr::rename(
-    'exposure_type' = 'Nature exposure type',
-    'nature_type' = "General category of urban nature",
-    'nature_quantity' = "Nature quantity measure metric") %>%
+    'exposure_type'   = 'Nature exposure type',
+    'nature_type'     = "General category of urban nature",
+    'nature_quantity' = "Nature quantity measure metric",
+    "n_participants"  = "Total number of participants",
+    "buffers"         = "Buffer zone size considered for nature exposure measurement",
+    "buffers_unit"    = "Buffer zone size's unit"  
+                  ) %>%
+  dplyr::mutate(effect_size_indices = `Effect size indices`) %>%
   dplyr::mutate(
     nature_quantity = gsub("Normalized Difference Vegetation Index \\(NDVI\\)", "NDVI", nature_quantity),
+    # remove text within parenthesis 
+    `Health outcome direction` = gsub("\\s*\\([^\\)]+\\)", "", `Health outcome direction`), 
     ) %>%
+  
+  func_clean_nature_type(data = ., column_name = 'nature_type') %>%
+  func_clean_nature_quant(data = ., column_name = 'nature_quantity') %>%
+  func_clean_bufferunit(data = ., column_name = 'buffers_unit') %>%
+  func_clean_tools(data = ., column_name = 'Tools') %>%
+  func_clean_exposure(data = .) %>%
+  ## clean messy text in `effect_size_indices`
+  func_clean_effectsize(data = .) %>%
+  dplyr::mutate(
+    effect_size_indices = gsub("Other: |Other:", "", effect_size_indices),
+    # effect_size_indices = gsub("=.*", "", effect_size_indices), ## remove everything after "="
+    effect_size_indices = trimws(effect_size_indices)
+                ) %>%
   as.data.frame()
 # names(df)
 
@@ -195,7 +216,7 @@ df_exp_l_toolL <- df_exp_l %>%
     Tool = gsub(".*Likert.*|.*likert.*", "Likert scale", Tool),
     # Tool = gsub(";", "", Tool),
     ) %>% 
-  func_clean_tools(data = .) %>%
+  func_clean_tools(data = ., column_name = 'Tool') %>%
   dplyr::select(1:Tools, Tool, everything()) %>%
   arrange(Tool)
 
@@ -304,22 +325,13 @@ func_exp_subset <- function(df, exposure_type_i, mh_tool) {
   exp_sub_df <- df %>%
     dplyr::filter(id %in% exp_sub_id) %>%
     dplyr::filter(str_detect(Tools, mh_tool)) %>%
-    func_clean_exposure(data = .) %>%
-    ## clean messy text in `effect_size_indices`
-    dplyr::mutate(effect_size_indices = `Effect size indices`) %>%
-    func_clean_effectsize(data = .) %>%
-    dplyr::mutate(
-      effect_size_indices = gsub("Other: |Other:", "", effect_size_indices),
-      # effect_size_indices = gsub("=.*", "", effect_size_indices), ## remove everything after "="
-      effect_size_indices = trimws(effect_size_indices)
-                  ) %>%
     
     ## subset cols -------------------------------------------------------------------------
-    dplyr::rename("n_participants" = "Total number of participants") %>%
     dplyr::select(id:`Effect size indices`, effect_size_indices, 
                   everything()) %>%
     dplyr::select(id:Country, 
-                  all_of(cols_keep), n_participants,
+                  all_of(cols_keep), 
+                  n_participants, buffers, buffers_unit,
                   effect_size_indices:ncol(.)) %>%
     dplyr::select(-c(Title:meet_criteria)) %>%
     dplyr::select(-contains(c('Please specify the tables', 'Additional comments'))) %>%
@@ -374,9 +386,8 @@ exposure_type_i   <- c('In nature - static', 'In nature - PA')
 ## [] TBD - clean the data
 effect_size_ind_i <- c(
   "D",
-  "Measure values before and after intervention",
   "d",
-  "raw values")
+  "Mean_pre_post")
   
 ###' subset papers that examined `exposure_type_i`
 exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
@@ -403,7 +414,7 @@ We need to put all data on models in rows.
 
 f <- paste0('./data/0301-MA-input/', 'sub_ghq.RData')
 # f <- paste0('./data/0301-MA-input/', 'sub_panas.RData')
-# f <- paste0('./data/0301-MA-input/', 'sub_poms.RData')
+f <- paste0('./data/0301-MA-input/', 'sub_poms.RData')
 load(file = f)
 ```
 
@@ -428,7 +439,7 @@ for (i in 1:20) {
     dplyr::select(id, 
                   all_of(cols_keep),
                   effect_size_indices, `Health outcome direction`, 
-                  n_participants,
+                  n_participants, buffers, buffers_unit,
                   ##' loop a model by selecting the column names 
                   ##' but need to exclude data from table 3 (with column names that contain key word 'measurement')
                   starts_with(mod_id) & !contains("measurement", ignore.case = TRUE)) %>%
@@ -479,11 +490,14 @@ names(exp_sub_l_o2) <- name2
 names(exp_sub_l_o2)
 
 
+## combine data from table option 1 and option 2 -----------------------------------------
 exp_sub_long <- exp_sub_l_o1 %>%
   left_join(., exp_sub_l_o2, by = c("id", "model_id")) %>%
   func_clean_indicatorsPro(data = ., column_name = 'Indicator') %>%
   func_clean_indicatorsPro(data = ., column_name = 'MH_indicator_o1') %>%
   func_clean_indicatorsPro(data = ., column_name = 'MH_indicator_o2') %>%
+  func_clean_buffer(data = ., column_name = 'buffer_o1') %>%
+  func_clean_buffer(data = ., column_name = 'buffer_o2') %>%
   as.data.frame()
 
 ## remove these two df after merging
@@ -507,26 +521,61 @@ rm(test)
 sign <- paste(sign, '−', sep = '|')
 
 
+func_clean_number <- function(data, column_name){
+  
+  # Check if the specified column exists in the data frame
+  if (!(column_name %in% colnames(data))) {
+    stop("Column not found in the data frame.")
+  }
+  
+  column_name_new <- column_name %>%
+    gsub("Control_",   "c_", .) %>%
+    gsub("Treatment_", "e_", .) %>%
+    as.character() %>%
+    str_to_lower()
+    
+    
+  # Manipulate the specified column using multiple pipes
+  d <- data %>%
+    dplyr::mutate(
+      !!column_name_new := !!sym(column_name),
+      !!column_name_new := as.character(!!sym(column_name_new)),
+      !!column_name_new := gsub(sign, "-", !!sym(column_name_new)),
+      !!column_name_new := gsub(" ", "", !!sym(column_name_new)), 
+      !!column_name_new := str_squish(!!sym(column_name_new)),
+      !!column_name_new := trimws(!!sym(column_name_new)),
+      !!column_name_new := as.numeric(!!sym(column_name_new))
+    ) %>%
+    dplyr::select(1:!!sym(column_name), !!column_name_new, everything()) %>%
+    as.data.frame()
+  return(d)
+}
+
+### test code
+# exp_sub_long_clean1 <- exp_sub_long %>%
+#   func_clean_number(column_name = 'Mean')
+
 exp_sub_long_clean <- exp_sub_long %>%
   dplyr::filter(!is.na(Mean) | !is.na(Treatment_Mean) | !is.na(Treatment_Mean)) %>%
-  dplyr::rename(Mean_raw = Mean) %>%
-  dplyr::rename(CI_95_lower_raw = CI_95_lower) %>%
+  
   ##' clean the special character "-" in text
+  func_clean_number(data = ., column_name = 'Mean') %>%
+  func_clean_number(data = ., column_name = 'SD') %>%
+  func_clean_number(data = ., column_name = 'SE') %>%
+  func_clean_number(data = ., column_name = 'CI_95_lower') %>%
+  
+  func_clean_number(data = ., column_name = 'Control_Mean') %>%
+  func_clean_number(data = ., column_name = 'Control_SD') %>%
+  func_clean_number(data = ., column_name = 'Control_SE') %>%
+  func_clean_number(data = ., column_name = 'Control_CI95lower') %>%
+  
+  func_clean_number(data = ., column_name = 'Treatment_Mean') %>%
+  func_clean_number(data = ., column_name = 'Treatment_SD') %>%
+  func_clean_number(data = ., column_name = 'Treatment_SE') %>%
+  func_clean_number(data = ., column_name = 'Treatment_CI95lower') %>%
   dplyr::mutate(
-    Mean = as.character(Mean_raw),
-    Mean = gsub(sign, "-", Mean_raw),
-    Mean = gsub(" ", "", Mean), 
-    Mean = str_squish(Mean),
-    Mean = trimws(Mean),
-    Mean = as.numeric(Mean),
 
-    ##' clean the special character "-" in text too
-    CI_95_lower = as.character(CI_95_lower_raw),
-    CI_95_lower = gsub(sign, "-", CI_95_lower),
-    CI_95_lower = gsub(" ", "", CI_95_lower), 
-    CI_95_lower = trimws(CI_95_lower),
-    CI_95_lower = as.numeric(CI_95_lower),
-    CI_95_lower = ifelse(`Health outcome direction` == "Higher is better", -CI_95_lower, CI_95_lower),
+    ci_95_lower = ifelse(`Health outcome direction` == "Higher is better", -ci_95_lower, ci_95_lower),
     
     N = gsub(" ", "", N), 
     ## use "n_participants" to fill data gaps of N in data extraction tables
@@ -534,36 +583,45 @@ exp_sub_long_clean <- exp_sub_long %>%
     N = as.numeric(N),
     
     ) %>%
+  
+  ## clean text in nature-related columns 
+  func_clean_nature_type(data = ., column_name = 'nature_type_o1') %>%
+  func_clean_nature_type(data = ., column_name = 'nature_type_o2') %>%
+  func_clean_nature_quant(data = ., column_name = 'nature_quantity_o1') %>%
+  func_clean_nature_quant(data = ., column_name = 'nature_quantity_o2') %>%
   dplyr::select(id, all_of(cols_keep), 
-                effect_size_indices:Mean_raw, Mean, 
-                CI_95_lower_raw, CI_95_lower, everything()) %>%
+                effect_size_indices:Mean, mean, 
+                CI_95_lower, ci_95_lower, everything()) %>%
   arrange(effect_size_indices, id, model_id) %>%
   as.data.frame()
 
 
 
-if (effect_size_ind_i == 'coefficients') {
-  exp_sub_mods <- exp_sub_long_clean %>%
-    dplyr::mutate(
-     Mean = case_when(
-        effect_size_indices == 'coefficients' & `Health outcome direction` == "Higher is better" ~ -Mean,
-        effect_size_indices == 'or' & `Health outcome direction` == "Higher is better" ~ 1-(Mean-1),
-        TRUE ~ Mean
-        ),
-    )
-} else {
+if (length(effect_size_ind_i) == 1) {
+  if(effect_size_ind_i == 'coefficients') {
+    exp_sub_mods <- exp_sub_long_clean %>%
+      dplyr::mutate(
+       mean = case_when(
+          effect_size_indices == 'coefficients' & `Health outcome direction` == "Higher is better" ~ -mean,
+          effect_size_indices == 'or' & `Health outcome direction` == "Higher is better" ~ 1-(mean-1),
+          TRUE ~ mean
+          ),
+      )
+  }} else {
   exp_sub_mods <- exp_sub_long_clean
 }
   
 
 
 if (mh_tool == 'POMS') {
-  exp_sub_mods2 <- exp_sub_mods %>%
-    dplyr::mutate(MH_tool = str_squish(MH_tool),
-                  MH_tool.1 = str_squish(MH_tool.1)) %>%
-    dplyr::filter(MH_tool == mh_tool | MH_tool.1 == mh_tool)
+
+  exp_sub_mods_md <- exp_sub_mods %>%
+    dplyr::mutate(MH_tool_o1 = str_squish(MH_tool_o1),
+                  MH_tool_o2 = str_squish(MH_tool_o2)) %>%
+    # dplyr::filter(mh_tool %in% MH_tool_o1 | mh_tool %in% MH_tool_o2) %>%
+    dplyr::filter(MH_tool_o1 == mh_tool | MH_tool_o2 == mh_tool)
   
-  unique(exp_sub_mods2$id) %>% print()
+  unique(exp_sub_mods_md$id) %>% length() %>% print()
 }
 
 ```
@@ -586,8 +644,8 @@ if (mh_tool == 'GHQ-12') {
       as.data.frame()
     
   } else if (mh_tool == 'POMS') {
-    exp_sub_mods_poms <- exp_sub_mods %>%
-      dplyr::filter(effect_size_indices %in% effect_size_ind_i) %>%
+    exp_sub_mods_md <- exp_sub_mods_md %>%
+      # dplyr::filter(effect_size_indices %in% effect_size_ind_i) %>%
       as.data.frame()
       
   } else {
@@ -625,6 +683,7 @@ se_pooled <- function(n1, n2, sd1, sd2) {
 
   * ri, the vector with the raw correlation coefficients
   * ni, the corresponding sample sizes. 
+
 The options for the measure argument are then:
   * "COR" for the raw correlation coefficient,
   * "UCOR" for the raw correlation coefficient corrected for its slight negative bias (based on equation 2.3 in Olkin & Pratt, 1958),
@@ -634,7 +693,7 @@ The options for the measure argument are then:
 # load the metafor package
 library(metafor)
 
-dat <- escalc(data=exp_sub_mods_coef, measure="ZCOR", ri=Mean, ni=N)
+dat <- escalc(data=exp_sub_mods_coef, measure="ZCOR", ri=mean, ni=N)
 study_label <- paste(dat$id, dat$model_id, sep = '_')
 
 res <- rma(yi, vi, data=dat, slab = study_label)
@@ -648,7 +707,7 @@ plot(influence(res), cex=0.8, las=1)
 
 ```{r}
 m.cor <- metacor(data = exp_sub_mods_coef,
-                 cor = Mean, 
+                 cor = mean, 
                  n = N,
                  studlab = id,
                  fixed = FALSE,
@@ -843,7 +902,7 @@ dev.off()
 #### `meta`
 ```{r}
 library(meta)
-m.cor <- metacor(cor = Mean, 
+m.cor <- metacor(cor = mean, 
                  n = N,
                  studlab = id,
                  data = exp_sub_mods_coef,
