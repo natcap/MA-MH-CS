@@ -67,12 +67,11 @@ df_bf_ <- df_bf %>%
       T ~ buffer_unit), 
     
     ## clean `unit` format
-    unit = gsub('Kilometers|\\(|\\)', '', unit),
+    unit = gsub('Kilometers|\\(|\\)', 'km', unit),
     unit = gsub('Meters', 'm', unit),
     unit = trimws(unit),
     
-    buf = gsub("[[:alpha:]]", "", buffer) %>%
-      as.numeric(.), 
+    buf = gsub("[[:alpha:]]", "", buffer) %>% as.numeric(.), 
     
     ## concert all values to meter
     buf_m = case_when(

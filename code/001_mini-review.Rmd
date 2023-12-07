@@ -286,7 +286,7 @@ dt.tool <- dt %>%
   dplyr::select(1:5, Tools, -Title) %>%
   dplyr::filter(str_detect(string = Tools, pattern = "exclude", negate = T)) %>%
   dplyr::mutate(Tool = gsub("Other: ", "", Tools)) %>%
-  func_clean_tools(data = .) %>%
+  func_clean_tools(data = ., column_name = 'Tool') %>%
   as.data.frame()
 
 dt.tool.expand <- dt.tool %>% 
@@ -296,7 +296,7 @@ dt.tool.expand <- dt.tool %>%
     Tool = gsub(".*Likert.*|.*likert.*", "Likert scale", Tool),
     # Tool = gsub(";", "", Tool),
     ) %>% 
-  func_clean_tools(data = .) 
+  func_clean_tools(data = ., column_name = 'Tool') 
 
 dt.tool.clean <- dt.tool.expand %>%
   group_by(Tool) %>%
@@ -441,7 +441,7 @@ to.clean.ind <- dt.ind_match_scale %>%
 to.clean.tool <- dt.ind_match_scale %>%
   dplyr::select(1:2, Tools) %>%
   dplyr::mutate(Tool = gsub("Other: ", "", Tools)) %>%
-  func_clean_tools(data = .) %>%
+  func_clean_tools(data = ., column_name = 'Tool') %>%
   expand_col_to_long(data = ., target_col = "Tool") %>%
   dplyr::mutate(
     Tool = gsub(".*Likert.*|.*likert.*", "Likert scale", Tool),
@@ -728,7 +728,7 @@ dt.tool_ctr  <- dt.ind  %>%
   dplyr::select(-Indicator) %>%
   ## - clean `tools` ---------------------------------------------------------------------
   dplyr::mutate(Tool = gsub("Other: ", "", Tools)) %>%
-  func_clean_tools(data = .) %>%
+  func_clean_tools(data = ., column_name = 'Tool') %>%
   dplyr::filter(nchar(Tool) < 180) %>%
   dplyr::select(-Tools) %>%
   expand_col_to_long(data = ., target_col = "Tool") %>%
@@ -737,7 +737,7 @@ dt.tool_ctr  <- dt.ind  %>%
     Tool = gsub("\\s*\\([^\\)]+\\)", "", Tool), # remove text within parenthesis 
     Tool = trimws(Tool)
     ) %>% 
-  func_clean_tools(data = .) %>%
+  func_clean_tools(data = ., column_name = 'Tool') %>%
   # as.data.frame() 
   ## clean `country` ---------------------------------------------------------------------
   func_clean_country(.) %>%
@@ -798,7 +798,7 @@ dt.ind.cl.2 <- dt.ind.cl %>%
 
 dt.ind.tool.1  <- dt.ind.cl.1  %>%
   dplyr::mutate(Tool = gsub("Other: ", "", Tools)) %>%
-  func_clean_tools(data = .) %>%
+  func_clean_tools(data = ., column_name = 'Tool') %>%
   dplyr::filter(nchar(Tool) < 180) %>%
   dplyr::select(-Tools) %>%
   dplyr::mutate(
@@ -813,7 +813,7 @@ dt.ind.tool.1  <- dt.ind.cl.1  %>%
 
 dt.ind.tool.2  <- dt.ind.cl.2  %>%
   dplyr::mutate(Tool = gsub("Other: ", "", Tools)) %>%
-  func_clean_tools(data = .) %>%
+  func_clean_tools(data = ., column_name = 'Tool') %>%
   dplyr::filter(nchar(Tool) < 180) %>%
   dplyr::select(-Tools) %>%
   expand_col_to_long(data = ., target_col = "Tool") %>%
