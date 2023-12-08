@@ -30,17 +30,8 @@ func_clean_indicatorsPro <-  function(data, column_name) {
 }
 
 
-convert_to_title_case <- function(input_string) {
-  if (input_string == toupper(input_string)) {
-    # String is all in uppercase, keep it as it is
-    return(input_string)
-  } else {
-    # Convert to sentence case
-    return(stringr::str_to_title(input_string))
-  }
-}
 
-unique(exp_sub_mods_md2$MH_indicator_o2) %>% sort()
+
 
 func_clean_indicator_sub <-  function(data, column_name) {
   d <- data %>%

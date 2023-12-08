@@ -25,6 +25,8 @@ dir.root <- dirname(getwd())
 getwd()
 
 ## Load common packages
+source("./code/_pkgs_dirs.R")
+
 ## Additional packages
 library(googlesheets4)
 library(rprojroot)
@@ -45,16 +47,6 @@ library(meta)
 library(metafor)
 
 
-## load functions
-source("./code/_pkgs_dirs.R")
-source('./code/func_expand_col_to_long.R')
-source('./code/func_clean_indicators.R')
-source('./code/func_clean_indicatorsPro.R')
-source('./code/func_clean_tools.R')
-source('./code/func_plot_freq.R')
-source('./code/func_ggsave.R')
-
-
 today <- format(Sys.time(), "%Y%m%d"); today ## "%Y%m%d%H%M"
 ```
 
@@ -62,10 +54,12 @@ today <- format(Sys.time(), "%Y%m%d"); today ## "%Y%m%d%H%M"
 ```{r - functions}
 source('./code/func_expand_col_to_long.R')
 source('./code/func_clean_indicators.R')
+source('./code/func_clean_indicatorsPro.R')
 source('./code/func_clean_tools.R')
 source('./code/func_clean_exposure.R')
 source('./code/func_clean_effectsize.R')
 source('./code/func_clean_nature.R')
+source('./code/func_to_sd.R')
 
 source('./code/func_plot_freq.R')
 source('./code/func_alluvial.R')

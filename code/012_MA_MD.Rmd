@@ -1,8 +1,16 @@
+---
+title: "Untitled"
+author: "Yingjie"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+
+# Data
+
+```{r}
 
 # unique(exp_sub_mods_md$Tools)
-
-
-# Data ----
 
 ## data extracted in Table option 1 ----
 exp_sub_mods_md1 <- exp_sub_mods_md %>%
@@ -51,16 +59,16 @@ unique(exp_sub_mods_md2$MH_indicator_o2) %>% sort()
 exp_sub_mods_md2 %>% count(MH_indicator_o2) 
 
 sub_indicator_selected <- c("Anger", "Anxiety", "Confusion", "Depression", "Fatigue", "Vigor", "TMD")
+```
 
 
 
 
 
+# MA - SMD
 
-# MA =====================================================================================
-
-## SMD ----
-
+## Using `meta`
+```{r}
 library(meta)
 library(grid)
 # Use metcont to pool results.
@@ -92,7 +100,7 @@ for (sub_ind_i in sub_indicator_selected) {
   
 
   
-  ## forest ----
+  #### forest ----
   f <- paste0('./figures/', 'plot_forest_POMS_', sub_ind_i, '_', today, '.png'); f
   png(filename = f, 
       # width = 3000, height = 3000, units = "px", pointsize = 22,
@@ -136,6 +144,48 @@ for (sub_ind_i in sub_indicator_selected) {
   dev.off()
   
 }
+```
 
 
+
+
+## Using `metafor`
+```{r}
+library(metafor)
+
+for (sub_ind_i in sub_indicator_selected) {
+  
+  exp_sub_mods_md2i <- exp_sub_mods_md2 %>%
+    dplyr::filter(MH_indicator_o2 == sub_ind_i)
+  
+  dat1 <- metafor::escalc(
+    data=exp_sub_mods_md2i,
+    measure="SMD", 
+    m1i=c_mean, sd1i=c_sd_r, n1i=c_n,
+    m2i=e_mean, sd2i=e_sd_r, n2i=e_n)
+  
+  # Finally, a random-effects model can be fitted to these data with:
+    
+  res1 <- rma(yi, vi, data=dat1)
+  res1
+  
+  
+  
+  #### auto-report using reporter() function ----
+  dir.report <- paste0('./figures/'); dir.report
+  metafor::reporter(res1, dir = dir.report)
+  
+  # reporter(res, format="pdf", 
+  #          dir = paste0(dir.root, '/figures/'), 
+  #          filename = 'report_metafor.PDF')
+  #          
+  # reporter(res, format="word")
+
+  ### add an outlier
+  # dat$yi[6] <- 2.5
+  # res <- rma(yi, vi, data=dat)
+  # reporter(res)
+  
+}
+```
 

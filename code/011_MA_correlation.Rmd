@@ -33,13 +33,31 @@ library(metafor)
 dat <- escalc(data=exp_sub_mods_coef, measure="ZCOR", ri=mean, ni=N)
 study_label <- paste(dat$id, dat$model_id, sep = '_')
 
-res <- rma(yi, vi, data=dat, slab = study_label)
+res <- metafor::rma(yi, vi, data=dat, slab = study_label)
 res
 predict(res, transf=transf.ztor) ## ztor: z to r
 
 # outlier/influence diagnostics
 par(mar=c(5,6,4,2))
 plot(influence(res), cex=0.8, las=1)
+```
+
+
+```{r - auto-report, eval=FALSE, include=FALSE}
+### reporter() function
+dir.report <- paste0('./figures/'); dir.report
+metafor::reporter(res, dir = dir.report)
+
+# reporter(res, format="pdf", 
+#          dir = paste0(dir.root, '/figures/'), 
+#          filename = 'report_metafor.PDF')
+#          
+# reporter(res, format="word")
+
+### add an outlier
+# dat$yi[6] <- 2.5
+# res <- rma(yi, vi, data=dat)
+# reporter(res)
 ```
 
 
@@ -255,21 +273,5 @@ summary(m.cor)
 
 
 
-```{r - auto-report, eval=FALSE, include=FALSE}
-### reporter() function
-dir.report <- paste0('./figures/'); dir.report
-reporter(res, dir = dir.report)
-
-# reporter(res, format="pdf", 
-#          dir = paste0(dir.root, '/figures/'), 
-#          filename = 'report_metafor.PDF')
-#          
-# reporter(res, format="word")
-
-### add an outlier
-# dat$yi[6] <- 2.5
-# res <- rma(yi, vi, data=dat)
-# reporter(res)
-```
 
 
