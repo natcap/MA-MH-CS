@@ -32,9 +32,28 @@ exp_sub_mods_md2 <- exp_sub_mods_md %>%
       !is.na(e_mean) & is.na(Treatment_N) &  is.na(Control_N) & !is.na(n_participants) ~ n_participants,
       TRUE ~ Treatment_N
     ),
+    
+    study_label = paste(id, model_id, sep = '_')
   ) %>%
+
+  ## convert SE, and CI to `SD`
+  func_for_sd(data = .) %>%
+  
+  ## remove row without any data from table option 2
+  dplyr::filter(!is.na(c_mean) & !is.na(e_mean) & !is.na(MH_indicator_o2)) %>%
+  
   dplyr::select(1:n_participants, Control_N, c_n, Treatment_N, e_n, everything()) %>%
   as.data.frame()
+
+##' to see the number of studies by sub_indicators
+##' we might need to remove the ones with fewer case studies
+unique(exp_sub_mods_md2$MH_indicator_o2) %>% sort()
+exp_sub_mods_md2 %>% count(MH_indicator_o2) 
+
+sub_indicator_selected <- c("Anger", "Anxiety", "Confusion", "Depression", "Fatigue", "Vigor", "TMD")
+
+
+
 
 
 
@@ -42,51 +61,81 @@ exp_sub_mods_md2 <- exp_sub_mods_md %>%
 
 ## SMD ----
 
-# Make sure meta and dmetar are already loaded
 library(meta)
-
+library(grid)
 # Use metcont to pool results.
-ma_smd <- metacont(data = exp_sub_mods_md2,
-                   n.e = e_n,
-                   n.c = c_n,
-                   mean.e = e_mean,
-                   mean.c = c_mean,
-                   sd.e = e_sd,
-                   sd.c = c_sd,
-                   studlab = id,
-                   
-                   sm = "SMD",
-                   method.smd = "Hedges",
-                   fixed = FALSE,
-                   random = TRUE,
-                   method.tau = "REML",
-                   hakn = TRUE,
-                   title = "POMS")
-ma_smd
+
+for (sub_ind_i in sub_indicator_selected) {
+  
+  exp_sub_mods_md2i <- exp_sub_mods_md2 %>%
+    dplyr::filter(MH_indicator_o2 == sub_ind_i)
+  
+  height_cm <- nrow(exp_sub_mods_md2i)
+  
+  ma_smd <- metacont(data = exp_sub_mods_md2i,
+                     n.e = e_n,
+                     n.c = c_n,
+                     mean.e = e_mean,
+                     mean.c = c_mean,
+                     sd.e = e_sd_r,
+                     sd.c = c_sd_r,
+                     studlab = study_label,
+                     
+                     sm = "SMD",
+                     method.smd = "Hedges",
+                     fixed = FALSE,
+                     random = TRUE,
+                     method.tau = "REML",
+                     hakn = TRUE,
+                     title = "POMS")
+  ma_smd
+  
+
+  
+  ## forest ----
+  f <- paste0('./figures/', 'plot_forest_POMS_', sub_ind_i, '_', today, '.png'); f
+  png(filename = f, 
+      # width = 3000, height = 3000, units = "px", pointsize = 22,
+      width = 30, height = height_cm/1.5, units = "cm", res = 100)
+  forest(ma_smd,
+         # layout = "RevMan5",
+         # sortvar = TE,
+         # prediction = TRUE,
+         addpred=TRUE, 
+         print.tau2 = T,
+         # lab.e = "Post-intervention",
+         # lab.c = "Pre-intervention",
+         # label.left = "loss",
+         # label.right = "gain",
+         digits.sd = 2,
+         digits.tau2 = 2,
+         colgap = "0.5cm",
+         # colgap.forest = "1cm",
+         col.by = "black",
+         col.square = "black",
+         col.inside = "black",
+         col.square.lines = "black",
+         shade=TRUE,
+         # test.effect.subgroup.random = TRUE,
+         pooled.totals=T,
+         overall = T,
+         overall.hetstat = T)
+  
+  # forest(ma_smd, 
+  #        addpred=TRUE, 
+  #        header=TRUE, 
+  #        # xlim=c(-1,1), 
+  #        # slab = study_label, 
+  #        digits.sd = 2,
+  #        digits.tau2 = 2,
+  #        shade=TRUE)
+  
+  # Add a title to the entire plot
+  grid::grid.text(label = sub_ind_i, x = 0.08, y = .98, gp=gpar(cex=2))
+  
+  dev.off()
+  
+}
 
 
 
-## forest ----
-f <- paste0('./figures/', 'plot_forest_POMS_', today, '.png'); f
-png(filename = f, 
-    # width = 1000, height = 1000, units = "px", pointsize = 22,
-    width = 25, height = 100, units = "cm",
-    res = 500)
-forest(ma_smd,
-       layout = "RevMan5",
-       lab.e = "Post-intervention",
-       lab.c = "Pre-intervention",
-       label.left = "loss",
-       label.right = "gain",
-       digits.sd = 2,
-       digits.tau2 = 2,
-       # colgap = "0.5cm",
-       # colgap.forest = "1cm",
-       col.by = "black",
-       col.square = "black",
-       col.inside = "black",
-       col.square.lines = "black",
-       test.effect.subgroup.random = TRUE,
-       overall = FALSE,
-       overall.hetstat = FALSE)
-dev.off()
