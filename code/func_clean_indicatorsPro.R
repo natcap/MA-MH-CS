@@ -28,3 +28,55 @@ func_clean_indicatorsPro <-  function(data, column_name) {
   
   return(d)
 }
+
+
+convert_to_title_case <- function(input_string) {
+  if (input_string == toupper(input_string)) {
+    # String is all in uppercase, keep it as it is
+    return(input_string)
+  } else {
+    # Convert to sentence case
+    return(stringr::str_to_title(input_string))
+  }
+}
+
+unique(exp_sub_mods_md2$MH_indicator_o2) %>% sort()
+
+func_clean_indicator_sub <-  function(data, column_name) {
+  d <- data %>%
+    dplyr::mutate(
+      
+      !!column_name := gsub("\\s*\\([^\\)]+\\)", "", !!sym(column_name)), # remove text within parenthesis 
+      !!column_name := str_squish(!!sym(column_name)),
+      
+      !!column_name := gsub("–|\\/", "-", !!sym(column_name)),
+      !!column_name := gsub("A\\-H|anger\\-hostility|anger and hostility", "Anger", !!sym(column_name), ignore.case = T),
+      !!column_name := gsub("hostility", "Anger", !!sym(column_name), ignore.case = T),
+      !!column_name := gsub("Confused|confusion\\-bewilderment", "Confusion", !!sym(column_name), ignore.case = T),
+      !!column_name := gsub("depression-dejection|confusion\\-bewilderment|depression and dejection", "Confusion", !!sym(column_name), ignore.case = T),
+      !!column_name := gsub("fatigue\\-inertia", "Fatigue", !!sym(column_name), ignore.case = T),
+      !!column_name := gsub("tension\\-anxiety|tension and anxiety|Tension\\/Anxiety|T\\-A", "Tension Anxiety", !!sym(column_name), ignore.case = T),
+      !!column_name := gsub("Tension Anxiety|Tension", "Anxiety", !!sym(column_name), ignore.case = T),
+      !!column_name := gsub("total mood disturbance|Total Mood of Disturbance", "TMD", !!sym(column_name), ignore.case = T),
+      !!column_name := gsub("vigor\\-activity|Vigour", "Vigor", !!sym(column_name), ignore.case = T),
+      
+      !!column_name := ifelse(!!sym(column_name) == "C", "Confusion", !!sym(column_name)),
+      !!column_name := ifelse(!!sym(column_name) == "D", "Depression", !!sym(column_name)),
+      !!column_name := ifelse(!!sym(column_name) == "F", "Fatigue", !!sym(column_name)),
+      !!column_name := ifelse(!!sym(column_name) == "V", "Vigor", !!sym(column_name)),
+      
+      !!column_name := ifelse(
+        !!sym(column_name) == toupper(!!sym(column_name)), !!sym(column_name),
+        stringr::str_to_title(!!sym(column_name))
+        ),
+      !!column_name := trimws(!!sym(column_name))
+    ) %>%
+    as.data.frame()
+  
+  return(d)
+}
+
+# exp_sub_mods_md2_test <- exp_sub_mods_md2 %>%
+#   func_clean_indicator_sub(data = ., column_name = 'MH_indicator_o2')
+# unique(exp_sub_mods_md2_test$MH_indicator_o2) %>% sort()
+
