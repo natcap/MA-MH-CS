@@ -23,7 +23,7 @@ func_for_sd <- function(data){
       is.na(e_sd) & !is.na(e_ci95lower) ~ 2*abs(e_ci95lower) * sqrt(e_n)/3.92,
       TRUE ~ e_sd
     )) %>%
-    dplyr::select(1:c_sd, c_sd_r, everything()) %>%
+    dplyr::select(1:e_sd, e_sd_r, everything()) %>%
     as.data.frame()
       
   # Return the modified data frame

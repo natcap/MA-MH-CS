@@ -10,7 +10,7 @@ func_clean_tools <- function(data, column_name) {
       !!column_name := gsub(
         paste("Anti\\-depressant prescribing", "Antidepressant prescriptions", 
               "Antidepressant prescription rates", "Antidepressant use", sep = "|"),
-        "Antidepressant prescription", !!sym(column_name), ignore.case = T),
+        "Antidepressant Rx", !!sym(column_name), ignore.case = T),
       !!column_name := gsub("CES\\-D\\-10|CESD\\-10", "CES\\-D10", !!sym(column_name), ignore.case = T),
       !!column_name := gsub("CES\\-D\\-20|CESD\\-20", "CES\\-D20", !!sym(column_name), ignore.case = T),
       !!column_name := gsub(
