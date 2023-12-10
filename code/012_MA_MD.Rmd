@@ -47,6 +47,8 @@ exp_sub_mods_md2 <- exp_sub_mods_md %>%
   ## convert SE, and CI to `SD`
   func_for_sd(data = .) %>%
   
+  ## within group vs. between group 
+  
   ## remove row without any data from table option 2
   dplyr::filter(!is.na(c_mean) & !is.na(e_mean) & !is.na(MH_indicator_o2)) %>%
   
@@ -95,12 +97,14 @@ for (sub_ind_i in sub_indicator_selected) {
                      random = TRUE,
                      method.tau = "REML",
                      hakn = TRUE,
+                     # byvar = NULL, ## Grouping results by a variable 
                      title = "POMS")
   ma_smd
   
 
   
-  #### forest ----
+  ####' forest ----
+  ####' https://insidethenumbers.netlify.app/post/meta-analysis/
   f <- paste0('./figures/', 'plot_forest_POMS_', sub_ind_i, '_', today, '.png'); f
   png(filename = f, 
       # width = 3000, height = 3000, units = "px", pointsize = 22,
@@ -111,8 +115,9 @@ for (sub_ind_i in sub_indicator_selected) {
          # prediction = TRUE,
          addpred=TRUE, 
          print.tau2 = T,
-         # lab.e = "Post-intervention",
-         # lab.c = "Pre-intervention",
+         lab.e = "Post-intervention",
+         lab.c = "Pre-intervention",
+         # print.byvar = FALSE,
          # label.left = "loss",
          # label.right = "gain",
          digits.sd = 2,
@@ -164,17 +169,49 @@ for (sub_ind_i in sub_indicator_selected) {
     m1i=c_mean, sd1i=c_sd_r, n1i=c_n,
     m2i=e_mean, sd2i=e_sd_r, n2i=e_n)
   
+  
   # Finally, a random-effects model can be fitted to these data with:
-    
-  res1 <- rma(yi, vi, data=dat1)
-  res1
+  res <- rma(yi, vi, data=dat1, digits=3)
+  res
+  ### fit equal- and random-effects models
+  # rma(yi, vi, data=dat1, method="EE", digits=3)
+  
+  
+  ### forest plot with extra annotations
+  ###' https://wviechtb.github.io/metafor/reference/forest.default.html
+  metafor::forest(
+    x = res, 
+    # atransf=exp, # transform the x-axis labels and annotations
+    # at=log(c(0.05, 0.25, 1, 4)), xlim=c(-16,6),
+    # ilab=cbind(tpos, tneg, cpos, cneg),
+    # ilab.xpos=c(-9.5,-8,-6,-4.5),
+    psize=1,
+    cex=0.75, 
+    header="Study label", 
+    slab=study_label,
+    showweights = T,
+    mlab=sub_ind_i, 
+    shade=TRUE)
+  
+  
+  
+  op <- par(cex=0.75, font=2)
+  par(op)
+  ### add text with Q-value, dfs, p-value, and I^2 statistic
+  text(-16, -2, pos=4, cex=0.75, 
+       bquote(paste("RE Model (Q = ", .(fmtx(res$QE, digits=2)),
+                    ", df = ", .(res$k - res$p), ", ",
+                    .(fmtp(res$QEp, digits=3, pname="p", add0=TRUE, sep=TRUE, equal=TRUE)), "; ",
+                    I^2, " = ", .(fmtx(res$I2, digits=1)), "%)")))
+  
   
   
   
   #### auto-report using reporter() function ----
   dir.report <- paste0('./figures/'); dir.report
-  metafor::reporter(res1, dir = dir.report)
+  # metafor::reporter(res, dir = dir.report)
   
+  ### save as PDF
   # reporter(res, format="pdf", 
   #          dir = paste0(dir.root, '/figures/'), 
   #          filename = 'report_metafor.PDF')
@@ -189,3 +226,11 @@ for (sub_ind_i in sub_indicator_selected) {
 }
 ```
 
+
+
+  There is no statistical reason why studies with change-from-baseline outcomes should not be combined in a meta-analysis with studies with post-intervention measurement outcomes when using the (unstandardized) MD method. [link](https://training.cochrane.org/handbook/current/chapter-10#section-10-5)
+  In contrast, post-intervention value and change scores should not in principle be combined using standard meta-analysis approaches when the effect measure is an SMD. The SD when standardizing post-intervention values reflects between-person variability at a single point in time. The SD when standardizing change scores reflects variation in between-person changes over time, so will depend on both within-person and between-person variability
+  
+## Missing data
+  This is often a problem when change-from-baseline outcomes are sought. We discuss imputation of missing SDs in Chapter 6, Section 6.5.2.8
+  
