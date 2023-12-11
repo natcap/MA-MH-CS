@@ -279,7 +279,7 @@ func_alluvial(data = df_exp_tool_flow3, indicator_n_min = 5, width_my = width_my
 ```
 
 
-## Input data for MA
+## Prepare data for MA
 
 ### subset one `exposure_type`
 
@@ -290,7 +290,7 @@ mh_tool           <- "GHQ-12"
 # exposure_type_i   <- 'L1 - neighborhood/residential exposure'
 exposure_type_i   <- c('Residential')
 
-effect_size_ind_i <- 'coefficients'
+effect_size_ind_i <- c('coefficients')
   
 
 ## test 
@@ -353,8 +353,7 @@ exposure_type_i   <- c('In nature - static', 'In nature - PA')
  
 
 ## [] TBD - clean the data
-effect_size_ind_i <- c(
-  "Measure values before and after intervention")
+effect_size_ind_i <- c("Mean_pre_post")
   
 
 
@@ -395,24 +394,23 @@ save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
 
 
 
-### format table
+## Choose and load input data
 
   Now, each paper can include data from multiple models, and they are presented in columns. 
 We need to put all data on models in rows. 
 
 ```{r - choose one as input}
-# exp_sub_df <- sub_ghq
-# exp_sub_df <- sub_panas
-# exp_sub_df <- sub_poms
 
 f <- paste0('./data/0301-MA-input/', 'sub_ghq.RData')
-# f <- paste0('./data/0301-MA-input/', 'sub_panas.RData')
-f <- paste0('./data/0301-MA-input/', 'sub_poms.RData')
+f <- paste0('./data/0301-MA-input/', 'sub_panas.RData')
+# f <- paste0('./data/0301-MA-input/', 'sub_poms.RData')
+
 load(file = f)
 ```
 
 
 
+### format data
 ```{r - wide to long format}
 
 ##' Test code for formatting one model
@@ -456,7 +454,8 @@ rm(exp_sub_dfi)
 ```
 
 
-```{r - table options}
+
+```{r - clean names from table 1/2, include=FALSE}
 
 ## for data extracted in table option 1
 exp_sub_l_o1 <- exp_sub_l %>%
@@ -496,6 +495,7 @@ exp_sub_long <- exp_sub_l_o1 %>%
 ## remove these two df after merging
 rm(exp_sub_l_o1, exp_sub_l_o2)
 ```
+
 
 
 ```{r - clean numeric values}
@@ -583,13 +583,21 @@ exp_sub_long_clean <- exp_sub_long %>%
   func_clean_nature_quant(data = ., column_name = 'nature_quantity_o1') %>%
   func_clean_nature_quant(data = ., column_name = 'nature_quantity_o2') %>%
   
+  ## fill blanks using data from the column `Tools`, but only if there is only one tool in `Tools`
+  func_fill_tool(data = ., column_name = "MH_tool_o1") %>%
+  func_fill_tool(data = ., column_name = "MH_tool_o2") %>%
+  
   dplyr::select(id, all_of(cols_keep), 
                 effect_size_indices:Mean, mean, 
                 CI_95_lower, ci_95_lower, everything()) %>%
   arrange(effect_size_indices, id, model_id) %>%
   as.data.frame()
+```
 
 
+### subset one `effect_size_indice`
+
+```{r}
 
 if (length(effect_size_ind_i) == 1) {
   if(effect_size_ind_i == 'coefficients') {
@@ -601,52 +609,64 @@ if (length(effect_size_ind_i) == 1) {
           TRUE ~ mean
           ),
       )
-  }} else {
+  } else {
+    exp_sub_mods <- exp_sub_long_clean
+  } 
+} else {
   exp_sub_mods <- exp_sub_long_clean
 }
   
 
 
-if (mh_tool == 'POMS') {
-
-  exp_sub_mods_md <- exp_sub_mods %>%
-    dplyr::mutate(MH_tool_o1 = str_squish(MH_tool_o1),
-                  MH_tool_o2 = str_squish(MH_tool_o2)) %>%
-    # dplyr::filter(mh_tool %in% MH_tool_o1 | mh_tool %in% MH_tool_o2) %>%
-    dplyr::filter(MH_tool_o1 == mh_tool | MH_tool_o2 == mh_tool)
-  
-  unique(exp_sub_mods_md$id) %>% length() %>% print()
-}
-
-```
-
-
-### subset one `effect_size_indice`
-
-```{r}
 ## 
 unique(exp_sub_mods$effect_size_indices)
 
-
 if (mh_tool == 'GHQ-12') {
   exp_sub_mods_coef <- exp_sub_mods %>%
-    dplyr::filter(effect_size_indices %in% effect_size_ind_i) %>%
+    dplyr::filter((str_detect(pattern = paste(effect_size_ind_i, collapse = "|"), string = effect_size_indices))) %>%
     as.data.frame() 
+  
   } else if (mh_tool == 'PANAS') {
-    exp_sub_mods_panas <- exp_sub_mods %>%
-      dplyr::filter(effect_size_indices %in% effect_size_ind_i) %>%
-      as.data.frame()
-    
-  } else if (mh_tool == 'POMS') {
-    exp_sub_mods_md <- exp_sub_mods_md %>%
-      # dplyr::filter(effect_size_indices %in% effect_size_ind_i) %>%
+    exp_sub_mods_md <- exp_sub_mods %>%
+      dplyr::filter((str_detect(pattern = paste(effect_size_ind_i, collapse = "|"), string = effect_size_indices))) %>%
+      dplyr::filter(MH_tool_o1 == mh_tool | MH_tool_o2 == mh_tool) %>%
       func_clean_indicator_sub(data = ., column_name = 'MH_indicator_o1') %>%
       func_clean_indicator_sub(data = ., column_name = 'MH_indicator_o2') %>%
       as.data.frame()
+    ## make a copy of the data
+    exp_sub_mods_panas <- exp_sub_mods_md
+    
+  } else if (mh_tool == 'POMS') {
+    exp_sub_mods_md <- exp_sub_mods %>%
+      dplyr::filter((str_detect(pattern = paste(effect_size_ind_i, collapse = "|"), string = effect_size_indices))) %>%
+      dplyr::filter(MH_tool_o1 == mh_tool | MH_tool_o2 == mh_tool) %>%
+      func_clean_indicator_sub(data = ., column_name = 'MH_indicator_o1') %>%
+      func_clean_indicator_sub(data = ., column_name = 'MH_indicator_o2') %>%
+      as.data.frame()
+    ## make a copy of the data
+    exp_sub_mods_poms <- exp_sub_mods_md
       
   } else {
     print('...')
   }
+
+
+## how many unique papers?
+length(unique(exp_sub_mods_md$id)) %>% cat('\nFor', mh_tool, '\n In total, there are', ., 'unique papers.')
+nrow(exp_sub_mods_md) %>% cat('\n In total, there are', ., 'studies. \n\n')
+
+## for PANAS -----------------------------------------
+# if (mh_tool == 'PANAS') {
+#   unique(exp_sub_mods_panas$effect_size_indices)
+#   
+#   unique(exp_sub_mods_panas$Tools) 
+#   unique(exp_sub_mods_panas$MH_tool_o1)
+#   unique(exp_sub_mods_panas$MH_tool_o2) 
+#   
+#   unique(exp_sub_mods_panas$MH_indicator_o1)
+#   unique(exp_sub_mods_panas$MH_indicator_o2)
+# }
+
 ```
   
 # Meta-analysis
