@@ -56,6 +56,9 @@ func_clean_indicator_sub <-  function(data, column_name) {
       !!column_name := ifelse(!!sym(column_name) == "F", "Fatigue", !!sym(column_name)),
       !!column_name := ifelse(!!sym(column_name) == "V", "Vigor", !!sym(column_name)),
       
+      !!column_name := gsub("Positive Affect", "Positive Affect", !!sym(column_name), ignore.case = T),
+      !!column_name := gsub("Negative Affect", "Negative Affect", !!sym(column_name), ignore.case = T),
+      
       !!column_name := ifelse(
         !!sym(column_name) == toupper(!!sym(column_name)), !!sym(column_name),
         stringr::str_to_title(!!sym(column_name))
