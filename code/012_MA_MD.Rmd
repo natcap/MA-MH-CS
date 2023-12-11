@@ -58,9 +58,16 @@ exp_sub_mods_md2 <- exp_sub_mods_md %>%
 ##' to see the number of studies by sub_indicators
 ##' we might need to remove the ones with fewer case studies
 unique(exp_sub_mods_md2$MH_indicator_o2) %>% sort()
-exp_sub_mods_md2 %>% count(MH_indicator_o2) 
+stats_count_by_ind <- exp_sub_mods_md2 %>% count(MH_indicator_o2) 
+stats_count_by_ind
 
-sub_indicator_selected <- c("Anger", "Anxiety", "Confusion", "Depression", "Fatigue", "Vigor", "TMD")
+stats_count_by_ind %>% dplyr::filter(n>5)
+sub_indicator_selected <- unique(stats_count_by_ind$MH_indicator_o2)
+sub_indicator_selected
+
+
+### This is a list manually selected for POMS  
+# sub_indicator_selected <- c("Anger", "Anxiety", "Confusion", "Depression", "Fatigue", "Vigor", "TMD")
 ```
 
 
@@ -98,14 +105,14 @@ for (sub_ind_i in sub_indicator_selected) {
                      method.tau = "REML",
                      hakn = TRUE,
                      # byvar = NULL, ## Grouping results by a variable 
-                     title = "POMS")
+                     title = mh_tool)
   ma_smd
   
 
   
   ####' forest ----
   ####' https://insidethenumbers.netlify.app/post/meta-analysis/
-  f <- paste0('./figures/', 'plot_forest_POMS_', sub_ind_i, '_', today, '.png'); f
+  f <- paste0('./figures/', 'plot_forest_', mh_tool, '_', sub_ind_i, '_', today, '.png'); f
   png(filename = f, 
       # width = 3000, height = 3000, units = "px", pointsize = 22,
       width = 30, height = height_cm/1.5, units = "cm", res = 100)
@@ -144,7 +151,7 @@ for (sub_ind_i in sub_indicator_selected) {
   #        shade=TRUE)
   
   # Add a title to the entire plot
-  grid::grid.text(label = sub_ind_i, x = 0.08, y = .98, gp=gpar(cex=2))
+  grid::grid.text(label = sub_ind_i, x = 0, y = .98, just = 'left', gp=gpar(cex=2))
   
   dev.off()
   
