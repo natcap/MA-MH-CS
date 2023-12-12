@@ -147,9 +147,6 @@ df_exp_l <- df_exp %>%
   ## clean the messy text data due to manual entry 
   func_clean_exposure(data = .) %>%
   dplyr::mutate(
-    # exposure_type = gsub("L4 physical activity", "L4 - physical activity in nature", exposure_type),
-    # exposure_type = gsub("L1 surrounding greenness", "L1 - neighborhood/residential exposure", exposure_type),
-    # exposure_type = gsub("L2 objective accessibility", "L2 - objective accessibility", exposure_type),
     # exposure_type1 = ifelse(str_detect(exposure_type, regex('duration', ignore_case = T)), 'Time spent in nature', exposure_type),
     exposure_type = ifelse(grepl(x = exposure_type, 'duration|Spending hour|Time spent', ignore.case = T), 
                            'Duration in nature', exposure_type),
@@ -196,9 +193,9 @@ func_ggsave(fname = fname, w = 7, h = 4, save_png = T)
 ```
 
 
-### stat on exposure-tool pair
+### stats
 
-```{r}
+```{r exposure-tool}
 
 df_exp_l_toolL <- df_exp_l %>%
   dplyr::mutate(Tool = gsub("Other: ", "", Tools),
@@ -227,7 +224,9 @@ df_exp_tool_flow <- df_exp_l_toolL %>%
   arrange(dimension) %>%
   dplyr::rename(freq = n) %>%
   dplyr::mutate(
-    dimension = factor(dimension, levels = c('Tool', 'exposure_type')),
+    dimension = factor(dimension, 
+                       levels = c('exposure_type', 'Tool'), 
+                       labels = c('Exposure types', 'Metrics') ),
     ) %>%
   group_by(layers) %>%
   dplyr::mutate(total = sum(freq, na.rm = T)) %>%
@@ -267,15 +266,51 @@ df_exp_tool_flow3 <- df_exp_l_toolL %>%
   arrange(dimension) %>%
   dplyr::rename(freq = n) %>%
   dplyr::mutate(
-    dimension = factor(dimension, levels = c('Tool', 'exposure_type')),
+    dimension = factor(dimension, 
+                       levels = c('exposure_type', 'Tool'), 
+                       labels = c('Exposure types', 'Metrics') ),
     ) %>%
   group_by(layers) %>%
   dplyr::mutate(total = sum(freq, na.rm = T)) %>%
   as.data.frame()
 
 func_alluvial(data = df_exp_tool_flow3, indicator_n_min = 5, width_my = width_my, w_p = 7,
+              labele_small = 5,
               show_y_ticks = F, 
               filename.prefix = '', filename.postfix = 'tool3_exposure')
+```
+
+
+```{r type-exposure-tool}
+
+df_type_exp_tool <- df_exp_l_toolL %>%
+  dplyr::filter(Tool %in% tool_selected) %>% 
+  func_clean_nature_type(data=., column_name = 'nature_type', aggregate = T) %>%
+  expand_col_to_long(data = ., target_col = 'nature_type') %>%
+  group_by(nature_type, exposure_type, Tool) %>%
+  tally() %>%
+  as.data.frame() %>%  
+  pivot_longer(names_to  = 'dimension', 
+               values_to = 'layers', 
+               cols = c('Tool', 'exposure_type', 'nature_type')) %>%
+  group_by(dimension) %>%
+  dplyr::mutate(id_within_layers = row_number(dimension)) %>%
+  arrange(dimension) %>%
+  dplyr::rename(freq = n) %>%
+  dplyr::mutate(
+    dimension = factor(dimension, 
+                       levels = c('nature_type', 'exposure_type', 'Tool'), 
+                       labels = c('Nature type', 'Exposure type', 'Metric') ),
+    ) %>%
+  group_by(layers) %>%
+  dplyr::mutate(total = sum(freq, na.rm = T)) %>%
+  as.data.frame()
+
+df_type_exp_tool %>% func_alluvial(
+  data = ., indicator_n_min = 5, width_my = width_my, w_p = 7,
+  labele_small = 5,
+  show_y_ticks = F, 
+  filename.prefix = '', filename.postfix = 'tool3_exposure_natureType')
 ```
 
 
