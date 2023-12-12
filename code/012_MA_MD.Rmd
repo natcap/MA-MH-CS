@@ -162,7 +162,8 @@ for (sub_ind_i in sub_indicator_selected) {
 
 
 ## Using `metafor`
-```{r}
+
+```{r eval=FALSE, include=FALSE}
 library(metafor)
 
 for (sub_ind_i in sub_indicator_selected) {

@@ -84,7 +84,7 @@ csv <- "review_278532_20230427120514.csv"     # 2023-04-27
 csv <- "review_278532_20230616074045.csv"     # 2023-05-13, addressed 85 consensus 
 csv <- "review_278532_20230703085230.csv"
 csv <- "review_278532_20230920035224.csv"     # 2023-09-18, 30 consensus done for Extraction
-csv <- "review_278532_20231211061906.csv"     # 2023-12-04, 38 consensus done
+csv <- "review_278532_20231212051221.csv"     # 2023-12-11, 38 consensus done, add a new table to collect x, y info
 
 t <- basename(csv) %>% gsub('review_278532_', '', .) %>%
   str_sub(start = 1, end = 14)  %>%

@@ -1,9 +1,12 @@
 
 library(ggalluvial)
 
+#' @param indicator_n_min the minimum number of flow frequency to be included in the plot
+#' @param labele_small    the minimum number to have a label inside the stacked bars
+
 func_alluvial <- function(data, 
                           sorted = NA,
-                          indicator_n_min = 5, 
+                          indicator_n_min = 5, ## 
                           width_my = 1/2.5, 
                           w_p = 6,
                           labele_small = 15,
