@@ -1,22 +1,22 @@
 
 
-func_clean_exposure <- function(data) {
+func_clean_exposure <- function(data, column_name) {
   d <- data %>%
     dplyr::mutate(
-      exposure_type = gsub("Other: ", "", exposure_type),
-      exposure_type = gsub("\\s*\\([^\\)]+\\)", "", exposure_type), # remove text within parenthesis 
+      !!column_name := gsub("Other: ", "", !!sym(column_name)),
+      !!column_name := gsub("\\s*\\([^\\)]+\\)", "", !!sym(column_name)), # remove text within parenthesis 
       
       ## text cleaning 
-      exposure_type = gsub("L4 physical activity",       "L4 - physical activity in nature", exposure_type),
-      exposure_type = gsub("L1 surrounding greenness",   "L1 - neighborhood/residential exposure", exposure_type),
-      exposure_type = gsub("L2 objective accessibility", "L2 - objective accessibility", exposure_type),
+      !!column_name := gsub("L4 physical activity",       "L4 - physical activity in nature", !!sym(column_name)),
+      !!column_name := gsub("L1 surrounding greenness",   "L1 - neighborhood/residential exposure", !!sym(column_name)),
+      !!column_name := gsub("L2 objective accessibility", "L2 - objective accessibility", !!sym(column_name)),
 
       ## final formatting 
-      exposure_type = gsub(",+", ",", exposure_type), ## Removing repeated punctuation character from a string
-      exposure_type = gsub(";+", ";", exposure_type), ## Removing repeated punctuation character from a string
-      exposure_type = trimws(exposure_type),
-      exposure_type = str_squish(exposure_type)) %>%
-    dplyr::filter(exposure_type != 'NA') %>%
+      !!column_name := gsub(",+", ",", !!sym(column_name)), ## Removing repeated punctuation character from a string
+      !!column_name := gsub(";+", ";", !!sym(column_name)), ## Removing repeated punctuation character from a string
+      !!column_name := trimws(!!sym(column_name)),
+      !!column_name := str_squish(!!sym(column_name))) %>%
+    # dplyr::filter(!!column_name != 'NA') %>%
     as.data.frame()
   
   return(d)
