@@ -115,14 +115,98 @@ library(googlesheets4)
 
 ### Use data from Google Doc
 link <- 'https://docs.google.com/spreadsheets/d/1sVUU2FfSq3NChdM_Vhxc9sbm_eHAJtoKtEP_g3aIMn8/edit?usp=sharing'
-dd.gsheet <- googlesheets4::read_sheet(link, sheet = 1) %>%
-  dplyr::mutate(date = NA) %>%
+dd.gsheet1 <- googlesheets4::read_sheet(link, sheet = 'Effect size Data Table-option1') %>%
+  group_by(id, Reviewer) %>%
+  dplyr::mutate(mod_id = row_number() + 20 ) %>% ## extra data in addition to the Covidence Table
+  dplyr::select(id, mod_id, everything()) %>%
   as.data.frame()
 
+dd.gsheet2 <- googlesheets4::read_sheet(link, sheet = 'Effect size Data Table-option2') %>%
+  group_by(id, Reviewer) %>%
+  dplyr::mutate(mod_id = row_number() + 20 ) %>% ## extra data in addition to the Covidence Table
+  dplyr::select(mod_id, everything()) %>%
+  as.data.frame()
+```
+
+  Clean data
+```{r - data in gsheet}
+
+## for table 1 ---------------------------------------------------------------------------
+unique(dd.gsheet1$id) %>% length() %>%
+  cat('\nThere are', ., 'unique papers.\n')
+
+dd.gsheet1c <- dd.gsheet1 %>%
+  group_by(id) %>%
+  dplyr::mutate(group_id = cur_group_id()) %>% 
+  # dplyr::select(1:Reviewer, mod_id, group_id, Control_Mean, Control_SD, -`Study ID`) %>%
+  dplyr::select(id, group_id, mod_id, everything()) %>%
+  arrange(id, Reviewer, mod_id) 
+
+## get the name list to be transformed to column names
+x <- names(dd.gsheet1c)
+x[x== "Other covariates"]
+x1 <- which(x== "Other covariates")
+x2 <- length(x)
+col_name_list <- x[x1:x2]
+col_name_list
+
+dd.gsheet1c_w <- dd.gsheet1c %>%
+  pivot_wider(names_from = mod_id, 
+              names_sep = ".",
+              values_from = all_of(col_name_list)) %>%
+  as.data.frame()
+
+
+
+
+
+## for table 2 ---------------------------------------------------------------------------
+unique(dd.gsheet2$id) %>% length() %>%
+  cat('\nThere are', ., 'unique papers.\n')
+
+dd.gsheet2c <- dd.gsheet2 %>%
+  group_by(id) %>%
+  dplyr::mutate(group_id = cur_group_id()) %>% 
+  # dplyr::select(1:Reviewer, mod_id, group_id, Control_Mean, Control_SD, -`Study ID`) %>%
+  dplyr::select(id, group_id, mod_id, everything()) %>%
+  arrange(id, Reviewer, mod_id) 
+
+## long table to wide format 
+## get the name list to be transformed to column names
+x <- names(dd.gsheet2c)
+x[x== "Other covariates"]
+x1 <- which(x== "Other covariates")
+x2 <- length(x)
+col_name_list <- x[x1:x2]
+col_name_list
+
+dd.gsheet2c_w <- dd.gsheet2c %>%
+  pivot_wider(names_from = mod_id, 
+              names_sep = ".",
+              values_from = all_of(col_name_list)) %>%
+  as.data.frame()
+
+
+dd.gsheet2c_w %>% group_by(id) %>% tally()
+
+
+### Multiple variables stored in column names
+# dd.gsheet2d <- dd.gsheet2c_w %>% 
+#   pivot_longer(
+#     cols = 5:ncol(.),
+#     names_to = c("var", "mod_id"),
+#     names_transform = as.character,
+#     values_transform = as.character,
+#     names_sep = "\\.",
+#     values_to = "value"
+# )  %>%
+#   pivot_wider(
+#     names_from = 'var', values_from = "value" ) %>%
+#   as.data.frame()
 ```
 
 
-```{r - save as rds 📁,include=FALSE}
+```{r - save as rds 📁, include=FALSE}
 # names(dd)
 unique(dd$Reviewer)
 
@@ -138,28 +222,87 @@ function_add_reviewer_id <- function(data) {
       Reviewer == 'Katherine Wu'  ~ 6,
       Reviewer == 'test person'   ~ 7,
       Reviewer == 'Mary Lee'      ~ 8,
-      Reviewer == 'Consensus'     ~ 99
+      Reviewer == 'Consensus'     ~ 99,
+      TRUE                        ~ 999 ## other input
     )) %>%
     dplyr::select(id:Reviewer, Reviewer_id, everything()) %>%
-    arrange(id, Reviewer_id, desc(date)) %>%
-    dplyr::distinct(id, .keep_all = T) %>%
     as.data.frame()
 }
 
 
-df        <- function_add_reviewer_id(data = dd)
-df.gsheet <- function_add_reviewer_id(data = dd.gsheet)
+df <- function_add_reviewer_id(data = dd) %>%
+  arrange(id, Reviewer_id, desc(date)) %>%
+  dplyr::distinct(id, .keep_all = T) %>%
+  as.data.frame()
+
+
+## for data from gsheet ------------------------------------------------------------------
+df.gsheet1 <- dd.gsheet1c_w %>%
+  function_add_reviewer_id(data = .) %>%
+  arrange(id, Reviewer_id) %>%
+  dplyr::distinct(id, .keep_all = T) %>%
+
+  pivot_longer(
+    cols = 6:ncol(.),
+    names_to = c("var", "mod_id"),
+    names_transform = as.character,
+    values_transform = as.character,
+    names_sep = "\\.",
+    values_to = "value"
+)  %>%
+  pivot_wider(
+    names_from = 'var', values_from = "value" ) %>%
+  as.data.frame()  %>%
+  # mutate(across(where(is.null), ~replace(., is.null(.), NA))) %>%
+  # dplyr::mutate(across(where(is.null), ~coalesce(., NA))) %>%
+  # dplyr::mutate_all(~ifelse(is.null(.), NA, .)) %>%
+  dplyr::mutate_all(~ifelse(.=='NULL', NA, .)) %>%
+
+  ### Drop rows where these key columns are all NA using dplyr
+  dplyr::filter(!is.na(Mean) | !is.na(SD) | !is.na(SE) | !is.na(CI_95_lower)) %>%
+  # dplyr::filter(!is.null(Mean) | !is.null(SD) | !is.null(SE) | !is.null(CI_95_lower)) %>%
+  # dplyr::filter(!is.null(Mean) | !is.null(SD) | !is.null(SE) | !is.null(CI_95_lower)) %>%
+  as.data.frame()
+
+# unique(df.gsheet1$Mean) %>% sort()
+
+
+
+df.gsheet2 <- dd.gsheet2c_w %>%
+  function_add_reviewer_id(data = .) %>%
+  arrange(id, Reviewer_id) %>%
+  dplyr::distinct(id, .keep_all = T) %>%
+
+  pivot_longer(
+    cols = 6:ncol(.),
+    names_to = c("var", "mod_id"),
+    names_transform = as.character,
+    values_transform = as.character,
+    names_sep = "\\.",
+    values_to = "value"
+)  %>%
+  pivot_wider(
+    names_from = 'var', values_from = "value" ) %>%
+  
+  ### Drop rows where these key columns are all NA using dplyr
+  dplyr::filter(!is.na(Control_Mean) | !is.na(Treatment_Mean)) %>%
+  
+  as.data.frame()
+
+
 
 ## save data for other analysis
-f1 <- paste0('./data/0301-MA-input/df_covidenceFull_', today, '.rds'); f1
-f2 <- paste0('./data/0301-MA-input/df_covidenceFull_', today, 'gsheet.rds'); f2
-saveRDS(df,        file = f1)
-saveRDS(df.gsheet, file = f2)
+f1   <- paste0('./data/0301-MA-input/df_covidenceFull_', today, '.rds'); f1
+f2o1 <- paste0('./data/0301-MA-input/df_covidenceFull_', today, 'gsheet1.rds'); f2o1
+f2o2 <- paste0('./data/0301-MA-input/df_covidenceFull_', today, 'gsheet2.rds'); f2o2
+saveRDS(df,         file = f1)
+saveRDS(df.gsheet1, file = f2o1)
+saveRDS(df.gsheet2, file = f2o2)
 ```
 
 
 ## Check consensus status
-```{r}
+```{r include=FALSE}
 
 df_check <- dd %>%
   arrange(id, Reviewer, desc(date)) %>%
@@ -180,7 +323,7 @@ dd1 <- df_check %>%
   group_by(Reviewer) %>%
   summarise(id = str_c(id, collapse = ", ") )
 
-##' a list of papers that have NOT been sent for concensus
+##' a list of papers that have NOT been sent for consensus
 dd2 <- aggregate(id ~ Reviewer, unique(df_check), paste, collapse = ", ")
 ```
 
