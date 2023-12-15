@@ -59,9 +59,10 @@ func_clean_nature_type <-  function(data, column_name, aggregate = F) {
 
 
 
-func_clean_nature_quant <-  function(data, column_name) {
+func_clean_nature_quant <-  function(data, column_name = "nature_quantity") {
   d <- data %>%
     dplyr::mutate(
+      !!column_name := gsub("Normalized Difference Vegetation Index \\(NDVI\\)", "NDVI", !!sym(column_name)),
       !!column_name := str_squish(!!sym(column_name)),
       !!column_name := gsub("\\s*\\([^\\)]+\\)", "", !!sym(column_name)), # remove text within parenthesis 
       !!column_name := gsub("Other\\: | \\- General", "", !!sym(column_name)),
