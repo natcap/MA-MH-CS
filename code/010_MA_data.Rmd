@@ -78,11 +78,15 @@ fs <- list.files(path = "./data/0301-MA-input/", pattern = '^df_covidenceFull', 
 # fs;
 
 ##' select the up-to-date data, which is the second to the last
-f1 <- fs[(length(fs)-1)]; f1
-##' select the gsheet data file
-f2 <- fs[(length(fs)-0)]; f2 
+f1 <- fs[(length(fs)-2)]; f1
 
-df <- readRDS(file = f1) %>%
+##' select the gsheet data file
+f2o1 <- fs[(length(fs)-1)]; f2o1
+f2o2 <- fs[(length(fs)-0)]; f2o2
+
+df_1 <- readRDS(file = f1) 
+
+df <- df_1 %>%
   dplyr::rename(
     'exposure_type'   = 'Nature exposure type',
     'nature_type'     = "General category of urban nature",
@@ -91,9 +95,9 @@ df <- readRDS(file = f1) %>%
     "buffers"         = "Buffer zone size considered for nature exposure measurement",
     "buffers_unit"    = "Buffer zone size's unit"  
                   ) %>%
-  dplyr::mutate(effect_size_indices = `Effect size indices`) %>%
+  dplyr::mutate(id = as.character(id),
+                effect_size_indices = `Effect size indices`) %>%
   dplyr::mutate(
-    nature_quantity = gsub("Normalized Difference Vegetation Index \\(NDVI\\)", "NDVI", nature_quantity),
     # remove text within parenthesis 
     `Health outcome direction` = gsub("\\s*\\([^\\)]+\\)", "", `Health outcome direction`), 
     ) %>%
@@ -102,7 +106,7 @@ df <- readRDS(file = f1) %>%
   func_clean_nature_quant(data = ., column_name = 'nature_quantity') %>%
   func_clean_bufferunit(data = ., column_name = 'buffers_unit') %>%
   func_clean_tools(data = ., column_name = 'Tools') %>%
-  func_clean_exposure(data = .) %>%
+  func_clean_exposure(data = ., column_name = 'exposure_type') %>%
   ## clean messy text in `effect_size_indices`
   func_clean_effectsize(data = .) %>%
   dplyr::mutate(
@@ -114,8 +118,15 @@ df <- readRDS(file = f1) %>%
 # names(df)
 
 
+## load data from google sheet 
+df_2o1 <- readRDS(file = f2o1) %>%
+  func_clean_nature_type(data = ., column_name = 'nature_type') %>%
+  func_clean_nature_quant(data = ., column_name = 'nature_quantity') %>%
+  as.data.frame()
 
-df2 <- readRDS(file = f2) %>%
+df_2o2 <- readRDS(file = f2o2) %>%
+  func_clean_nature_type(data = ., column_name = 'nature_type') %>%
+  func_clean_nature_quant(data = ., column_name = 'nature_quantity') %>%
   as.data.frame()
 ```
 
@@ -145,7 +156,7 @@ df_exp_l <- df_exp %>%
   ## expand `exposure_type` if there are > 1 exposure types in a study
   expand_col_to_long(data = ., target_col = 'exposure_type') %>%
   ## clean the messy text data due to manual entry 
-  func_clean_exposure(data = .) %>%
+  func_clean_exposure(data = ., column_name = 'exposure_type') %>%
   dplyr::mutate(
     # exposure_type1 = ifelse(str_detect(exposure_type, regex('duration', ignore_case = T)), 'Time spent in nature', exposure_type),
     exposure_type = ifelse(grepl(x = exposure_type, 'duration|Spending hour|Time spent', ignore.case = T), 
@@ -165,7 +176,10 @@ df_exp_l <- df_exp %>%
 
 ```{r **To-do**}
 ```
+  [] add data from gsheet
   [] 'L4' needs to be further clarified 
+  [] need to separate `In nature - PA` and `In nature - static`
+  [] need to separate "single-group pretest-posttest design"(= 1ba) and "independent-groups pretest-posttest design" (= 2ba)
   
 
 ```{r}
@@ -384,7 +398,7 @@ save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
 mh_tool           <- "PANAS"
 
 # exposure_type_i   <- c('stay static in nature', 'physical activity in nature') 
-exposure_type_i   <- c('In nature - static', 'In nature - PA')
+exposure_type_i   <- c('In nature - Static', 'In nature - PA')
  
 
 ## [] TBD - clean the data
@@ -493,28 +507,61 @@ rm(exp_sub_dfi)
 ```{r - clean names from table 1/2, include=FALSE}
 
 ## for data extracted in table option 1
-exp_sub_l_o1 <- exp_sub_l %>%
+exp_sub_l_o1_cov <- exp_sub_l %>%
   dplyr::select(id:Notes) %>%
   as.data.frame()
-name1 <- names(exp_sub_l_o1) %>%
+name1 <- names(exp_sub_l_o1_cov) %>%
   gsub('\\.1|\\.2', '', .) %>%
   gsub('Other covariates that are beyond the baseline', 'Other_covariates_o1', .)
 name1.1 <- name1[1: (which(name1 == 'MH_indicator')-1)]
 name1.2 <- name1[which(name1 == 'MH_indicator'):length(name1)] %>% paste0(., '_o1')
-names(exp_sub_l_o1) <- c(name1.1, name1.2) 
-names(exp_sub_l_o1)
+names(exp_sub_l_o1_cov) <- c(name1.1, name1.2) 
+names(exp_sub_l_o1_cov)
+
+### bind gsheet data to Covidence data
+exp_sub_l_o1_gs <- df_2o1 %>%
+  dplyr::select(-c("group_id", "Study ID", "Reviewer", "Reviewer_id")) %>%
+  dplyr::mutate(id = gsub('#', '', id))
+
+# exp_sub_l_o1_cov_ <- exp_sub_l_o1_cov %>%
+#   dplyr::select(id, model_id, Other_covariates_o1:ncol(.))
+
+
+unique(exp_sub_l_o1_gs$id)
+exp_sub_l_o1_gs_add <- exp_sub_l_o1_cov %>%
+  dplyr::filter(id %in% unique(exp_sub_l_o1_gs$id)) %>%
+  dplyr::distinct(id, .keep_all = T) %>%
+  dplyr::select(1:buffers_unit, -model_id) %>%
+  right_join(., exp_sub_l_o1_gs, by = 'id') %>%
+  dplyr::select(1:effect_size_indices, model_id, everything()) %>%
+  as.data.frame()
+  
+
+names(exp_sub_l_o1_cov)
+names(exp_sub_l_o1_gs_add)
+names(exp_sub_l_o1_gs_add) <- names(exp_sub_l_o1_cov)
+exp_sub_l_o1 <- rbind(exp_sub_l_o1_cov, exp_sub_l_o1_gs_add)
 
 
 
 ## for data extracted in table option 2
-exp_sub_l_o2 <- exp_sub_l %>%
+exp_sub_l_o2_cov <- exp_sub_l %>%
   dplyr::select(id, model_id, Notes:Notes.1) %>%
   dplyr::select(-Notes)
-name2 <- names(exp_sub_l_o2) %>%
+name2 <- names(exp_sub_l_o2_cov) %>%
   gsub('\\.1|\\.2', '_o2', .) %>%
   gsub('Other covariates that are beyond the baseline', 'Other_covariates', .)
-names(exp_sub_l_o2) <- name2  
-names(exp_sub_l_o2)
+names(exp_sub_l_o2_cov) <- name2  
+names(exp_sub_l_o2_cov)
+
+
+### bind gsheet data to Covidence data
+exp_sub_l_o2_gs <- df_2o2 %>%
+  dplyr::select(-c("group_id", "Study ID", "Reviewer", "Reviewer_id"))
+names(exp_sub_l_o2_cov)
+names(exp_sub_l_o2_gs)
+names(exp_sub_l_o2_gs) <- names(exp_sub_l_o2_cov)
+exp_sub_l_o2 <- rbind(exp_sub_l_o2_cov, exp_sub_l_o2_gs)
 
 
 ## combine data from table option 1 and option 2 -----------------------------------------
@@ -525,10 +572,14 @@ exp_sub_long <- exp_sub_l_o1 %>%
   func_clean_indicatorsPro(data = ., column_name = 'MH_indicator_o2') %>%
   func_clean_buffer(data = ., column_name = 'buffer_o1') %>%
   func_clean_buffer(data = ., column_name = 'buffer_o2') %>%
+  
+  func_clean_exposure(data = ., column_name = 'exposure_o1') %>%
+  func_clean_exposure(data = ., column_name = 'exposure_o2') %>%
+  
   as.data.frame()
 
 ## remove these two df after merging
-rm(exp_sub_l_o1, exp_sub_l_o2)
+# rm(exp_sub_l_o1, exp_sub_l_o2)
 ```
 
 
