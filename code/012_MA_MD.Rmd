@@ -61,13 +61,21 @@ unique(exp_sub_mods_md2$MH_indicator_o2) %>% sort()
 stats_count_by_ind <- exp_sub_mods_md2 %>% count(MH_indicator_o2) 
 stats_count_by_ind
 
-stats_count_by_ind %>% dplyr::filter(n>5)
-sub_indicator_selected <- unique(stats_count_by_ind$MH_indicator_o2)
+stats_count_by_ind_selected <- stats_count_by_ind %>% dplyr::filter(n>8)
+sub_indicator_selected <- unique(stats_count_by_ind_selected$MH_indicator_o2)
 sub_indicator_selected
 
 
 ### This is a list manually selected for POMS  
 # sub_indicator_selected <- c("Anger", "Anxiety", "Confusion", "Depression", "Fatigue", "Vigor", "TMD")
+
+
+### remove irrelevant columns 
+exp_sub_mods_md2fewCol <- exp_sub_mods_md2 %>%
+  dplyr::select(-dplyr::starts_with("Control_"), 
+                -dplyr::starts_with('Treatment_'),
+                -c('c_sd'))
+names(exp_sub_mods_md2fewCol)
 ```
 
 
@@ -81,6 +89,8 @@ sub_indicator_selected
 library(meta)
 library(grid)
 # Use metcont to pool results.
+
+show_raw_data_in_forest <- F
 
 for (sub_ind_i in sub_indicator_selected) {
   
@@ -112,25 +122,46 @@ for (sub_ind_i in sub_indicator_selected) {
   
   ####' forest ----
   ####' https://insidethenumbers.netlify.app/post/meta-analysis/
-  f <- paste0('./figures/', 'plot_forest_', mh_tool, '_', sub_ind_i, '_', today, '.png'); f
+  ####' https://www.rdocumentation.org/packages/meta/versions/6.5-0/topics/forest.meta
+  if(show_raw_data_in_forest == T){
+    leftcols_show = c("studlab", "n.e", "mean.e", "sd.e", "n.c", "mean.c", "sd.c")
+    add_print.tau2 = T
+    width_plot = 27.5
+    plotname_postfix = ''
+  } else {
+    leftcols_show = c("studlab")
+    add_print.tau2 = F ## limited space causes text overlap
+    width_plot = 18.5
+    plotname_postfix = 'simplified'
+  }
+  
+  f <- paste0('./figures/', 'plot_forest_', mh_tool, '_', sub_ind_i, '_', today, plotname_postfix, '.png'); f
   png(filename = f, 
       # width = 3000, height = 3000, units = "px", pointsize = 22,
-      width = 30, height = height_cm/1.5, units = "cm", res = 100)
-  forest(ma_smd,
+      width = width_plot, height = height_cm/1.5, units = "cm", res = 100)
+  forest.meta(ma_smd,
          # layout = "RevMan5",
          # sortvar = TE,
-         # prediction = TRUE,
+         prediction = F,
          addpred=TRUE, 
-         print.tau2 = T,
-         lab.e = "Post-intervention",
-         lab.c = "Pre-intervention",
+         print.tau2 = F,
+         
+         ##' specify which variables should be displayed on the left side of the forest plot. 
+         leftcols = leftcols_show, 
+         # leftlabs = c(),
+         # lab.e = "Post-intervention",
+         # lab.c = "Pre-intervention",
+         
+         # xlim = 's', # “s” to produce symmetric forest plots
+         
          # print.byvar = FALSE,
          # label.left = "loss",
          # label.right = "gain",
          digits.sd = 2,
          digits.tau2 = 2,
-         colgap = "0.5cm",
+         colgap = "0.4cm",
          # colgap.forest = "1cm",
+         colgap.forest.left = '1.2cm',
          col.by = "black",
          col.square = "black",
          col.inside = "black",
