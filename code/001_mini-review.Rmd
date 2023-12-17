@@ -117,14 +117,14 @@ library(googlesheets4)
 link <- 'https://docs.google.com/spreadsheets/d/1sVUU2FfSq3NChdM_Vhxc9sbm_eHAJtoKtEP_g3aIMn8/edit?usp=sharing'
 dd.gsheet1 <- googlesheets4::read_sheet(link, sheet = 'Effect size Data Table-option1') %>%
   group_by(id, Reviewer) %>%
-  dplyr::mutate(mod_id = row_number() + 20 ) %>% ## extra data in addition to the Covidence Table
-  dplyr::select(id, mod_id, everything()) %>%
+  dplyr::mutate(model_id = row_number() + 20 ) %>% ## extra data in addition to the Covidence Table
+  dplyr::select(id, model_id, everything()) %>%
   as.data.frame()
 
 dd.gsheet2 <- googlesheets4::read_sheet(link, sheet = 'Effect size Data Table-option2') %>%
   group_by(id, Reviewer) %>%
-  dplyr::mutate(mod_id = row_number() + 20 ) %>% ## extra data in addition to the Covidence Table
-  dplyr::select(mod_id, everything()) %>%
+  dplyr::mutate(model_id = row_number() + 20 ) %>% ## extra data in addition to the Covidence Table
+  dplyr::select(model_id, everything()) %>%
   as.data.frame()
 ```
 
@@ -138,9 +138,9 @@ unique(dd.gsheet1$id) %>% length() %>%
 dd.gsheet1c <- dd.gsheet1 %>%
   group_by(id) %>%
   dplyr::mutate(group_id = cur_group_id()) %>% 
-  # dplyr::select(1:Reviewer, mod_id, group_id, Control_Mean, Control_SD, -`Study ID`) %>%
-  dplyr::select(id, group_id, mod_id, everything()) %>%
-  arrange(id, Reviewer, mod_id) 
+  # dplyr::select(1:Reviewer, model_id, group_id, Control_Mean, Control_SD, -`Study ID`) %>%
+  dplyr::select(id, group_id, model_id, everything()) %>%
+  arrange(id, Reviewer, model_id) 
 
 ## get the name list to be transformed to column names
 x <- names(dd.gsheet1c)
@@ -151,7 +151,7 @@ col_name_list <- x[x1:x2]
 col_name_list
 
 dd.gsheet1c_w <- dd.gsheet1c %>%
-  pivot_wider(names_from = mod_id, 
+  pivot_wider(names_from = model_id, 
               names_sep = ".",
               values_from = all_of(col_name_list)) %>%
   as.data.frame()
@@ -167,9 +167,9 @@ unique(dd.gsheet2$id) %>% length() %>%
 dd.gsheet2c <- dd.gsheet2 %>%
   group_by(id) %>%
   dplyr::mutate(group_id = cur_group_id()) %>% 
-  # dplyr::select(1:Reviewer, mod_id, group_id, Control_Mean, Control_SD, -`Study ID`) %>%
-  dplyr::select(id, group_id, mod_id, everything()) %>%
-  arrange(id, Reviewer, mod_id) 
+  # dplyr::select(1:Reviewer, model_id, group_id, Control_Mean, Control_SD, -`Study ID`) %>%
+  dplyr::select(id, group_id, model_id, everything()) %>%
+  arrange(id, Reviewer, model_id) 
 
 ## long table to wide format 
 ## get the name list to be transformed to column names
@@ -181,7 +181,7 @@ col_name_list <- x[x1:x2]
 col_name_list
 
 dd.gsheet2c_w <- dd.gsheet2c %>%
-  pivot_wider(names_from = mod_id, 
+  pivot_wider(names_from = model_id, 
               names_sep = ".",
               values_from = all_of(col_name_list)) %>%
   as.data.frame()
@@ -194,7 +194,7 @@ dd.gsheet2c_w %>% group_by(id) %>% tally()
 # dd.gsheet2d <- dd.gsheet2c_w %>% 
 #   pivot_longer(
 #     cols = 5:ncol(.),
-#     names_to = c("var", "mod_id"),
+#     names_to = c("var", "model_id"),
 #     names_transform = as.character,
 #     values_transform = as.character,
 #     names_sep = "\\.",
@@ -244,7 +244,7 @@ df.gsheet1 <- dd.gsheet1c_w %>%
 
   pivot_longer(
     cols = 6:ncol(.),
-    names_to = c("var", "mod_id"),
+    names_to = c("var", "model_id"),
     names_transform = as.character,
     values_transform = as.character,
     names_sep = "\\.",
@@ -275,7 +275,7 @@ df.gsheet2 <- dd.gsheet2c_w %>%
 
   pivot_longer(
     cols = 6:ncol(.),
-    names_to = c("var", "mod_id"),
+    names_to = c("var", "model_id"),
     names_transform = as.character,
     values_transform = as.character,
     names_sep = "\\.",
