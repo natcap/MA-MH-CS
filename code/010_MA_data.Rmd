@@ -531,7 +531,7 @@ unique(exp_sub_l_o1_gs$id)
 exp_sub_l_o1_gs_add <- exp_sub_l_o1_cov %>%
   dplyr::filter(id %in% unique(exp_sub_l_o1_gs$id)) %>%
   dplyr::distinct(id, .keep_all = T) %>%
-  dplyr::select(1:buffers_unit, -model_id) %>%
+  dplyr::select(1:MH_ind_MinMax, -model_id) %>%
   right_join(., exp_sub_l_o1_gs, by = 'id') %>%
   dplyr::select(1:effect_size_indices, model_id, everything()) %>%
   as.data.frame()
