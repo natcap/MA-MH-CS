@@ -60,6 +60,7 @@ source('./code/func_clean_exposure.R')
 source('./code/func_clean_effectsize.R')
 source('./code/func_clean_nature.R')
 source('./code/func_to_sd.R')
+source('./code/func_fill_c2_from_c1.R')
 
 source('./code/func_plot_freq.R')
 source('./code/func_alluvial.R')
@@ -452,7 +453,7 @@ We need to put all data on models in rows.
 
 f <- paste0('./data/0301-MA-input/', 'sub_ghq.RData')
 f <- paste0('./data/0301-MA-input/', 'sub_panas.RData')
-# f <- paste0('./data/0301-MA-input/', 'sub_poms.RData')
+f <- paste0('./data/0301-MA-input/', 'sub_poms.RData')
 
 load(file = f)
 ```
@@ -672,6 +673,11 @@ exp_sub_long_clean <- exp_sub_long %>%
   ## fill blanks using data from the column `Tools`, but only if there is only one tool in `Tools`
   func_fill_tool(data = ., column_name = "MH_tool_o1") %>%
   func_fill_tool(data = ., column_name = "MH_tool_o2") %>%
+  ## `func_fill_c2_from_c1()` is adapted from `func_fill_tool` but can replace the latter
+  func_fill_c2_from_c1(data = ., to_column = 'nature_type_o1', from_column = "nature_type") %>%
+  func_fill_c2_from_c1(data = ., to_column = 'nature_type_o2', from_column = "nature_type") %>%
+  func_fill_c2_from_c1(data = ., to_column = 'exposure_o1', from_column = "exposure_type") %>%
+  func_fill_c2_from_c1(data = ., to_column = 'exposure_o2', from_column = "exposure_type") %>%
   
   dplyr::select(id, all_of(cols_keep), 
                 effect_size_indices:Mean, mean, 
