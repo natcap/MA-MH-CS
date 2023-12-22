@@ -94,7 +94,8 @@ df <- df_1 %>%
     'nature_quantity' = "Nature quantity measure metric",
     "n_participants"  = "Total number of participants",
     "buffers"         = "Buffer zone size considered for nature exposure measurement",
-    "buffers_unit"    = "Buffer zone size's unit"  
+    "buffers_unit"    = "Buffer zone size's unit",
+    "City" = "City and state/province  in which the study conducted"
                   ) %>%
   dplyr::mutate(id = as.character(id),
                 effect_size_indices = `Effect size indices`) %>%
