@@ -34,8 +34,12 @@ make_gradient <- function(deg = 45, n = 100, cols = blues9, col_rev = T, alpha =
 }
 
 
-## test 
+## test ----------------------------------------------------------------------------------
 # g <- make_gradient(deg = 180, n = 500, cols = brewer.pal(9, "RdBu"))
 # 
-# p1 + 
-#   annotation_custom(grob = g, xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) 
+# p1 + annotation_custom(grob = g, xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) 
+
+
+##' ref ----------------------------------------------------------------------------------
+##' https://stackoverflow.com/questions/30136725/plot-background-colour-in-gradient
+
