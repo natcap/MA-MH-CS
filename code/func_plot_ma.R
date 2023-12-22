@@ -5,8 +5,7 @@ source('./code/func_ggsave.R')
 
 # Create a forest plot-style ggplot
 
-plot_ma <- function(data) {
-  
+plot_effect_size_overall <- function(data) {
   
   x_limit_max <- max(abs(data$es.lower), abs(data$es.upper)) * 1.1
   
@@ -35,19 +34,23 @@ plot_ma <- function(data) {
     theme(panel.grid.major.y = element_blank(),
           panel.grid.minor.y = element_blank())
   
+
+  ## save plot ---------------------------------------------------------------------------
+  #' how many sub-indicators -> decide plot height
+  # height_tbd <- 1+3/7*length(unique(data$ind_sub))
+  # p
+  # fname <- paste0(dir.fig, 'plot_es_', unique(data$tool) ,'.png'); fname
+  # func_ggsave(fname, w = 6, h = height_tbd, save_png = T)
   
-  p
-  ## save plot
-  fname <- paste0(dir.fig, 'plot_es_', unique(data$tool) ,'.png'); fname
-  func_ggsave(fname, w = 6, h = 4, save_png = T)
   
+  ## return plot -------------------------------------------------------------------------
   return(p)
   
 }
 
 
 ## test
-plot_ma(data = ma_result)
-p1 <- plot_ma(data = ma_result)
+# plot_ma(data = ma_result)
+# p1 <- plot_ma(data = ma_result)
 
 
