@@ -41,7 +41,7 @@ exp_sub_mods_md2 <- exp_sub_mods_md %>%
       TRUE ~ Treatment_N
     ),
     
-    study_label = paste(id, model_id, sep = '_'),
+    study_label = paste(id, model_id, sep = '_'), # `Study ID`, 
     
   ) %>%
 
@@ -50,11 +50,13 @@ exp_sub_mods_md2 <- exp_sub_mods_md %>%
   
   ## within group vs. between group 
   dplyr::mutate(subgroup_design = stringr::str_extract(string=subgroup_other_o2, pattern = "\\d{1}ba") ) %>%
+  dplyr::select(1:subgroup_other_o2, subgroup_design, everything()) %>%
   
   ## remove row without any data from table option 2
   dplyr::filter(!is.na(c_mean) & !is.na(e_mean) & !is.na(MH_indicator_o2)) %>%
   
   dplyr::select(1:n_participants, Control_N, c_n, Treatment_N, e_n, everything()) %>%
+  # arrange(id, model_id) %>%
   as.data.frame()
 
 ##' to see the number of studies by sub_indicators
@@ -87,14 +89,25 @@ names(exp_sub_mods_md2fewCol)
 # MA - SMD
 
 ## Using `meta`
+
+### show study details
 ```{r}
 library(meta)
 library(grid)
 # Use metcont to pool results.
 
 show_raw_data_in_forest <- F
-add_subgroup_analysis   <- T
+add_subgroup_analysis   <- F
 
+
+if (add_subgroup_analysis == T) {
+  byvar_subgroup <- "subgroup_design"
+} else {
+  byvar_subgroup <- NULL
+}
+
+
+ma_result <- data.frame()
 
 for (sub_ind_i in sub_indicator_selected) {
   
@@ -118,10 +131,30 @@ for (sub_ind_i in sub_indicator_selected) {
                      random = TRUE,
                      method.tau = "REML",
                      hakn = TRUE,
-                     byvar = subgroup_design,  ## Grouping results by a variable, default = NULL
+                     byvar = byvar_subgroup,  ## Grouping results by a variable, default = NULL
                      title = mh_tool)
   ma_smd
   
+  ma_smd.df <- data.frame(
+    tool = mh_tool, 
+    ind_sub = sub_ind_i, 
+    es.mean = ma_smd$TE.random,
+    es.lower= ma_smd$lower.random,
+    es.upper= ma_smd$upper.random,
+    pval    = ma_smd$pval.random %>% round(., digits = 10),
+    ## Number of studies
+    n_study = ma_smd$k,
+    ## Number of observations
+    n_obs   = ma_smd$n.e.pooled + ma_smd$n.c.pooled
+  ) %>%
+    dplyr::mutate(
+      p.star  = case_when(pval < 0.001 ~ '***',
+                        pval < 0.01 ~ '**',
+                        pval < 0.05 ~ '*',
+                        T ~ ''),
+    )
+  ma_result <- rbind(ma_result, ma_smd.df)
+
 
   
   ####' forest ----
@@ -130,35 +163,42 @@ for (sub_ind_i in sub_indicator_selected) {
   if(show_raw_data_in_forest == T){
     leftcols_show = c("studlab", "n.e", "mean.e", "sd.e", "n.c", "mean.c", "sd.c")
     add_print.tau2 = T
-    width_plot = 27.5
+    width_forestPlot = 27.5
     postfix_simplify = ''
   } else {
     leftcols_show = c("studlab")
     add_print.tau2 = F ## limited space causes text overlap
-    width_plot = 18.5
+    width_forestPlot = 18.5
     postfix_simplify = 'simplified'
   }
   
+  
   if (add_subgroup_analysis == T) {
-    postfix_subgroup <- "subgroup"
+    test.effect.subgroup.random_para = TRUE
+    postfix_subgroup <- "_subgroup"
     height_cm <- height_cm + 10
   } else {
+    test.effect.subgroup.random_para = F
     postfix_subgroup <- ""
   }
   
+  
   f <- paste0('./figures/', 'plot_forest_', mh_tool, '_', sub_ind_i, '_', today, 
-              postfix_simplify, '_',
+              postfix_simplify, 
               postfix_subgroup, 
               '.png'); f
   png(filename = f, 
       # width = 3000, height = 3000, units = "px", pointsize = 22,
-      width = width_plot, height = height_cm/1.5, units = "cm", res = 100)
+      width = width_forestPlot, height = height_cm/1.5, units = "cm", res = 100)
+  
+  
   forest.meta(ma_smd,
          # layout = "RevMan5",
          # sortvar = TE,
-         prediction = F,
+         prediction = F, ## prediction interval for the treatment effect in a future study
+         col.predict="gray",
          addpred=TRUE, 
-         print.tau2 = F,
+         print.tau2 = T,
          
          ##' specify which variables should be displayed on the left side of the forest plot. 
          leftcols = leftcols_show, 
@@ -182,7 +222,7 @@ for (sub_ind_i in sub_indicator_selected) {
          col.inside = "black",
          col.square.lines = "black",
          shade=TRUE,
-         # test.effect.subgroup.random = TRUE,
+         test.effect.subgroup.random = test.effect.subgroup.random_para,
          pooled.totals=T,
          overall = T,
          overall.hetstat = T)
@@ -197,13 +237,48 @@ for (sub_ind_i in sub_indicator_selected) {
   #        shade=TRUE)
   
   # Add a title to the entire plot
-  grid::grid.text(label = sub_ind_i, x = 0, y = .98, just = 'left', gp=gpar(cex=2))
+  grid::grid.text(label = sub_ind_i, x = 0, y = .98, just = 'left', gp=gpar(cex=1, fontface='bold'))
   
   dev.off()
   
 }
+
+
+
+## save MA result 
+fname <- paste0('./data/0302-MA-output/', paste('ma_result', mh_tool, '.rds', sep = '_')); fname
+saveRDS(ma_result, file = fname)
 ```
 
+
+### show overall effect
+
+```{r}
+source('./code/func_plot_ma.R')
+library(ggpubr)
+
+ma_result_panas <- readRDS("./data/0302-MA-output/ma_result_PANAS_.rds")
+ma_result_poms  <- readRDS("./data/0302-MA-output/ma_result_POMS_.rds")
+
+ma_result_all <- rbind(ma_result_panas, ma_result_poms)
+
+p1 <- plot_effect_size_overall(data = ma_result_panas)
+p2 <- plot_effect_size_overall(data = ma_result_poms)
+
+
+ggarrange(p1 + rremove("x.title"), 
+          p2, 
+          labels = c("A", "B"), ncol = 1, nrow = 2,
+          heights = c(0.4, 1),
+          align = "v")
+
+fname <- paste0(dir.fig, 'plot_es_combined.png'); fname
+func_ggsave(fname, w = 6, h = 5.5, save_png = T)
+```
+
+**refs**
+- http://www.sthda.com/english/articles/24-ggpubr-publication-ready-plots/81-ggplot2-easy-way-to-mix-multiple-graphs-on-the-same-page/
+- https://rpkgs.datanovia.com/ggpubr/reference/rremove.html
 
 
 
