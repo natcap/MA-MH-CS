@@ -57,25 +57,3 @@ func_clean_tools <- function(data, column_name) {
   return(d)
 }
 
-
-
-
-### fill blanks in tools that are from table 1 and table 2
-### fill blanks using data from the column `Tools`, but only if there is only one tool in `Tools`
-func_fill_tool <- function(data, column_name) {
-  d <- data %>%
-    dplyr::mutate(
-      !!column_name := ifelse(
-        is.na(!!sym(column_name)) & ## 1. the column is blank
-          !is.na(Tools) &   ## 2. the intend-to-use column is not blank
-          str_detect(pattern = ";", string = Tools, negate = T), ## 3. the intend-to-use column has only one tool
-        Tools, !!sym(column_name)),
-      
-      !!column_name := str_squish(!!sym(column_name)),
-      !!column_name := trimws(!!sym(column_name))
-      ) %>%
-    as.data.frame()
-  
-  return(d)
-}
-  

@@ -177,7 +177,8 @@ df_exp_l <- df_exp %>%
 
 ```{r **To-do**}
 ```
-  [] add data from gsheet
+  [] 6686 is missing in the data for POMS 
+  [x] add data from gsheet
   [] 'L4' needs to be further clarified 
   [] need to separate `In nature - PA` and `In nature - static`
   [] need to separate "single-group pretest-posttest design"(= 1ba) and "independent-groups pretest-posttest design" (= 2ba)
@@ -422,7 +423,7 @@ save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
 mh_tool           <- "POMS"
 
 # exposure_type_i   <- c('stay static in nature', 'physical activity in nature') 
-exposure_type_i   <- c('In nature - static', 'In nature - PA')
+exposure_type_i   <- c('In nature - Static', 'In nature - PA')
  
 
 ## [] TBD - clean the data
@@ -477,7 +478,7 @@ for (i in 1:20) {
   # print(i)
   mod_id <- paste0("Model ", i, " ")
   exp_sub_dfi <- exp_sub_df %>%
-    dplyr::select(id, 
+    dplyr::select(id, `Study ID`,
                   all_of(cols_keep),
                   effect_size_indices, `Health outcome direction`, 
                   n_participants, buffers, buffers_unit,
@@ -671,9 +672,9 @@ exp_sub_long_clean <- exp_sub_long %>%
   func_clean_nature_quant(data = ., column_name = 'nature_quantity_o2') %>%
   
   ## fill blanks using data from the column `Tools`, but only if there is only one tool in `Tools`
-  func_fill_tool(data = ., column_name = "MH_tool_o1") %>%
-  func_fill_tool(data = ., column_name = "MH_tool_o2") %>%
-  ## `func_fill_c2_from_c1()` is adapted from `func_fill_tool` but can replace the latter
+  func_fill_c2_from_c1(data = ., to_column = "MH_tool_o1", from_column = 'Tools') %>%
+  func_fill_c2_from_c1(data = ., to_column = "MH_tool_o2", from_column = 'Tools') %>%
+  ## `func_fill_c2_from_c1()` is adapted from `func_fill_tool` (deleted) but can replace the latter
   func_fill_c2_from_c1(data = ., to_column = 'nature_type_o1', from_column = "nature_type") %>%
   func_fill_c2_from_c1(data = ., to_column = 'nature_type_o2', from_column = "nature_type") %>%
   func_fill_c2_from_c1(data = ., to_column = 'exposure_o1', from_column = "exposure_type") %>%
