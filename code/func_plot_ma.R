@@ -2,6 +2,7 @@
 # install.packages(c("ggplot2", "metafor"))
 library(ggplot2)
 source('./code/func_ggsave.R')
+source('./code/func_make_gradient_bg.R')
 
 # Create a forest plot-style ggplot
 
@@ -9,7 +10,7 @@ plot_effect_size_overall <- function(data) {
   
   x_limit_max <- max(abs(data$es.lower), abs(data$es.upper)) * 1.1
   
-  g <- make_gradient(deg = 180, n = 500, cols = brewer.pal(9, "RdBu"))
+  g <- make_gradient_bg(deg = 180, n = 500, cols = brewer.pal(9, "RdBu"))
   
   
   p <- data %>%
