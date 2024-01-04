@@ -84,7 +84,8 @@ csv <- "review_278532_20230427120514.csv"     # 2023-04-27
 csv <- "review_278532_20230616074045.csv"     # 2023-05-13, addressed 85 consensus 
 csv <- "review_278532_20230703085230.csv"
 csv <- "review_278532_20230920035224.csv"     # 2023-09-18, 30 consensus done for Extraction
-csv <- "review_278532_20231212051221.csv"     # 2023-12-11, 38 consensus done, add a new table to collect x, y info
+csv <- "review_278532_20240104172827.csv"     # 2023-12-11, 38 consensus done, add a new table to collect x, y info
+
 
 t <- basename(csv) %>% gsub('review_278532_', '', .) %>%
   str_sub(start = 1, end = 14)  %>%
@@ -662,29 +663,6 @@ dt_err <- dt %>%
 
 ```{r - region - bar}
 
-func_clean_country <- function(data) {
-  d <- data %>%
-    dplyr::mutate(
-      ## clean and correct country names
-      Country = case_when(
-        str_detect(string = Country, pattern = 'Scotland|UK|England|United kingdom|The United Kingdom') ~ 'United Kingdom',
-        str_detect(string = Country, pattern = 'Indonasia') ~ 'Indonesia',
-        str_detect(string = Country, pattern = 'Malasia') ~ 'Malaysia',
-        str_detect(string = Country, pattern = 'The Netherlands') ~ 'Netherlands',
-        str_detect(string = Country, pattern = 'Danmark') ~ 'Denmark',
-        str_detect(string = Country, pattern = 'Beigium') ~ 'Belgium',
-        str_detect(string = Country, pattern = 'Brasil') ~ 'Brazil',
-        str_detect(string = Country, pattern = 'Chili') ~ 'Chile',
-        str_detect(string = Country, pattern = 'Czech') ~ 'Czechia',
-        str_detect(string = Country, pattern = 'Virginia') ~ 'USA',
-        # 
-        T ~ Country)
-      ) %>%
-    dplyr::mutate(Country = trimws(Country)) %>%
-    as.data.frame()
-  return(d)
-}
-
 reg_ <- dt %>%
   dplyr::select(1, Country) %>%
   dplyr::filter(!is.na(Country)) %>%
@@ -700,7 +678,7 @@ region <- reg_ %>%
       str_to_title(Country),
       Country
     )) %>%
-  func_clean_country(data = .) %>%
+  func_clean_country(data = ., column_name = "Country") %>%
   group_by(Country) %>%
   dplyr::summarise_at('n', sum, na.rm = TRUE) %>%
   as.data.frame()
@@ -826,7 +804,7 @@ func_ggsave(fname = fname, w = w_map, h = h_map)
 ```{r - ind + ctr}
 dt.ind.cl_ctr  <- dt.ind.cl  %>%
   ## - clean `country` -------------------------------------------------------------------
-  func_clean_country(.) %>%
+  func_clean_country(., column_name = "Country") %>%
   expand_col_to_long(data = ., target_col = "Country") %>%
   func_add_region(.) %>%
   group_by(Indicator, Region) %>%
@@ -883,7 +861,7 @@ dt.tool_ctr  <- dt.ind  %>%
   func_clean_tools(data = ., column_name = 'Tool') %>%
   # as.data.frame() 
   ## clean `country` ---------------------------------------------------------------------
-  func_clean_country(.) %>%
+  func_clean_country(., column_name = "Country") %>%
   expand_col_to_long(data = ., target_col = "Country") %>%
   func_add_region(.) %>%
   group_by(Tool, Region) %>%
@@ -978,7 +956,7 @@ dt.ind.tool <- rbind(dt.ind.tool.1, dt.ind.tool.2)
 
 ## - clean `country` -------------------------------------------------------------------
 dt.ind.tool.ctr  <- dt.ind.tool  %>%  
-  func_clean_country(.) %>%
+  func_clean_country(., column_name = "Country") %>%
   expand_col_to_long(data = ., target_col = "Country") %>%
   func_add_region(.) %>%
   group_by(Indicator, Tool, Country, Region) %>%
