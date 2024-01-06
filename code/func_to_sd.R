@@ -46,7 +46,7 @@ func_all_to_sd <- function(data, table_option = 'o2') {
       dplyr::select(1:e_sd, e_sd_r, everything()) %>%
       as.data.frame()
     
-    ## - for table option 2 ...  
+    ## - for table option 1 ...  
   } else {
     data <- data %>%
       dplyr::mutate(
