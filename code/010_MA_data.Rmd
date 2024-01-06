@@ -645,6 +645,7 @@ exp_sub_long_clean <- exp_sub_long %>%
   func_clean_number(data = ., column_name = 'SD') %>%
   func_clean_number(data = ., column_name = 'SE') %>%
   func_clean_number(data = ., column_name = 'CI_95_lower') %>%
+  dplyr::rename('ci95lower' = 'ci_95_lower') %>%
   
   func_clean_number(data = ., column_name = 'Control_Mean') %>%
   func_clean_number(data = ., column_name = 'Control_SD') %>%
@@ -655,21 +656,28 @@ exp_sub_long_clean <- exp_sub_long %>%
   func_clean_number(data = ., column_name = 'Treatment_SD') %>%
   func_clean_number(data = ., column_name = 'Treatment_SE') %>%
   func_clean_number(data = ., column_name = 'Treatment_CI95lower') %>%
-  dplyr::mutate(
-
-    ci_95_lower = ifelse(`Health outcome direction` == "Higher is better", -ci_95_lower, ci_95_lower),
-    
-    N = gsub(" ", "", N), 
-    ## use "n_participants" to fill data gaps of N in data extraction tables
-    N = ifelse(is.na(N) & !is.na(n_participants), n_participants, N),
-    N = as.numeric(N),
-    
-    ) %>%
   
-  ## check and tidy sample size (N)
-  dplyr::select(1:n_participants, Control_N, Treatment_N, everything()) %>%
+  dplyr::mutate(
+    study_label = paste(id, model_id, sep = '_'), # `Study ID`, 
+    ci95lower = ifelse(`Health outcome direction` == "Higher is better", -ci95lower, ci95lower),
+    ) %>%
+  dplyr::select(study_label, everything()) %>%
+  
+  ## check and tidy sample size (N) ------------------------------------------------------
   dplyr::mutate(
     n_participants = str_squish(n_participants) %>% trimws(.) %>% as.numeric(.),
+    
+    ## for o1
+    N = str_squish(N) %>% trimws(.),
+    N = gsub(" ", "", N), 
+    ## use "n_participants" to fill data gaps of N in data extraction tables
+    n = ifelse(is.na(N) & !is.na(n_participants), n_participants, N),
+    n = as.numeric(n),
+  ) %>%
+  dplyr::select(1:N, n, everything()) %>%
+  
+  dplyr::mutate(
+    ## for o2
     Control_N   = str_squish(Control_N)   %>% trimws(.) %>% as.numeric(.),
     Treatment_N = str_squish(Treatment_N) %>% trimws(.) %>% as.numeric(.),
     c_n = case_when(
@@ -681,14 +689,14 @@ exp_sub_long_clean <- exp_sub_long %>%
       !is.na(e_mean) & is.na(Treatment_N) & !is.na(Control_N) ~ Control_N,
       !is.na(e_mean) & is.na(Treatment_N) &  is.na(Control_N) & !is.na(n_participants) ~ n_participants,
       TRUE ~ Treatment_N
-    ),
-    study_label = paste(id, model_id, sep = '_'), # `Study ID`, 
+    )
   ) %>%
   ## keep new created variables next to its similar ones
-  dplyr::select(1:n_participants, Control_N, c_n, Treatment_N, e_n, study_label, everything()) %>%
+  dplyr::select(1:Control_N, c_n, Treatment_N, e_n, study_label, everything()) %>%
 
-  ## convert SE, and CI to `SD`
-  func_all_to_sd(data = .) %>%
+  ## convert SE, and CI to `SD` ----------------------------------------------------------
+  func_all_to_sd(data = ., table_option = 'o1') %>%
+  func_all_to_sd(data = ., table_option = 'o2') %>%
   
   ## clean text in nature-related columns 
   func_clean_nature_type(data = ., column_name = 'nature_type_o1') %>%
@@ -705,9 +713,11 @@ exp_sub_long_clean <- exp_sub_long %>%
   func_fill_c2_from_c1(data = ., to_column = 'exposure_o1', from_column = "exposure_type") %>%
   func_fill_c2_from_c1(data = ., to_column = 'exposure_o2', from_column = "exposure_type") %>%
   
-  dplyr::select(id, all_of(cols_keep), 
+  dplyr::select(id, study_label, 
+                all_of(cols_keep), 
                 effect_size_indices:Mean, mean, 
-                CI_95_lower, ci_95_lower, everything()) %>%
+                # CI_95_lower, ci95lower, 
+                everything()) %>%
   arrange(effect_size_indices, id, model_id) %>%
   as.data.frame()
 ```
