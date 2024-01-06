@@ -21,6 +21,7 @@ func_all_to_sd <- function(data, table_option = 'o2') {
   ## which table to apply the function 
   ## - for table option 2 ...
   if (table_option == 'o2') {
+    message("Converted *sd* is marked with a postfix '_r', i.e., 'c_sd_r' or 'e_sd_r' ");
     data <- data %>%
   
       ## for control group ##
@@ -48,6 +49,7 @@ func_all_to_sd <- function(data, table_option = 'o2') {
     
     ## - for table option 1 ...  
   } else {
+    message("Converted *sd* is marked with a postfix '_r', i.e., 'sd_r'");
     data <- data %>%
       dplyr::mutate(
         sd_r = case_when(
