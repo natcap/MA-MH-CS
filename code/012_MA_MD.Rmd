@@ -21,33 +21,6 @@ exp_sub_mods_md1 <- exp_sub_mods_md %>%
 exp_sub_mods_md2 <- exp_sub_mods_md %>%
   dplyr::select(1:buffers_unit, Other_covariates_o2:Notes_o2) %>%
   
-  ## check sample size data
-  dplyr::select(1:n_participants, Control_N, Treatment_N, everything()) %>%
-  dplyr::mutate(
-    
-    n_participants = str_squish(n_participants) %>% trimws(.) %>% as.numeric(.),
-    Control_N   = str_squish(Control_N)   %>% trimws(.) %>% as.numeric(.),
-    Treatment_N = str_squish(Treatment_N) %>% trimws(.) %>% as.numeric(.),
-    
-    c_n = case_when(
-      !is.na(c_mean) & is.na(Control_N) & !is.na(Treatment_N) ~ Treatment_N,
-      !is.na(c_mean) & is.na(Control_N) &  is.na(Treatment_N) & !is.na(n_participants) ~ n_participants,
-      TRUE ~ Control_N
-    ),
-    
-    e_n = case_when(
-      !is.na(e_mean) & is.na(Treatment_N) & !is.na(Control_N) ~ Control_N,
-      !is.na(e_mean) & is.na(Treatment_N) &  is.na(Control_N) & !is.na(n_participants) ~ n_participants,
-      TRUE ~ Treatment_N
-    ),
-    
-    study_label = paste(id, model_id, sep = '_'), # `Study ID`, 
-    
-  ) %>%
-
-  ## convert SE, and CI to `SD`
-  func_all_to_sd(data = .) %>%
-  
   ## within group vs. between group 
   dplyr::mutate(subgroup_design = stringr::str_extract(string=subgroup_other_o2, pattern = "\\d{1}ba|\\d{1}aa") ) %>%
   dplyr::select(1:subgroup_other_o2, subgroup_design, everything()) %>%

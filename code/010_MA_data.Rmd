@@ -451,7 +451,7 @@ save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
   Now, each paper can include data from multiple models, and they are presented in columns. 
 We need to put all data on models in rows. 
 
-```{r - choose one as input}
+```{r - ? choose one as input}
 
 f <- paste0('./data/0301-MA-input/', 'sub_ghq.RData')
 f <- paste0('./data/0301-MA-input/', 'sub_panas.RData')
@@ -665,6 +665,30 @@ exp_sub_long_clean <- exp_sub_long %>%
     N = as.numeric(N),
     
     ) %>%
+  
+  ## check and tidy sample size (N)
+  dplyr::select(1:n_participants, Control_N, Treatment_N, everything()) %>%
+  dplyr::mutate(
+    n_participants = str_squish(n_participants) %>% trimws(.) %>% as.numeric(.),
+    Control_N   = str_squish(Control_N)   %>% trimws(.) %>% as.numeric(.),
+    Treatment_N = str_squish(Treatment_N) %>% trimws(.) %>% as.numeric(.),
+    c_n = case_when(
+      !is.na(c_mean) & is.na(Control_N) & !is.na(Treatment_N) ~ Treatment_N,
+      !is.na(c_mean) & is.na(Control_N) &  is.na(Treatment_N) & !is.na(n_participants) ~ n_participants,
+      TRUE ~ Control_N
+    ),
+    e_n = case_when(
+      !is.na(e_mean) & is.na(Treatment_N) & !is.na(Control_N) ~ Control_N,
+      !is.na(e_mean) & is.na(Treatment_N) &  is.na(Control_N) & !is.na(n_participants) ~ n_participants,
+      TRUE ~ Treatment_N
+    ),
+    study_label = paste(id, model_id, sep = '_'), # `Study ID`, 
+  ) %>%
+  ## keep new created variables next to its similar ones
+  dplyr::select(1:n_participants, Control_N, c_n, Treatment_N, e_n, study_label, everything()) %>%
+
+  ## convert SE, and CI to `SD`
+  func_all_to_sd(data = .) %>%
   
   ## clean text in nature-related columns 
   func_clean_nature_type(data = ., column_name = 'nature_type_o1') %>%
