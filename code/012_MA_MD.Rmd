@@ -46,10 +46,10 @@ exp_sub_mods_md2 <- exp_sub_mods_md %>%
   ) %>%
 
   ## convert SE, and CI to `SD`
-  func_for_sd(data = .) %>%
+  func_all_to_sd(data = .) %>%
   
   ## within group vs. between group 
-  dplyr::mutate(subgroup_design = stringr::str_extract(string=subgroup_other_o2, pattern = "\\d{1}ba") ) %>%
+  dplyr::mutate(subgroup_design = stringr::str_extract(string=subgroup_other_o2, pattern = "\\d{1}ba|\\d{1}aa") ) %>%
   dplyr::select(1:subgroup_other_o2, subgroup_design, everything()) %>%
   
   ## remove row without any data from table option 2
@@ -272,7 +272,7 @@ ggarrange(p1 + rremove("x.title"),
           heights = c(0.4, 1),
           align = "v")
 
-fname <- paste0(dir.fig, 'plot_es_combined.png'); fname
+fname <- paste0(dir.fig, 'plot_es_combined', today, '.png'); fname
 func_ggsave(fname, w = 6, h = 5.5, save_png = T)
 ```
 
