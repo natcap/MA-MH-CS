@@ -6,6 +6,14 @@ output: html_document
 ---
 
 
+
+```{r eval=FALSE, include=FALSE}
+install.packages("remotes")
+remotes::install_github("guido-s/meta", ref = "develop", build_vignettes = TRUE, force = TRUE)
+```
+
+
+
 # Data
 
 ```{r}
@@ -70,11 +78,16 @@ library(grid)
 # Use metcont to pool results.
 
 show_raw_data_in_forest <- F
-add_subgroup_analysis   <- F
+
+add_subgroup_analysis   <- T
+sub_group_var <- 'subgroup_design'
+# sub_group_var <- 'exposure_o2'
+# sub_group_var <- '' ## age group
+# sub_group_var <- '' ## exposure duration 
 
 
 if (add_subgroup_analysis == T) {
-  byvar_subgroup <- "subgroup_design"
+  byvar_subgroup <- sub_group_var
 } else {
   byvar_subgroup <- NULL
 }
@@ -89,25 +102,28 @@ for (sub_ind_i in sub_indicator_selected) {
   
   height_cm <- nrow(exp_sub_mods_md2i)
   
-  ma_smd <- metacont(data = exp_sub_mods_md2i,
-                     n.e = e_n,
-                     n.c = c_n,
-                     mean.e = e_mean,
-                     mean.c = c_mean,
-                     sd.e = e_sd_r,
-                     sd.c = c_sd_r,
-                     studlab = study_label,
-                     
-                     sm = "SMD",
-                     method.smd = "Hedges",
-                     fixed = FALSE,
-                     random = TRUE,
-                     method.tau = "REML",
-                     hakn = TRUE,
-                     byvar = byvar_subgroup,  ## Grouping results by a variable, default = NULL
-                     title = mh_tool)
+  ma_smd <- meta::metacont(
+    data = exp_sub_mods_md2i,
+    n.e = e_n,
+    n.c = c_n,
+    mean.e = e_mean,
+    mean.c = c_mean,
+    sd.e = e_sd_r,
+    sd.c = c_sd_r,
+    studlab = study_label,
+    
+    sm = "SMD",
+    method.smd = "Hedges",
+    fixed = FALSE,
+    random = TRUE,
+    method.tau = "REML",
+    hakn = TRUE, 
+    subgroup = byvar_subgroup,  ## Grouping results by a variable, default = NULL
+    title = mh_tool)
   ma_smd
   
+  
+  ## extract the overall effect size data to a dataframe
   ma_smd.df <- data.frame(
     tool = mh_tool, 
     ind_sub = sub_ind_i, 
