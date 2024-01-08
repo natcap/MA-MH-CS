@@ -10,6 +10,9 @@ output: html_document
 ```{r eval=FALSE, include=FALSE}
 install.packages("remotes")
 remotes::install_github("guido-s/meta", ref = "develop", build_vignettes = TRUE, force = TRUE)
+
+library(meta)
+packageVersion("meta")
 ```
 
 
@@ -80,26 +83,31 @@ library(grid)
 show_raw_data_in_forest <- F
 
 add_subgroup_analysis   <- T
-sub_group_var <- 'subgroup_design'
-# sub_group_var <- 'exposure_o2'
-# sub_group_var <- '' ## age group
-# sub_group_var <- '' ## exposure duration 
+subgroup_select <- 'subgroup_design'
+subgroup_select <- 'exposure_o2'
+# subgroup_select <- '' ## age group
+# subgroup_select <- '' ## exposure duration 
 
 
-if (add_subgroup_analysis == T) {
-  byvar_subgroup <- sub_group_var
-} else {
-  byvar_subgroup <- NULL
-}
 
-
-ma_result <- data.frame()
+ma_result.overall <- data.frame()
+ma_result.subgroup <- data.frame()
 
 for (sub_ind_i in sub_indicator_selected) {
   
   exp_sub_mods_md2i <- exp_sub_mods_md2 %>%
-    dplyr::filter(MH_indicator_o2 == sub_ind_i)
+    dplyr::filter(MH_indicator_o2 == sub_ind_i) 
   
+  if (add_subgroup_analysis == T) {
+    exp_sub_mods_md2i <- exp_sub_mods_md2i %>%
+      dplyr::mutate(subgroup_selected = !!sym(byvar_subgroup)) 
+  } else {
+    exp_sub_mods_md2i <- exp_sub_mods_md2i %>%
+      dplyr::mutate(subgroup_selected = 'NULL') %>%
+      as.data.frame()
+  }
+  
+
   height_cm <- nrow(exp_sub_mods_md2i)
   
   ma_smd <- meta::metacont(
@@ -118,21 +126,29 @@ for (sub_ind_i in sub_indicator_selected) {
     random = TRUE,
     method.tau = "REML",
     hakn = TRUE, 
-    subgroup = byvar_subgroup,  ## Grouping results by a variable, default = NULL
+    subgroup = NULL,  ## Grouping results by a variable, default = NULL
     title = mh_tool)
   ma_smd
   
+  ## update the MA by adding subgroup analysis
+  if (add_subgroup_analysis == T) {
+    ma_smd <- update(ma_smd, subgroup = subgroup_selected)
+  }
   
-  ## extract the overall effect size data to a dataframe
+  
+  
+  ## extract the overall effect size data to a dataframe =================================
+  ### 1. overall model data
   ma_smd.df <- data.frame(
     tool = mh_tool, 
-    ind_sub = sub_ind_i, 
+    ind_sub = sub_ind_i,
+    subgroup = 'Overall',
     es.mean = ma_smd$TE.random,
     es.lower= ma_smd$lower.random,
     es.upper= ma_smd$upper.random,
     pval    = ma_smd$pval.random %>% round(., digits = 10),
     ## Number of studies
-    n_study = ma_smd$k,
+    n_study = ma_smd$k.all,
     ## Number of observations
     n_obs   = ma_smd$n.e.pooled + ma_smd$n.c.pooled
   ) %>%
@@ -142,13 +158,37 @@ for (sub_ind_i in sub_indicator_selected) {
                         pval < 0.05 ~ '*',
                         T ~ ''),
     )
-  ma_result <- rbind(ma_result, ma_smd.df)
+  ma_result.overall <- rbind(ma_result.overall, ma_smd.df)
+  
+  ### 2. subgroup model data
+  if (add_subgroup_analysis == T) {
+    ma_smd.df.subgroup <- data.frame(
+      tool = mh_tool, 
+      ind_sub = sub_ind_i, 
+      subgroup = names(ma_smd$TE.common.w),
+      es.mean = as.numeric(ma_smd$TE.random),
+      es.lower= as.numeric(ma_smd$lower.random.w),
+      es.upper= as.numeric(ma_smd$upper.random.w),
+      pval    = as.numeric(ma_smd$pval.random.w) %>% round(., digits = 10),
+      ## Number of studies
+      n_study = as.numeric(ma_smd$k.all.w),
+      ## Number of observations
+      n_obs   = NA
+    ) %>%
+      dplyr::mutate(
+        p.star  = case_when(pval < 0.001 ~ '***',
+                          pval < 0.01 ~ '**',
+                          pval < 0.05 ~ '*',
+                          T ~ ''),
+      )
+    ma_result.subgroup <- rbind(ma_result.subgroup, ma_smd.df.subgroup)
+  }
 
 
   
-  ####' forest ----
-  ####' https://insidethenumbers.netlify.app/post/meta-analysis/
-  ####' https://www.rdocumentation.org/packages/meta/versions/6.5-0/topics/forest.meta
+  ##' forest plot ========================================================================
+  ##'     https://insidethenumbers.netlify.app/post/meta-analysis/
+  ##'     https://www.rdocumentation.org/packages/meta/versions/6.5-0/topics/forest.meta
   if(show_raw_data_in_forest == T){
     leftcols_show = c("studlab", "n.e", "mean.e", "sd.e", "n.c", "mean.c", "sd.c")
     add_print.tau2 = T
@@ -181,7 +221,7 @@ for (sub_ind_i in sub_indicator_selected) {
       width = width_forestPlot, height = height_cm/1.5, units = "cm", res = 100)
   
   
-  forest.meta(ma_smd,
+  meta::forest(ma_smd,
          # layout = "RevMan5",
          # sortvar = TE,
          prediction = F, ## prediction interval for the treatment effect in a future study
@@ -235,6 +275,7 @@ for (sub_ind_i in sub_indicator_selected) {
 
 
 ## save MA result 
+ma_result <- rbind(ma_result.overall, ma_result.subgroup)
 fname <- paste0('./data/0302-MA-output/', paste('ma_result', mh_tool, '.rds', sep = '_')); fname
 saveRDS(ma_result, file = fname)
 ```
@@ -246,8 +287,10 @@ saveRDS(ma_result, file = fname)
 source('./code/func_plot_ma.R')
 library(ggpubr)
 
-ma_result_panas <- readRDS("./data/0302-MA-output/ma_result_PANAS_.rds")
-ma_result_poms  <- readRDS("./data/0302-MA-output/ma_result_POMS_.rds")
+ma_result_panas <- readRDS("./data/0302-MA-output/ma_result_PANAS_.rds") %>%
+  dplyr::filter(subgroup == 'Overall')
+ma_result_poms  <- readRDS("./data/0302-MA-output/ma_result_POMS_.rds") %>%
+  dplyr::filter(subgroup == 'Overall')
 
 ma_result_all <- rbind(ma_result_panas, ma_result_poms)
 
@@ -261,7 +304,7 @@ ggarrange(p1 + rremove("x.title"),
           heights = c(0.4, 1),
           align = "v")
 
-fname <- paste0(dir.fig, 'plot_es_combined', today, '.png'); fname
+fname <- paste0(dir.fig, 'plot_es_combined', today, postfix_subgroup, '.png'); fname
 func_ggsave(fname, w = 6, h = 5.5, save_png = T)
 ```
 
