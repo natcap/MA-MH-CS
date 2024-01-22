@@ -83,8 +83,8 @@ library(grid)
 show_raw_data_in_forest <- F
 
 add_subgroup_analysis   <- T
-subgroup_select <- 'subgroup_design'
-subgroup_select <- 'exposure_o2'
+subgroup_select <- 'subgroup_design' ## ?? [] need to fix NAs in the column -> revise `subgroup_selected`
+# subgroup_select <- 'exposure_o2'
 subgroup_select <- 'nature_type_o2'
 # subgroup_select <- '' ## age group
 # subgroup_select <- '' ## exposure duration 
@@ -101,7 +101,9 @@ for (sub_ind_i in sub_indicator_selected) {
   
   if (add_subgroup_analysis == T) {
     exp_sub_mods_md2i <- exp_sub_mods_md2i %>%
-      dplyr::mutate(subgroup_selected = !!sym(subgroup_select)) 
+      dplyr::mutate(subgroup_selected = !!sym(subgroup_select)) %>%
+      dplyr::filter(!is.na(subgroup_selected)) %>%
+      as.data.frame()
   } else {
     exp_sub_mods_md2i <- exp_sub_mods_md2i %>%
       dplyr::mutate(subgroup_selected = 'NULL') %>%
@@ -121,7 +123,7 @@ for (sub_ind_i in sub_indicator_selected) {
     sd.c = c_sd_r,
     studlab = paste0(`Study ID`, ' - ', model_id), #study_label,
     
-    sm = "SMD",
+    sm = "SMD", 
     method.smd = "Hedges",
     fixed = FALSE,
     random = TRUE,
@@ -149,6 +151,7 @@ for (sub_ind_i in sub_indicator_selected) {
     es.upper= ma_smd$upper.random,
     pval    = ma_smd$pval.random %>% round(., digits = 10),
     I2      = as.numeric(ma_smd$I2) %>% round(., digits = 2),
+    p_subgroup = NA,
     ## Number of studies
     n_study = ma_smd$k.all,
     ## Number of observations
@@ -173,6 +176,7 @@ for (sub_ind_i in sub_indicator_selected) {
       es.upper= as.numeric(ma_smd$upper.random.w),
       pval    = as.numeric(ma_smd$pval.random.w) %>% round(., digits = 10),
       I2      = as.numeric(ma_smd$I2.w) %>% round(., digits = 2),
+      p_subgroup = as.numeric(ma_smd$pval.Q.b.random) %>% round(., digits = 10),
       ## Number of studies
       n_study = as.numeric(ma_smd$k.all.w),
       ## Number of observations
@@ -283,7 +287,7 @@ fname <- paste0('./data/0302-MA-output/', paste('ma_result.overall', mh_tool, '.
 saveRDS(ma_result.overall, file = fname)
 
 if (add_subgroup_analysis == T) {
-  fname <- paste0('./data/0302-MA-output/', paste('ma_result.subgroup', mh_tool, '.rds', sep = '_')); fname
+  fname <- paste0('./data/0302-MA-output/', paste('ma_result.subgroup', mh_tool, subgroup_select, '.rds', sep = '_')); fname
   saveRDS(ma_result.subgroup, file = fname)
 }
 ```
@@ -295,14 +299,23 @@ if (add_subgroup_analysis == T) {
 source('./code/func_plot_ma.R')
 library(ggpubr)
 
-ma_result_panas <- readRDS("./data/0302-MA-output/ma_result.overall_PANAS_.rds") 
-ma_result_poms  <- readRDS("./data/0302-MA-output/ma_result.overall_POMS_.rds") 
+fs <- list.files(path = "./data/0302-MA-output/", 
+                 pattern = '^ma_result.*_PANAS|^ma_result.*_POMS', 
+                 full.names = T);
+cat('\n This', length(fs), 'files will be included:\n')
+print(fs)
 
-ma_result.subgroup_panas <- readRDS("./data/0302-MA-output/ma_result.subgroup_PANAS_.rds") 
-ma_result.subgroup_poms  <- readRDS("./data/0302-MA-output/ma_result.subgroup_POMS_.rds") 
+ma_result_all <- data.frame()
+for (f in fs) {
+  d <- readRDS(file = f) 
+  ma_result_all <- rbind(ma_result_all, d)
+}
+# ma_result_panas <- readRDS("./data/0302-MA-output/ma_result.overall_PANAS_.rds") 
+# ma_result_poms  <- readRDS("./data/0302-MA-output/ma_result.overall_POMS_.rds") 
+# ma_result.subgroup_panas <- readRDS("./data/0302-MA-output/ma_result.subgroup_PANAS_.rds") 
+# ma_result.subgroup_poms  <- readRDS("./data/0302-MA-output/ma_result.subgroup_POMS_.rds") 
 
-ma_result_all <- rbind(ma_result_panas, ma_result_poms,
-                       ma_result.subgroup_panas, ma_result.subgroup_poms )
+
 
 p1 <- ma_result_all %>%
   dplyr::filter(subgroup == 'Overall', tool == 'PANAS') %>%
@@ -322,39 +335,186 @@ fname <- paste0(dir.fig, 'plot_es_combined', today, postfix_subgroup, '.png'); f
 func_ggsave(fname, w = 6, h = 5.5, save_png = T)
 ```
 
+### by group
 
-```{r - by group}
+```{r - table & numbers}
+ma_result.subgroup_psubgroup <- ma_result_all %>%
+  dplyr::filter(subgroup != 'Overall') %>%
+  dplyr::distinct(tool, ind_sub, .keep_all = T)
+```
+
+
+
+```{r - plot}
 source('./code/func_plot_ma.R')
 
-p1 <- ma_result_all %>%
-  dplyr::filter(subgroup != 'Overall', tool == 'PANAS') 
+##' color from https://developers.google.com/earth-engine/datasets/catalog/USGS_NLCD_RELEASES_2021_REL_NLCD#bands
+nature_type_list <- c("Greenspace",               # '#68ab5f'	(Deciduous Forest)
+                      "Greenspace - Forest/Tree", # '#1c5f2c'	
+                      "Greenspace - Shrub/scrub", # '#ccb879'	
+                      "Greenspace - Grassland",   # '#dfdfc2'
+                      "Greenspace - Farmland",    # '#ab6c28'
+                      "Greenspace - Park",        # 
+                      "Greenspace - Garden",      # '#aaff00'
+                      "Greenspace - Green alley/Roadside green", 
+                      "Greenspace - Green roof/wall",# '#79ffd2'              (Shrub-Forest)
+                      "Bluespace - Open water",      # '#466b9f'
+                      "Bluespace - Wetland",         # '#b8d9eb'
+                      "Bluespace - Sea",             # '#0000ff'
+                      "Bluespace - Beach/coastline", # '#0000ff'
+                      "Other"                        # '#000000'	
+                      )
+colors_nature_type <- c(
+  '#68ab5f', # "Greenspace"
+  '#1c5f2c', # "Greenspace - Forest/Tree"
+  '#ccb879', # "Greenspace - Shrub/scrub"
+  '#b2df8a', # "Greenspace - Grassland"
+  '#ab6c28', # "Greenspace - Farmland"
+  '#fb9a99', # "Greenspace - Park"
+  '#aaff00', # "Greenspace - Garden" (forest disturbed before/at 2006)
+  '#beaed4', # "Greenspace - Green alley/Roadside green"
+  '#79ffd2', # "Greenspace - Green roof/wall"
+  '#466b9f', # "Bluespace - Open water"
+  '#b8d9eb', # "Bluespace - Wetland"
+  '#0000ff', # "Bluespace - Sea"
+  '#0000ff', # "Bluespace - Beach/coastline"
+  '#000000'  # "Other"
+  )
 
-len <- length(unique(p1$subgroup)); len
+names(colors_nature_type) <- nature_type_list
+
+
+
+
+p1_tool <- ma_result_all %>%
+  data.table::as.data.table() %>%
+  dplyr::filter(subgroup != 'Overall', tool == 'PANAS'); 
+
+len <- length(unique(p1_tool$subgroup)); len
 facet_decide <- ifelse(len >3, T, F)
 
-p1 <- p1 %>%
-  plot_effect_size_overall(data = ., subgroup = 'subgroup', facet_bygroup = facet_decide, show_legend = F)
+## add named colors
+element_list <- unique(p1_tool$subgroup); element_list
+colors_nature_type_included1 <- colors_nature_type[element_list]; colors_nature_type_included1
+# p1_tool$subgroup = factor(x = p1_tool$subgroup, levels = element_list_named)
+
+p1 <- p1_tool %>%
+  # dplyr::mutate(subgroup = factor(x = subgroup, levels = element_list_named)) %>%
+  plot_effect_size_overall(data = .,
+                           subgroup = 'subgroup', 
+                           facet_bygroup = facet_decide, 
+                           add_gradient_bg = F,
+                           show_legend = F) +
+  scale_colour_manual(values = colors_nature_type)
 
 
 
-p2 <- ma_result_all %>%
+p2_tool <- ma_result_all %>%
   dplyr::filter(subgroup != 'Overall', tool == 'POMS') 
-len <- length(unique(p2$subgroup)); len
+
+len <- length(unique(p2_tool$subgroup)); len
 facet_decide <- ifelse(len >3, T, F)
 
-p2 <- p2 %>%
-  plot_effect_size_overall(data = ., subgroup = 'subgroup', facet_bygroup = facet_decide, show_legend = T) + 
-  theme(legend.position = c(0.8, 0.1))
+## add named colors
+element_list2 <- unique(p2_tool$subgroup); 
+colors_nature_type_included2 <- colors_nature_type[element_list2]; colors_nature_type_included2
+
+p2 <- p2_tool %>%
+  # dplyr::mutate(subgroup = factor(x = subgroup, levels = element_list_named)) %>%
+  plot_effect_size_overall(data = ., 
+                           subgroup = 'subgroup', 
+                           facet_bygroup = facet_decide, 
+                           add_gradient_bg = F,
+                           show_legend = T) + 
+  theme(legend.position = c(0.8, 0.1)) +
+  # It's recommended to use a named vector
+  scale_colour_manual(values = colors_nature_type)
 # p2
 
 
-ggarrange(p1 + rremove("x.title"), 
-          p2, 
-          labels = c("A", "B"), ncol = 1, nrow = 2,
-          heights = c(0.4, 1),
-          align = "v")
-fname <- paste0(dir.fig, 'plot_es_combined_subgroup', today, postfix_subgroup, '.png'); fname
+
+## create a legend that includes elements from both figures ------------------------------
+set.seed(1) # for reproducibility
+ls_element <- unique(c(element_list, element_list2))
+ls <- unique(c(colors_nature_type_included1, colors_nature_type_included2))
+n  <- length(ls)
+
+# generate 5 random points
+tbl <- tibble(x = runif(n),
+              y = runif(n),
+              `Nature Type` = ls_element, 
+              class = factor( LETTERS[1:n] ))
+
+# print if x > 0.5
+legend_plot <- ggplot(data = tbl,
+            aes(x = x,
+                y = y,
+                color = `Nature Type`)) +
+  geom_point(size = 2) +
+  # scale_colour_discrete(drop = FALSE) +
+  scale_colour_manual(values = colors_nature_type) +
+  theme_bw() +
+  theme(legend.spacing.y = unit(0, 'cm'),
+        legend.spacing.x = unit(0, 'cm'),
+        legend.key.size = unit(0.05, 'cm'),
+        legend.title=element_text(size=7.5, face = 'bold'),
+        legend.text=element_text(size=7),
+            ) +
+  guides(color = guide_legend(reverse=TRUE))
+# legend_plot  
+legend_made <- get_legend(legend_plot)
+
+
+
+## 
+p_comb <- 
+  ggarrange(p1 + rremove("x.title"), 
+            p2 + theme(legend.position = 'none'), 
+            labels = c("A", "B"), ncol = 1, nrow = 2,
+            heights = c(0.4, 1), 
+            common.legend = F, 
+            align = "v")
+p_comb
+fname <- paste0(dir.fig, 'plot_es_combined_subgroup', today, postfix_subgroup, '_.png'); fname
 func_ggsave(fname, w = 6, h = 5.5+1, save_png = T)
+
+
+library(grid)
+library(gridExtra)
+
+fname <- gsub('.png', '_legend.png', fname); fname
+png(filename = fname, width = 6, height = 5.5+1, units = 'in', res = 300)
+
+grid.draw(p_comb)
+sample_vp <- viewport(x = 1/3, y = 0, 
+                      width = 1/3+0.2, height = 0.3,
+                      just = c("left", "bottom")
+                      )
+pushViewport(sample_vp)
+# grid.draw(roundrectGrob())
+grid.draw(legend_made)
+popViewport()
+
+dev.off()
+
+
+### the other way to combine plots -------------------------------------------------------
+# fname <- gsub('.png', '2.png', fname); fname
+# png(filename = fname, width = 6, height = 5.5+1, units = 'in', res = 300)
+# library(grid)
+# # Move to a new page
+# grid.newpage()
+# # Create layout : nrow = 3, ncol = 2
+# pushViewport(viewport(layout = grid.layout(nrow = 4, ncol = 3)))
+# # A helper function to define a region on the layout
+# define_region <- function(row, col){
+#   viewport(layout.pos.row = row, layout.pos.col = col)
+# }
+# # Arrange the plots
+# print(p1 + rremove("x.title"), vp = define_region(row = 1, col = 1:2))   # Span over two columns
+# print(p2, vp = define_region(row = 2:4, col = 1:3))
+# print(legend_made, vp = define_region(row = 4, col = 2))
+# dev.off()
 ```
 
 **refs**
