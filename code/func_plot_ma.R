@@ -12,6 +12,7 @@ plot_effect_size_overall <- function(
     subgroup = NULL, 
     dodge_value = 0.9,
     facet_bygroup = F,
+    add_gradient_bg = T,
     show_legend = F) {
   
   x_limit_max <- max(abs(data$es.lower), abs(data$es.upper)) * 1.1
@@ -38,9 +39,15 @@ plot_effect_size_overall <- function(
                  y = reorder(ind_sub, es.mean)))
   }
   
+  
+  if(add_gradient_bg == T){
+    p <- p + 
+      annotation_custom(grob = gradient_bg, xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf)
+  } else {
+    p <- p
+  }
+  
   p <- p + 
-    annotation_custom(grob = gradient_bg, xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) +
-    
     geom_vline(xintercept = 0, linewidth = 0.4, color = "white") + # linetype = "dashed", 
     ### SMD effect: small - moderate - large
     geom_vline(xintercept = -0.2, linewidth = 0.4, linetype = "dotted", color = "grey70") + ## , linewidth = 0.5
