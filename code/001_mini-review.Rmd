@@ -27,7 +27,8 @@ df <- readRDS(file = f)
 dt <- df %>%
   dplyr::select(1:4, matches("Country|Mental health|Indicator|Tools")) %>%
   dplyr::select(!matches("duration", ignore.case = T)) %>%
-  func_clean_indicators(data = .) %>%
+  func_clean_indicatorsPro(data = ., column_name = 'Indicator') %>%
+  func_clean_indicator_sub(data = ., column_name = 'Indicator', upper_case = F) %>%
   dplyr::arrange(!is.na(Indicator), Reviewer) %>%
   as.data.frame()
 
@@ -342,6 +343,46 @@ dt_err <- dt %>%
 
 ## Region 
 
+
+```{r - region by year}
+pub_byYear <- dt %>%
+  dplyr::select(1:3, Country) %>%
+  tidyr::separate(`Study ID`, into = c('Author', 'Year_pub'), sep = ' ', remove = F) %>%
+  # group_by(Year_pub, Country) %>%
+  dplyr::mutate(Year_pub = as.numeric(Year_pub)) %>%
+  dplyr::filter(!is.na(Year_pub)) %>%
+  group_by(Year_pub) %>%
+  tally() %>%
+  as.data.frame()
+
+yr_min = min(pub_byYear$Year_pub, na.rm = T)
+yr_max = max(pub_byYear$Year_pub, na.rm = T)
+
+
+pub_byYear_p <- pub_byYear %>%
+  ggplot(aes(x = Year_pub, 
+             y = n,
+             )) +
+  geom_line(data = . %>% dplyr::filter(Year_pub < 2023), color = 'gray', linewidth =1
+            )+
+  geom_point() +
+  geom_text(data = . %>% dplyr::filter(Year_pub < 2021), 
+            aes(label = n), vjust = -0.5, hjust = 0.5, size = 3, color = 'gray20') +
+  geom_text(data = . %>% dplyr::filter(Year_pub >= 2021), 
+            aes(label = n), vjust = 0.5, hjust = -0.5, size = 3, color = 'gray20') +
+  scale_x_continuous(breaks = c(seq(yr_min, yr_max, by=5), 2023)) +
+  xlab('Year')+
+  ylab('Number of publications')+
+  theme_bw() +
+  theme(panel.grid = element_blank()
+    
+  )
+pub_byYear_p
+
+f <- paste0(dir.fig, 'pub_byYear.png'); f
+# func_ggsave(fname = f, w = 7, h = 4, save_png = T)
+```
+
 ```{r - region - bar}
 
 reg_ <- dt %>%
@@ -453,31 +494,48 @@ func_ggsave(fname = fname, w = 7, h = 4, save_png = T)
 
 
 ```{r - region - map}
-
 region_count_sf <- region_count %>%
   merge(x= shp, y = ., by.x = 'iso_a3', by.y  = 'iso3c', all.x = T) 
 
-
-region_count_sf %>%
+pub_byregion_map <- region_count_sf %>%
   dplyr::filter(name != 'Antarctica') %>%
   ggplot(.) +
   geom_sf(aes(fill = n), size = 0.1, color = 'gray80') +
   # geom_sf_text(aes(label = iso_a3), colour = "gray", size =1) + 
-  scale_fill_distiller(name= 'Count', palette = 'YlGnBu', direction = 1, na.value = "gray90") +
+  scale_fill_distiller(name= '', palette = 'YlGnBu', direction = 1, na.value = "gray90") +
   # theme_bw() +
   theme_nothing() +
-  theme(legend.position = c(0.06, 0.4))
+  theme(legend.position = c(0.06, 0.4)) 
 
-f <- paste0('mini-review_paper_count_map_', today, '.png'); f
-w_map = 6.4*2
-h_map = 3.2*2
+# pub_byregion_map
+# f <- paste0('mini-review_paper_count_map_', today, '.png'); f
+# w_map = 6.4*2
+# h_map = 3.2*2
+# fname <- paste0(dir.fig, f); fname
+# func_ggsave(fname = fname, w = w_map, h = h_map)
+# 
+# fname <- paste0(dir_share, f); fname
+# func_ggsave(fname = fname, w = w_map, h = h_map)
+```
 
-fname <- paste0(dir.fig, f); fname
-func_ggsave(fname = fname, w = w_map, h = h_map)
 
-fname <- paste0(dir_share, f); fname
-func_ggsave(fname = fname, w = w_map, h = h_map)
+```{r - by year by region map}
+w_map <- 1.2
+plot.with.inset <-
+  ggdraw() +
+  draw_plot(pub_byYear_p) +
+  draw_plot(pub_byregion_map + theme(legend.text  = element_text(size = 8),
+                                     legend.title = element_text(size = 9),
+                                     legend.position = c(0.1, 0.3),
+                                     legend.key.size = unit(0.8, "lines")), 
+            x = -0.17, y = .35, width = w_map, height = w_map/2) +
+  draw_label("A", x = 0.02, y=0.95, fontface = 'bold')
 
+plot.with.inset
+
+
+fname <- paste0(dir.fig, 'pub_byYearRegion_map.png'); fname
+func_ggsave(fname = fname, w = 6.5, h = 2.8)
 ```
 
 
@@ -520,7 +578,7 @@ indicator_n_min <- 5 ## only map indicators with more than 5 times
 labele_small <- 15
 
 
-func_alluvial(data = dt.ind.cl_ctr_flow, indicator_n_min = 5, filename.postfix = 'indicator_region')
+func_alluvial(data = dt.ind.cl_ctr_flow, indicator_n_min = 5, filename.postfix = '2d_indicator_region')
 ```
 
 
@@ -565,7 +623,7 @@ dt.tool_ctr_flow  <- dt.tool_ctr  %>%
   dplyr::mutate(total = sum(freq, na.rm = T)) %>%
   as.data.frame()
 
-func_alluvial(data = dt.tool_ctr_flow, indicator_n_min = 5, labele_small = 1, filename.postfix = 'tool_region')
+func_alluvial(data = dt.tool_ctr_flow, indicator_n_min = 5, labele_small = 1, filename.postfix = '2d_tool_region')
 ```
 
 
@@ -662,6 +720,12 @@ dt.ind.tool.region <- dt.ind.tool.ctr2 %>%
 
 
 ## - prep input for `ggalluvial` ---------------------------------------------------------
+dimension_levels = c('Indicator', 'Tool', 'Region')
+dimension_levels = c('Tool', 'Indicator', 'Region')
+filename.postfix = paste(dimension_levels, collapse = "_") %>%
+  paste0("3d_", .) %>%
+  str_to_lower()
+
 dtt  <- dt.ind.tool.region  %>%  
   pivot_longer(names_to = 'dimension', 
                values_to = 'layers', 
@@ -671,7 +735,7 @@ dtt  <- dt.ind.tool.region  %>%
   arrange(dimension) %>%
   dplyr::rename(freq = n) %>%
   dplyr::mutate(
-    dimension = factor(dimension, levels = c('Indicator', 'Tool', 'Region')),
+    dimension = factor(dimension, levels = dimension_levels),
     # layers = factor(layers, levels = org_levels)
     ) %>%
   group_by(layers) %>%
@@ -679,7 +743,7 @@ dtt  <- dt.ind.tool.region  %>%
   as.data.frame()
 
 
-func_alluvial(data = dtt, indicator_n_min = 3, labele_small = 20, w_p = 10, filename.postfix = 'indicator_tool_region2')
+func_alluvial(data = dtt, indicator_n_min = 3, labele_small = 20, w_p = 10, filename.postfix = filename.postfix)
 
 # f <- paste0('mini-review_mh_indicator_tool_pairs_min', indicator_n_min, '_ctr', n_ctr, '_', today, '.png')
 # fname <- paste0(dir.fig, f); fname
