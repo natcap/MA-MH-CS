@@ -19,13 +19,16 @@ output:
 ```{r - indicator, include=FALSE}
 
 ## load data
-f <- paste0('./data/0301-MA-input/df_covidenceFull_', today, '.rds'); f
+fs <- list.files(path = "./data/0301-MA-input/", pattern = '^df_covidenceFull', full.names = T); 
+##' select the up-to-date data, which is the second to the last
+f <- fs[(length(fs)-2)]; f;
 df <- readRDS(file = f)
 
 
 ## keep columns of interest, and clean data
 dt <- df %>%
-  dplyr::select(1:4, matches("Country|Mental health|Indicator|Tools")) %>%
+  dplyr::rename('City' = "City and state/province  in which the study conducted") %>%
+  dplyr::select(1:4, City, matches("Country|Mental health|Indicator|Tools")) %>%
   dplyr::select(!matches("duration", ignore.case = T)) %>%
   func_clean_indicatorsPro(data = ., column_name = 'Indicator') %>%
   func_clean_indicator_sub(data = ., column_name = 'Indicator', upper_case = F) %>%
@@ -33,8 +36,8 @@ dt <- df %>%
   as.data.frame()
 
 
-
-
+f <- paste0('./data/dt.rds')
+saveRDS(object = dt, file = f)
 # names(dt)
 
 
@@ -75,19 +78,22 @@ dt.ind.clean %>%
     # fill = n
   )) +
   geom_col() +
+  geom_text(
+    aes(label = n), vjust = 0.5, hjust = 1.1, color = 'white', size = 3) +
   coord_flip() +
   # scale_fill_distiller(name = '', palette = "Blues", guide = "colorbar", direction = 1) +
   xlab("") +
-  ggtitle("Frequency of Mental health indicators") +
+  ggtitle("Top 20 MH indicators") +
   theme_bw() +
   theme(
     # axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
-    plot.title = element_text(size = 10, hjust = 1.2, face = 'bold')
+    plot.title = element_text(size = 12, hjust = 1, face = 'bold'),
+    axis.text = element_text(size = 11),
     )
 
 f <- paste0("mini-review_indicators_", today, ".png")
 fname <- paste0(dir.fig, f)
-w = 3
+w = 4
 h = 5
 func_ggsave(fname = fname, w = w, h = h)
 
@@ -168,11 +174,12 @@ dt.tool.clean %>%
   plot_freq(data = ., var = 'Tool') +
   geom_text(
     aes(label = n), vjust = 0.5, hjust = 1.1, color = 'white', size = 3) +
-  ggtitle("Frequency of Mental health\nmeasurement tools") +
+  ggtitle("Top 20 MH measurement tools") +
   theme_bw() +
   theme(
-    plot.title = element_text(size = 10, hjust = .5, face = 'bold'),
+    plot.title = element_text(size = 12, hjust = 1, face = 'bold'), 
     plot.title.position = "plot", #NEW parameter. Apply for subtitle too.
+    axis.text = element_text(size = 11),
     )
 
 f <- paste0('mini-review_tools_bar_', today, '.png'); f
@@ -409,12 +416,17 @@ region <- reg_ %>%
 library(SDGdetector)
 packageVersion('SDGdetector')
 
+# library(countrycode)
+# # names(codelist)
+# nation.list <- codelist %>%
+#   select(country.name.en, iso.name.en, un.name.en, cldr.name.en, iso2c, iso3c)
+
 library(dplyr)
 library(stringr)
 library(ggplot2)
 library(cowplot)
 
-
+## World region data 1
 codelist.supp <- data.frame(
   country.name.en = c('USA'),
   iso3c = c('USA'),
@@ -428,10 +440,28 @@ codelist <- SDGdetector::codelist_panel %>%
       str_detect(string = iso3c, pattern = 'HKG') ~ 'Hong Kong',
       T ~ country.name.en)
   ) %>%
-  dplyr::distinct(country.name.en, iso3c, region
-)
+  dplyr::distinct(country.name.en, iso3c, region)
+
+## World region data 2
+region_owid <- readr::read_csv('./data/continents-according-to-our-world-in-data.csv', show_col_types = FALSE) %>%
+  dplyr::select(-Year) %>%
+  dplyr::mutate(Code = gsub('OWID_', '', Code)) %>%
+  dplyr::rename('name_owid' = 'Entity',
+                'ISO3' = 'Code') %>%
+  as.data.frame()
+
+## World region data combined 
+countryCode_region <- countryRegions %>%
+  dplyr::mutate(REGION = ifelse(REGION=='Australia', 'Oceania', REGION)) %>%
+  left_join(., region_owid, by = 'ISO3') %>%
+  dplyr::select(1:REGION, Continent, continent, everything())
+  
   
 shp <- SDGdetector::shp
+# mollweide_crs <- "+proj=moll +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+# robinson_crs  <- "+proj=robin +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+# shp <- sf::st_transform(shp, robinson_crs)
+
 
 
 func_add_region <- function(data) {
@@ -442,7 +472,7 @@ func_add_region <- function(data) {
           by.y = 'country.name.en', all.x = T) %>%
     ## add more detailed region name info
     merge(x = ., 
-          y = countryRegions %>%
+          y = countryCode_region %>%
             dplyr::select(ISO3, REGION, continent), 
           by.x = 'iso3c', 
           by.y = 'ISO3', all.x = T) %>%
@@ -493,6 +523,12 @@ func_ggsave(fname = fname, w = 7, h = 4, save_png = T)
 ```
 
 
+```{r - City - clean data}
+
+# refer to `001a_city_geocoding_map.Rmd`
+```
+
+
 ```{r - region - map}
 region_count_sf <- region_count %>%
   merge(x= shp, y = ., by.x = 'iso_a3', by.y  = 'iso3c', all.x = T) 
@@ -507,7 +543,7 @@ pub_byregion_map <- region_count_sf %>%
   theme_nothing() +
   theme(legend.position = c(0.06, 0.4)) 
 
-# pub_byregion_map
+pub_byregion_map
 # f <- paste0('mini-review_paper_count_map_', today, '.png'); f
 # w_map = 6.4*2
 # h_map = 3.2*2
@@ -528,8 +564,8 @@ plot.with.inset <-
                                      legend.title = element_text(size = 9),
                                      legend.position = c(0.1, 0.3),
                                      legend.key.size = unit(0.8, "lines")), 
-            x = -0.17, y = .35, width = w_map, height = w_map/2) +
-  draw_label("A", x = 0.02, y=0.95, fontface = 'bold')
+            x = -0.2, y = .35, width = w_map, height = w_map/2) +
+  draw_label("", x = 0.02, y=0.95, fontface = 'bold')
 
 plot.with.inset
 
