@@ -1,0 +1,267 @@
+---
+title: "ssda_bri"
+author: "Yingjie"
+date: "11/20/2019"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+  Adapted from https://github.com/Yingjie4Science/SES_BRI/blob/main/code/02_BRI_dt_user_geocoding_pc2.Rmd
+
+#  Setup
+## Dirs and Packages
+```{r}
+# To clear your environment 
+# remove(list = ls())
+
+library(stringr)
+library(lubridate)
+library(ggrepel)  #`geom_label_repel`
+library(dplyr)
+library(tibble)
+
+## Visualizations
+library(ggplot2)
+library(cowplot)
+library(ggpubr)   ## ggarrange() multiple plots
+library(scales)   ## percent()
+library(data.table)  ## the efficient rbindlist in this package
+
+### map
+library(sf)
+library(rnaturalearth)
+```
+
+
+
+
+# Geocoding
+
+  - method-1: `geocoding`    ----- (+++++) --- free --- accurate++ - limit 2000  per day
+  - method-2: `tidygeocoder` ----- (+++)   --- free --- accurate+  - limit 10000 per run
+  - method-3: `geopy`        ----- (++)    --- free --- accurate-  - Not sure
+  - method-4: `geocoder`     ----- (-)
+  - method-5: `hereR`        ----- (--)
+  
+  
+  **Work flow**
+  - Since `tidygeocoder` is free, we use this first, and then `geocoding` by `ggmap`.  
+  
+  
+For more information, refer to 
+  - *02_BRI_dt_user_geocoding_TestCode.Rmd*
+  - https://github.com/LucasPuente/geocoding
+  - `ggmap` package includes the very handy `geocode()` function that allows you to access the Google Maps API without having to leave R. 
+
+
+### geocode1 - tidygeocoder
+
+  This might take a **LONG time** to complete ...
+  
+```{r - run}
+# if(!require(devtools)) install.packages("devtools")
+# devtools::install_github("jessecambon/tidygeocoder")
+library(tidygeocoder)
+
+
+f <- paste0('./data/dt.rds')
+dt <- readRDS(f)
+
+reg_city <- dt %>%
+  dplyr::select(1, City, Country) %>%
+  # dplyr::filter(!is.na(Country)) %>%
+  # dplyr::filter(!Country %in% c('m', 'NA', 'Global', 'Europe', 'all over the world')) %>%
+  # group_by(Country) %>%
+  # tally() %>%
+  func_clean_city(data = ., column_name = "City") %>%
+  as.data.frame()
+
+df_addr <- reg_city %>%
+  ## test
+  # dplyr::slice(1:10) %>%
+  expand_col_to_long(data = ., target_col = "City", sep_list = ';') %>%
+  as.data.frame()
+
+
+geocode1 <- df_addr %>%
+    tidygeocoder::geocode(
+      city = 'City', 
+      country = 'Country',
+      method = 'osm', ## cascade, osm
+      full_results = F, 
+      return_addresses = F, 
+      return_type = 'geographies') %>%
+      ### rename the new address name from geocoding
+      dplyr::rename(lon = long)
+
+
+# geocode1 <- df_addr %>%
+#   tidygeocoder::geocode_combine(
+#     queries = list(
+#       list(method = "osm"), 
+#       list(method = "google")),
+#     global_params = list(
+#       city = 'City', 
+#       country = 'Country'), 
+#     cascade = TRUE) %>%
+#   ### rename the new address name from geocoding
+#   dplyr::rename(addr_coded = address, lon = long)
+
+```
+
+
+```{r - data for next}
+### filter un-coded data, as input for google api -------------------------------
+df_addr2 <- geocode1 %>%
+  dplyr::filter(is.na(lat)|is.na(lon)) %>%
+  dplyr::select(1:ncol(df_addr)) %>%
+  ## remove cities that are NA
+  dplyr::filter(!is.na(City)) %>%
+  dplyr::mutate(addr = paste0(City, ', ', Country))
+
+```
+  
+  
+  
+### geocode2 - google ggmap
+```{r - run}
+
+### load the tools --------------------------------------------------------------------------------------
+## Have an account in the Google Developers Console. Load Google Map package in R 
+if(!require("ggmap")){ 
+  install.packages("ggmap",repos="http://cran.rstudio.com")
+  library(ggmap)
+} 
+
+
+### load your own api info
+source('./code/api_GoogleMap_Li.R')
+
+### Google API key -- (THIS IS confidential)
+api = API_GoogleMap_Li 
+
+# save api key
+register_google(key = api)
+# check if key is saved
+has_google_key()
+
+
+
+## Install key package helpers ---------------------------------------------------------------------------
+source("https://raw.githubusercontent.com/LucasPuente/geocoding/master/geocode_helpers.R")
+## Install modified version of the geocode function (that now includes the api_key parameter):
+source("https://raw.githubusercontent.com/LucasPuente/geocoding/master/modified_geocode.R")
+
+### a function that specifics exactly what you want to extract from the Google Maps API.
+geocode_apply <- function(x){
+    geocode(x, source = "google", output = "all", api_key = api)
+}
+
+
+## An efficient sapply() function. It will return a list that is as long as 
+##    the number of locations that were geocoded.
+## This will take a long time ----------------------------------------------------------------------------
+geocode_google <- sapply(df_addr2$addr, geocode_apply, simplify = F)
+
+```
+
+
+
+
+```{r - format result}
+length(geocode_google)
+nrow(df_addr2)
+
+## !! must use "geocode_results" here, as this is required in the imported functions bellow.
+geocode_results <- geocode_google
+
+## 1. remove any locations that have a status that isn’t “ok”.
+condition_a     <- sapply(geocode_results, function(x) x["status"]=="OK")
+geocode_results <- geocode_results[condition_a]
+
+
+## 2. If a location is particularly ambiguous, the Google Maps API will return any matching result. 
+##    Since you don’t know which one of these (if any) is the one the user’s actual location, 
+##    you’ll want to eliminate locations that don’t have exactly one match. 
+condition_b  <- lapply(geocode_results, lapply, length)
+condition_b2 <- sapply(condition_b, function(x) x["results"]=="1")
+geocode_results <- geocode_results[condition_b2]
+length(geocode_results) ## 1831
+
+
+## 3. Fix mis-formatted entries (a potential issue when simultaneously dealing with addresses from across the world)
+source("https://raw.githubusercontent.com/LucasPuente/geocoding/master/cleaning_geocoded_results.R")
+## Now that you’ve filtered out imprecise and misformatted results, you are ready to turn this list into a data frame. 
+results_b <- lapply(geocode_results, as.data.frame)
+# test <- results_b[2] %>% as.data.frame()
+# names(test)
+
+## 4. to simplify things, you should extract out only the columns you need to generate a map of this data.
+select_info <- c(
+  "results.formatted_address", "results.geometry.location")#, 
+  # "results.address_components.long_name.2",
+  # "results.address_components.short_name.2")
+
+results_c <- lapply(results_b, 
+                    function(x) subset(x, select= select_info))
+
+
+## 5. since the longitude and latitude data are contained in two different rows in the results.geometry.location column, you’ll need to slightly reshape the data frames you have just created to turn these two rows into one.
+results_d <- lapply(results_c, 
+                    function(x) data.frame(Location = x[1,"results.formatted_address"],
+                                           lat      = x[1,"results.geometry.location"],
+                                           lng      = x[2,"results.geometry.location"]))
+
+## 6. bind them together using the efficient rbindlist from the data.table package.
+library(data.table)
+results_e <- rbindlist(results_d)
+
+
+## 7. add in a column to document the user-specified location strings that were successfully geocoded.
+results_f <- results_e[, original_location:= names(results_d)] %>%
+  distinct(original_location, .keep_all = T)
+
+results_geocoded <- results_f
+
+
+## 8. bind the user info  ------------------------------------------------------------------------------
+geocode2 <- merge(
+  x = df_addr2, 
+  y = results_geocoded, 
+  by.x = 'addr', by.y = 'original_location', all.x = T) %>%
+  
+  ### rename the new address name from geocoding
+  dplyr::rename(lon = lng) %>%
+  dplyr::filter(!is.na(lat)) %>%
+  dplyr::mutate(geo_method = 'google') %>%
+  dplyr::select(names(geocode1)) %>%
+  as.data.frame()
+
+```
+
+
+
+### combine 2 coding
+```{r}
+names(geocode1)
+names(geocode2)
+
+geocoded <- rbind(
+  geocode1 %>% dplyr::filter(!is.na(lat)),
+  geocode2
+)
+
+
+## save data
+f <- paste0('./data/dt_city_geocoded.rds')
+saveRDS(object = geocoded, file = f)
+```
+
+
+
+
+
+
+
+
