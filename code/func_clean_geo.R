@@ -27,6 +27,7 @@ func_clean_country <- function(data, column_name = "Country") {
         T ~ !!sym(column_name))
     ) %>%
     dplyr::mutate(
+      !!column_name := str_squish(!!sym(column_name)),
       !!column_name := trimws(!!sym(column_name))) %>%
     as.data.frame()
   return(d)
@@ -37,10 +38,11 @@ func_clean_country <- function(data, column_name = "Country") {
 func_clean_city <- function(data, column_name = "City") {
   d <- data %>%
     dplyr::mutate(!!column_name := case_when(
-      !!sym(column_name) =='m' ~ 'multiple cities',
+      !!sym(column_name) %in% c('m', NA) ~ NA,
       T ~ !!sym(column_name))
       ) %>%
     dplyr::mutate(
+      !!column_name := str_squish(!!sym(column_name)),
       !!column_name := trimws(!!sym(column_name))) %>%
     as.data.frame()
   return(d)
