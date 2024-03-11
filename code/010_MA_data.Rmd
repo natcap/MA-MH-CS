@@ -95,6 +95,7 @@ df <- df_1 %>%
     "n_participants"  = "Total number of participants",
     "buffers"         = "Buffer zone size considered for nature exposure measurement",
     "buffers_unit"    = "Buffer zone size's unit",
+    'study_design'    = 'Study design',
     "City" = "City and state/province  in which the study conducted"
                   ) %>%
   dplyr::mutate(id = as.character(id),
@@ -118,6 +119,24 @@ df <- df_1 %>%
                 ) %>%
   as.data.frame()
 # names(df)
+
+
+## To add study design tags in Covidence
+df_design <- df %>%
+  dplyr::select(1:3, study_design) %>%
+  dplyr::mutate(
+    study_design = case_when(
+      study_design == 'Randomised controlled trial (RCT)' ~ 'RCT',
+      TRUE ~ study_design  ),
+    study_design = gsub(" controlled before-after study", "", study_design),
+    study_design = gsub(", e.g., ", "", study_design),
+    study_design = gsub("\\s*\\([^\\)]+\\)", "", study_design), # remove text within parenthesis 
+    study_design = trimws(study_design),
+    
+    id = paste0("#", id)
+    ) %>%
+  arrange(study_design)
+writexl::write_xlsx(x = df_design, path = paste0("./data/0301-MA-input/", "df_study_design.xlsx"))
 
 
 ## load data from google sheet 
