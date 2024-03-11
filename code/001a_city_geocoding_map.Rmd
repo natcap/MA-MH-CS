@@ -11,7 +11,7 @@ editor_options:
 
 #  Setup
 ## Dirs and Packages
-```{r}
+```{r include=FALSE}
 # To clear your environment 
 # remove(list = ls())
 
@@ -125,7 +125,7 @@ df_addr2 <- geocode1 %>%
   
   
 ### geocode2 - google ggmap
-```{r - run}
+```{r - run, include=FALSE}
 
 ### load the tools --------------------------------------------------------------------------------------
 ## Have an account in the Google Developers Console. Load Google Map package in R 
