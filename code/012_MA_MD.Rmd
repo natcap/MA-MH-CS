@@ -331,6 +331,16 @@ ggarrange(p1 + rremove("x.title"),
           heights = c(0.4, 1),
           align = "v")
 
+
+## pool all data together 
+ma_result_all %>%
+  dplyr::filter(subgroup == 'Overall') %>%
+  plot_effect_size_overall(data = ., color_var = 'tool', show_legend = T) +
+  theme(legend.position = c(0.9, 0.8)) +
+  guides(color = guide_legend(title="MH Tools"))
+
+
+
 fname <- paste0(dir.fig, 'plot_es_combined', today, postfix_subgroup, '.png'); fname
 func_ggsave(fname, w = 6, h = 5.5, save_png = T)
 ```

@@ -265,7 +265,8 @@ func_alluvial(data = df_exp_tool_flow, indicator_n_min = 5, width_my = width_my,
 
 
 ### only include the top 3 MH tools ------------------------------------------------------
-tool_selected <- c('GHQ-12', 'PANAS', 'POMS')
+tool_selected <- c('GHQ-12', 'PANAS', 'POMS', 
+                   'PSS', 'ROS', 'SF-12', 'SF-36', 'WEMWBS', 'WHO-5')
 # df_exp_tool_flow3 <- df_exp_tool_flow %>%
 #   dplyr::mutate(remove = ifelse(dimension == 'Tool' & !layers %in% tool_selected, 0, 1)) %>%
 #   dplyr::filter(remove != 0) %>% dplyr::select(-remove)
@@ -455,7 +456,7 @@ We need to put all data on models in rows.
 
 f <- paste0('./data/0301-MA-input/', 'sub_ghq.RData')
 f <- paste0('./data/0301-MA-input/', 'sub_panas.RData')
-f <- paste0('./data/0301-MA-input/', 'sub_poms.RData')
+# f <- paste0('./data/0301-MA-input/', 'sub_poms.RData')
 
 load(file = f)
 ```
@@ -780,8 +781,13 @@ if (mh_tool == 'GHQ-12') {
 
 
 ## how many unique papers?
-length(unique(exp_sub_mods_md$id)) %>% cat('\nFor', mh_tool, '\n In total, there are', ., 'unique papers.')
-nrow(exp_sub_mods_md) %>% cat('\n In total, there are', ., 'studies. \n\n')
+if (mh_tool != 'GHQ-12') {
+  length(unique(exp_sub_mods_md$id)) %>% cat('\nFor', mh_tool, '\n In total, there are', ., 'unique papers.')
+  nrow(exp_sub_mods_md) %>% cat('\n In total, there are', ., 'studies. \n\n')
+} else {
+  length(unique(exp_sub_mods_coef$id)) %>% cat('\nFor', mh_tool, '\n In total, there are', ., 'unique papers.')
+  nrow(exp_sub_mods_coef) %>% cat('\n In total, there are', ., 'studies. \n\n')
+}
 
 ## for PANAS -----------------------------------------
 # if (mh_tool == 'PANAS') {

@@ -270,6 +270,7 @@ ma_cor <-
     fixed = FALSE,
     random = TRUE,
     method.tau = "REML",
+    tau.common = TRUE,
     hakn = TRUE,
     title = "Health and Wellbeing")
 
