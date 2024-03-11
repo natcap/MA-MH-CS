@@ -8,6 +8,7 @@ source('./code/func_make_gradient_bg.R')
 
 plot_effect_size_overall <- function(
     data, 
+    color_var = NULL, ## e.g.,  color_var = "tool"
     xlab_name = "Effect Size", 
     subgroup = NULL, 
     dodge_value = 0.9,
@@ -26,20 +27,24 @@ plot_effect_size_overall <- function(
                   # I2_lab= paste0("I^{2} == ", I2)
                   )
   
+  ## if to include subgroup analysis
   if (is.null(subgroup)) { 
     p <- p %>%
       ggplot(., 
              aes(x = es.mean, 
-                 y = reorder(ind_sub, es.mean)))
+                 # y = reorder(ind_sub, desc(abs(es.mean))), # the largest effect on the top 
+                 y = reorder(ind_sub, desc(es.mean)), # the largest effect on the top 
+                 color = .data[[color_var]]))
   } else {
     p <- p %>%
       ggplot(., 
              aes(x = es.mean, 
+                 y = reorder(ind_sub, desc(es.mean)), # the largest effect on the top 
                  color = !!sym(subgroup),
-                 y = reorder(ind_sub, es.mean)))
+                 )) 
   }
   
-  
+  ## if to add gradient background color
   if(add_gradient_bg == T){
     p <- p + 
       annotation_custom(grob = gradient_bg, xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf)
@@ -48,8 +53,8 @@ plot_effect_size_overall <- function(
   }
   
   p <- p + 
-    geom_vline(xintercept = 0, linewidth = 0.4, color = "white") + # linetype = "dashed", 
-    ### SMD effect: small - moderate - large
+    geom_vline(xintercept = 0, linewidth = 0.4, color = "red", alpha = 0.2) + # linetype = "dashed", 
+    ### SMD effect threshold values: small - moderate - large
     geom_vline(xintercept = -0.2, linewidth = 0.4, linetype = "dotted", color = "grey70") + ## , linewidth = 0.5
     geom_vline(xintercept = -0.5, linewidth = 0.4, linetype = "dotted", color = "grey70") +
     geom_vline(xintercept = -0.8, linewidth = 0.4, linetype = "dotted", color = "grey70") +
