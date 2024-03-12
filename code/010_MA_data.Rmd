@@ -127,7 +127,8 @@ df <- df_1 %>%
     # effect_size_indices = gsub("=.*", "", effect_size_indices), ## remove everything after "="
     effect_size_indices = trimws(effect_size_indices),
     effect_size_indices = case_when(
-      effect_size_indices=="coefficients" & if_standardized == "No" ~ "Unstandardized coefficientss", 
+      effect_size_indices %in% c("coefficient", "coefficients") & if_standardized == "No" ~ "Unstandardized coefficients", 
+      effect_size_indices %in% c("coefficient", "coefficients") & if_standardized == "Yes"  ~ "Standardized coefficients", 
       TRUE ~ effect_size_indices)) %>%
   # dplyr::select(1:effect_size_indices, effect_size_name, everything()) %>% ## for data inspection 
   as.data.frame()
@@ -296,10 +297,11 @@ func_alluvial(data = df_exp_tool_flow, indicator_n_min = 5, width_my = width_my,
 
 
 
-```{r selected tools}
+```{r selected tools ---------------}
 ### only include the top 3 MH tools ------------------------------------------------------
 tool_selected <- c('GHQ-12', 'PANAS', 'POMS', 
-                   'PSS', 'ROS', 'SF-12', 'SF-36', 'WEMWBS', 'WHO-5')
+                   'SF-12', 'SF-36', 'WEMWBS', 'WHO-5',
+                   'PSS', 'ROS')
 # df_exp_tool_flow3 <- df_exp_tool_flow %>%
 #   dplyr::mutate(remove = ifelse(dimension == 'Tool' & !layers %in% tool_selected, 0, 1)) %>%
 #   dplyr::filter(remove != 0) %>% dplyr::select(-remove)
@@ -415,7 +417,7 @@ mh_tool           <- "GHQ-12"
 # exposure_type_i   <- 'L1 - neighborhood/residential exposure'
 exposure_type_i   <- c('Residential')
 
-effect_size_ind_i <- c('coefficients')
+effect_size_ind_i <- c('coefficient')
   
 
 ## test 
@@ -494,28 +496,74 @@ mh_tool <- c("SF-12", "SF-36")
 ##' It is likely this does not cover all the list in papers
 unique(df_exp_l$exposure_type)
 exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
-# effect_size_ind_i <- c('coefficients')
+effect_size_ind_i <- c('coefficient')
   
 
 ## test 
 df_test <- df %>%
   # dplyr::filter(id %in% exp_sub_id) %>%
   dplyr::filter(stringr::str_detect(Tools, paste(mh_tool, collapse = "|"))) %>%
-  # dplyr::mutate(effect_size_indices = `Effect size indices`) %>%
-  # func_clean_effectsize(data = .) %>%
-  # dplyr::select(effect_size_indices, `Effect size indices`) %>%
-  # dplyr::mutate(len = str_length(effect_size_indices)) %>%
-  # arrange(desc(len)) %>%
   as.data.frame()
 
 exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
 sub_sf <- exp_sub_df
 
 ## save for later use
-# f <- paste0('./data/0301-MA-input/', 'sub_ghq.RData')
-# save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
+f <- paste0('./data/0301-MA-input/', 'sub_coef_SF.rds')
+saveRDS(exp_sub_df, file = f)
 ```
 
+
+#### - WEMWBS, WHO-5
+```{r}
+mh_tool <- c('WEMWBS', 'WHO-5')
+
+##' filter exposure types based on this broader category
+##' It is likely this does not cover all the list in papers
+unique(df_exp_l$exposure_type)
+exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
+# effect_size_ind_i <- c('coefficient')
+  
+
+## test 
+df_test <- df %>%
+  # dplyr::filter(id %in% exp_sub_id) %>%
+  dplyr::filter(stringr::str_detect(Tools, paste(mh_tool, collapse = "|"))) %>%
+  as.data.frame()
+
+exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
+sub_ww <- exp_sub_df
+
+## save for later use
+f <- paste0('./data/0301-MA-input/', 'sub_coef_WW.rds')
+saveRDS(exp_sub_df, file = f)
+```
+
+
+#### - PSS, ROS
+```{r}
+mh_tool <- c('PSS', 'ROS')
+
+##' filter exposure types based on this broader category
+##' It is likely this does not cover all the list in papers
+unique(df_exp_l$exposure_type)
+exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
+# effect_size_ind_i <- c('coefficient')
+  
+
+## test 
+df_test <- df %>%
+  # dplyr::filter(id %in% exp_sub_id) %>%
+  dplyr::filter(stringr::str_detect(Tools, paste(mh_tool, collapse = "|"))) %>%
+  as.data.frame()
+
+exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
+sub_pss_ros <- exp_sub_df
+
+## save for later use
+f <- paste0('./data/0301-MA-input/', 'sub_coef_pss_ros.rds')
+saveRDS(exp_sub_df, file = f)
+```
 
 
 
@@ -581,8 +629,12 @@ rm(exp_sub_dfi)
 
 
 ```{r - clean names from table 1/2, include=FALSE}
+##' _o1:  table option 1
+##' _o2:  table option 2
+##' _cov: extracted data stored in Covidence 
+##' _gs:  extracted data stored in gsheet (the extended tables)
 
-## for data extracted in table option 1
+## for data extracted in table option 1 --------------------------------------------------
 exp_sub_l_o1_cov <- exp_sub_l %>%
   dplyr::select(id:Notes) %>%
   as.data.frame()
@@ -593,8 +645,11 @@ name1.1 <- name1[1: (which(name1 == 'MH_indicator')-1)]
 name1.2 <- name1[which(name1 == 'MH_indicator'):length(name1)] %>% paste0(., '_o1')
 names(exp_sub_l_o1_cov) <- c(name1.1, name1.2) 
 names(exp_sub_l_o1_cov)
+```
 
-### bind gsheet data to Covidence data
+
+```{r - bind Covidence and gsheet data}
+
 exp_sub_l_o1_gs <- df_2o1 %>%
   dplyr::select(-c("group_id", "Study ID", "Reviewer", "Reviewer_id")) %>%
   dplyr::mutate(id = gsub('#', '', id))
@@ -604,23 +659,34 @@ exp_sub_l_o1_gs <- df_2o1 %>%
 
 
 unique(exp_sub_l_o1_gs$id)
+
 exp_sub_l_o1_gs_add <- exp_sub_l_o1_cov %>%
+  ##' get the paper list that stored in gsheet
+  ##' use the id list to get general data (section 1-3) in the 
+  ##'   Covidence-based data, which has also been subset based on specific MH tools
   dplyr::filter(id %in% unique(exp_sub_l_o1_gs$id)) %>%
   dplyr::distinct(id, .keep_all = T) %>%
   dplyr::select(1:MH_ind_MinMax, -model_id) %>%
+  
+  ##' join the *Covidence data* to *gsheet-based table*
   right_join(., exp_sub_l_o1_gs, by = 'id') %>%
   dplyr::select(1:effect_size_indices, model_id, everything()) %>%
+  ##' if effect_size_indices is NA, this means these papers are not related to 
+  ##'   the MH tool we are working on 
+  dplyr::filter(!is.na(effect_size_indices)) %>%
   as.data.frame()
   
 
 names(exp_sub_l_o1_cov)
 names(exp_sub_l_o1_gs_add)
 names(exp_sub_l_o1_gs_add) <- names(exp_sub_l_o1_cov)
+
+## bind covidence and gsheet data
 exp_sub_l_o1 <- rbind(exp_sub_l_o1_cov, exp_sub_l_o1_gs_add)
 
 
 
-## for data extracted in table option 2
+## for data extracted in table option 2 --------------------------------------------------
 exp_sub_l_o2_cov <- exp_sub_l %>%
   dplyr::select(id, model_id, Notes:Notes.1) %>%
   dplyr::select(-Notes)
@@ -631,16 +697,18 @@ names(exp_sub_l_o2_cov) <- name2
 names(exp_sub_l_o2_cov)
 
 
-### bind gsheet data to Covidence data
 exp_sub_l_o2_gs <- df_2o2 %>%
   dplyr::select(-c("group_id", "Study ID", "Reviewer", "Reviewer_id"))
 names(exp_sub_l_o2_cov)
 names(exp_sub_l_o2_gs)
 names(exp_sub_l_o2_gs) <- names(exp_sub_l_o2_cov)
+
+## bind covidence and gsheet data
 exp_sub_l_o2 <- rbind(exp_sub_l_o2_cov, exp_sub_l_o2_gs)
 
 
-## combine data from table option 1 and option 2 -----------------------------------------
+
+## further combine data from the combined table option 1 and option 2 --------------------
 exp_sub_long <- exp_sub_l_o1 %>%
   left_join(., exp_sub_l_o2, by = c("id", "model_id")) %>%
   func_clean_indicatorsPro(data = ., column_name = 'Indicator') %>%
@@ -793,6 +861,11 @@ exp_sub_long_clean <- exp_sub_long %>%
                 everything()) %>%
   arrange(effect_size_indices, id, model_id) %>%
   as.data.frame()
+
+
+# names(exp_sub_long_clean)
+
+unique(exp_sub_long_clean$id) %>% length() %>% cat(., 'unique papers for', mh_tool, '\n')
 ```
 
 
