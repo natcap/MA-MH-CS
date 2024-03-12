@@ -27,7 +27,7 @@ func_clean_effectsize <- function(data) {
       
       
       effect_size_indices = gsub(" = correlation using logistic regression", "", effect_size_indices),
-      effect_size_indices = gsub("corr_linear|corr_logi|regression coefficient|Regression coefficient", "coefficients", effect_size_indices),
+      effect_size_indices = gsub("corr_linear|corr_logi|regression coefficient|Regression coefficient", "coefficient", effect_size_indices),
       
 
       ## final formatting 
