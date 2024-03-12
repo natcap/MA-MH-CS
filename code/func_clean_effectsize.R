@@ -22,7 +22,8 @@ func_clean_effectsize <- function(data) {
       effect_size_indices = gsub(" = Cohen’s d =\\/sd", "", effect_size_indices),
       
       effect_size_indices = gsub("Measure values before and after intervention", "Mean_pre_post", effect_size_indices),
-      effect_size_indices = gsub("raw values", "Mean_pre_post", effect_size_indices),
+      effect_size_indices = gsub("raw values|raw value|raw scores|raw score", "Raw values", effect_size_indices, ignore.case = T),
+      effect_size_indices = gsub("Incidence Rate Ratios|Incidence Rate Ratio", "IRR", effect_size_indices, ignore.case = T),
       
       
       effect_size_indices = gsub(" = correlation using logistic regression", "", effect_size_indices),
