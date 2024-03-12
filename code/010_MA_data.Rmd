@@ -11,10 +11,12 @@ editor_options:
 # Setup 
 ```{r, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-Sys.setenv(LANG = "en")
+
 
 ### To clear your environment
 remove(list = ls())
+
+Sys.setenv(LANG = "en")
 
 ## Load directories
 knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
@@ -98,11 +100,19 @@ df <- df_1 %>%
     'study_design'    = 'Study design',
     "City" = "City and state/province  in which the study conducted"
                   ) %>%
+  dplyr::rename_with(~ 'if_standardized', matches("Does this paper employ standardized")) %>%
+  dplyr::rename_with(~ 'average_age', matches("Average age ")) %>%
+  dplyr::rename_with(~ 'male_percent', matches("Percentage of \\*male\\* participants")) %>%
+  dplyr::rename_with(~ 'duration_value', matches("Duration of actual nature exposure")) %>%
+  dplyr::rename_with(~ 'duration_unit', matches("The unit of time")) %>%
   dplyr::mutate(id = as.character(id),
                 effect_size_indices = `Effect size indices`) %>%
+  dplyr::select(1:`Effect size indices`, effect_size_indices, everything()) %>%
   dplyr::mutate(
     # remove text within parenthesis 
     `Health outcome direction` = gsub("\\s*\\([^\\)]+\\)", "", `Health outcome direction`), 
+    if_standardized = gsub("\\s*\\([^\\)]+\\)", "", if_standardized), 
+    if_standardized = trimws(if_standardized),
     ) %>%
   
   func_clean_nature_type(data = ., column_name = 'nature_type') %>%
@@ -115,8 +125,11 @@ df <- df_1 %>%
   dplyr::mutate(
     effect_size_indices = gsub("Other: |Other:", "", effect_size_indices),
     # effect_size_indices = gsub("=.*", "", effect_size_indices), ## remove everything after "="
-    effect_size_indices = trimws(effect_size_indices)
-                ) %>%
+    effect_size_indices = trimws(effect_size_indices),
+    effect_size_indices = case_when(
+      effect_size_indices=="coefficients" & if_standardized == "No" ~ "Unstandardized coefficientss", 
+      TRUE ~ effect_size_indices)) %>%
+  # dplyr::select(1:effect_size_indices, effect_size_name, everything()) %>% ## for data inspection 
   as.data.frame()
 # names(df)
 
@@ -232,7 +245,6 @@ func_ggsave(fname = fname, w = 7, h = 4, save_png = T)
 ### stats
 
 ```{r exposure-tool}
-
 df_exp_l_toolL <- df_exp_l %>%
   dplyr::mutate(Tool = gsub("Other: ", "", Tools),
                 ##' remove text within parenthesis 
@@ -280,9 +292,11 @@ labele_small <- 5
 func_alluvial(data = df_exp_tool_flow, indicator_n_min = 5, width_my = width_my, w_p = 7,
               show_y_ticks = F, 
               filename.prefix = '', filename.postfix = 'tool_exposure')
+```
 
 
 
+```{r selected tools}
 ### only include the top 3 MH tools ------------------------------------------------------
 tool_selected <- c('GHQ-12', 'PANAS', 'POMS', 
                    'PSS', 'ROS', 'SF-12', 'SF-36', 'WEMWBS', 'WHO-5')
@@ -354,6 +368,45 @@ df_type_exp_tool %>% func_alluvial(
 ## Prepare data for MA
 
 ### subset one `exposure_type`
+```{r}
+tool_selected
+
+
+###' subset papers that examined `exposure_type_i`
+###' 
+
+func_exp_subset <- function(df, exposure_type_i, mh_tool) {
+  
+  ## get paper id
+  exp_sub <- df_exp_l %>%
+    dplyr::filter(exposure_type %in% exposure_type_i)
+  exp_sub_id <- unique(exp_sub$id)
+
+  ## subset based paper id
+  exp_sub_df <- df %>%
+    dplyr::filter(id %in% exp_sub_id) %>%
+    dplyr::filter(stringr::str_detect(Tools, paste(mh_tool, collapse = "|"))) %>%
+    
+    ## subset cols -----------------------------------------------------------------------
+    dplyr::select(id:`Effect size indices`, effect_size_indices, 
+                  everything()) %>%
+    dplyr::select(id:Country, 
+                  all_of(cols_keep), 
+                  n_participants, buffers, buffers_unit,
+                  effect_size_indices:ncol(.)) %>%
+    dplyr::select(-c(Title:meet_criteria)) %>%
+    dplyr::select(-contains(c('Please specify the tables', 'Additional comments'))) %>%
+    as.data.frame()
+  
+  return(exp_sub_df)
+  
+}
+
+
+# df_exp_tool_flow3 <- df_exp_l_toolL %>%
+#   dplyr::filter(Tool %in% tool_selected) %>% 
+```
+
 
 #### - GHQ-12
 ```{r}
@@ -373,38 +426,6 @@ effect_size_ind_i <- c('coefficients')
 #   dplyr::mutate(len = str_length(effect_size_indices)) %>%
 #   arrange(desc(len)) %>%
 #   as.data.frame()
-
-
-
-###' subset papers that examined `exposure_type_i`
-###' 
-
-func_exp_subset <- function(df, exposure_type_i, mh_tool) {
-  
-  ## get paper id
-  exp_sub <- df_exp_l %>%
-    dplyr::filter(exposure_type %in% exposure_type_i)
-  exp_sub_id <- unique(exp_sub$id)
-
-  ## subset based paper id
-  exp_sub_df <- df %>%
-    dplyr::filter(id %in% exp_sub_id) %>%
-    dplyr::filter(str_detect(Tools, mh_tool)) %>%
-    
-    ## subset cols -------------------------------------------------------------------------
-    dplyr::select(id:`Effect size indices`, effect_size_indices, 
-                  everything()) %>%
-    dplyr::select(id:Country, 
-                  all_of(cols_keep), 
-                  n_participants, buffers, buffers_unit,
-                  effect_size_indices:ncol(.)) %>%
-    dplyr::select(-c(Title:meet_criteria)) %>%
-    dplyr::select(-contains(c('Please specify the tables', 'Additional comments'))) %>%
-    as.data.frame()
-  
-  return(exp_sub_df)
-  
-}
 
 exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
 sub_ghq <- exp_sub_df
@@ -462,6 +483,38 @@ f <- paste0('./data/0301-MA-input/', 'sub_poms.RData')
 save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
 ```
 
+
+
+
+#### - SF-12/36
+```{r}
+mh_tool <- c("SF-12", "SF-36")
+
+##' filter exposure types based on this broader category
+##' It is likely this does not cover all the list in papers
+unique(df_exp_l$exposure_type)
+exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
+# effect_size_ind_i <- c('coefficients')
+  
+
+## test 
+df_test <- df %>%
+  # dplyr::filter(id %in% exp_sub_id) %>%
+  dplyr::filter(stringr::str_detect(Tools, paste(mh_tool, collapse = "|"))) %>%
+  # dplyr::mutate(effect_size_indices = `Effect size indices`) %>%
+  # func_clean_effectsize(data = .) %>%
+  # dplyr::select(effect_size_indices, `Effect size indices`) %>%
+  # dplyr::mutate(len = str_length(effect_size_indices)) %>%
+  # arrange(desc(len)) %>%
+  as.data.frame()
+
+exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
+sub_sf <- exp_sub_df
+
+## save for later use
+# f <- paste0('./data/0301-MA-input/', 'sub_ghq.RData')
+# save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
+```
 
 
 
