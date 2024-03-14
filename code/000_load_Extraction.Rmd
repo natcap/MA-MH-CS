@@ -86,7 +86,7 @@ csv <- "review_278532_20230616074045.csv"     # 2023-05-13, addressed 85 consens
 csv <- "review_278532_20230703085230.csv"
 csv <- "review_278532_20230920035224.csv"     # 2023-09-18, 30 consensus done for Extraction
 csv <- "review_278532_20240104172827.csv"     # 2023-12-11, 38 consensus done, add a new table to collect x, y info
-csv <- "review_278532_20240219055847.csv"
+csv <- "review_278532_20240312123617.csv"
 
 
 t <- basename(csv) %>% gsub('review_278532_', '', .) %>%
@@ -113,7 +113,7 @@ dd <- readr::read_csv(file = paste0(dir.raw, csv), show_col_types = F) %>%
 ```
 
 
-```{r - data in gsheet}
+```{r - data in gsheet, include=FALSE}
 library(googlesheets4)
 
 ### Use data from Google Doc
@@ -132,12 +132,13 @@ dd.gsheet2 <- googlesheets4::read_sheet(link, sheet = 'Effect size Data Table-op
 ```
 
   Clean data
-```{r - data in gsheet}
+```{r}
 
-## for table 1 ---------------------------------------------------------------------------
+## for table option 1 --------------------------------------------------------------------
 unique(dd.gsheet1$id) %>% length() %>%
   cat('\nThere are', ., 'unique papers.\n')
 
+## cleaned data
 dd.gsheet1c <- dd.gsheet1 %>%
   group_by(id) %>%
   dplyr::mutate(group_id = cur_group_id()) %>% 
@@ -163,10 +164,11 @@ dd.gsheet1c_w <- dd.gsheet1c %>%
 
 
 
-## for table 2 ---------------------------------------------------------------------------
+## for table option 2 --------------------------------------------------------------------
 unique(dd.gsheet2$id) %>% length() %>%
   cat('\nThere are', ., 'unique papers.\n')
 
+## cleaned data
 dd.gsheet2c <- dd.gsheet2 %>%
   group_by(id) %>%
   dplyr::mutate(group_id = cur_group_id()) %>% 
@@ -221,6 +223,8 @@ function_add_reviewer_id <- function(data) {
       Reviewer == 'Yuanyuan Mao'  ~ 2, 
       Reviewer == 'Zander Galli'  ~ 3, 
       Reviewer == 'Xin Lan'       ~ 4, 
+      Reviewer == 'Anders Rydstrom' ~ 4.5,
+      Reviewer == 'Renee Bertrand'  ~ 4.6,
       Reviewer == 'Emily Brieant' ~ 5, 
       Reviewer == 'Katherine Wu'  ~ 6,
       Reviewer == 'test person'   ~ 7,
@@ -263,7 +267,9 @@ df.gsheet1 <- dd.gsheet1c_w %>%
 
   ### Drop rows where these key columns are all NA using dplyr
   dplyr::filter(!is.na(Mean) | !is.na(SD) | !is.na(SE) | !is.na(CI_95_lower)) %>%
-  # dplyr::filter(!is.null(Mean) | !is.null(SD) | !is.null(SE) | !is.null(CI_95_lower)) %>%
+  
+  ### remove `Reviewer_id` that are likely wrong data
+  dplyr::filter(Reviewer_id != 999) %>%
   # dplyr::filter(!is.null(Mean) | !is.null(SD) | !is.null(SE) | !is.null(CI_95_lower)) %>%
   as.data.frame()
 
@@ -289,7 +295,8 @@ df.gsheet2 <- dd.gsheet2c_w %>%
   
   ### Drop rows where these key columns are all NA using dplyr
   dplyr::filter(!is.na(Control_Mean) | !is.na(Treatment_Mean)) %>%
-  
+  ### remove `Reviewer_id` that are likely wrong data
+  dplyr::filter(Reviewer_id != 999) %>%
   as.data.frame()
 
 
