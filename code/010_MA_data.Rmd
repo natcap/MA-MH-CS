@@ -574,11 +574,11 @@ We need to put all data on models in rows.
 
 ```{r - ? choose one as input}
 
-# f <- paste0('./data/0301-MA-input/', 'sub_ghq.RData')   # `mh_tool`, `exposure_type_i`, `effect_size_ind_i`, `exp_sub_df`
+f <- paste0('./data/0301-MA-input/', 'sub_ghq.RData')   # `mh_tool`, `exposure_type_i`, `effect_size_ind_i`, `exp_sub_df`
 # f <- paste0('./data/0301-MA-input/', 'sub_panas.RData')
 # f <- paste0('./data/0301-MA-input/', 'sub_poms.RData')
 
-# load(file = f)
+load(file = f)
 ```
 
 
@@ -682,7 +682,8 @@ names(exp_sub_l_o1_gs_add)
 names(exp_sub_l_o1_gs_add) <- names(exp_sub_l_o1_cov)
 
 ## bind covidence and gsheet data
-exp_sub_l_o1 <- rbind(exp_sub_l_o1_cov, exp_sub_l_o1_gs_add)
+exp_sub_l_o1 <- rbind(exp_sub_l_o1_cov, exp_sub_l_o1_gs_add) %>%
+  dplyr::mutate(model_id = as.character(model_id))
 
 
 
@@ -704,7 +705,8 @@ names(exp_sub_l_o2_gs)
 names(exp_sub_l_o2_gs) <- names(exp_sub_l_o2_cov)
 
 ## bind covidence and gsheet data
-exp_sub_l_o2 <- rbind(exp_sub_l_o2_cov, exp_sub_l_o2_gs)
+exp_sub_l_o2 <- rbind(exp_sub_l_o2_cov, exp_sub_l_o2_gs) %>%
+  dplyr::mutate(model_id = as.character(model_id))
 
 
 
@@ -848,6 +850,9 @@ exp_sub_long_clean <- exp_sub_long %>%
   ## fill blanks using data from the column `Tools`, but only if there is only one tool in `Tools`
   func_fill_c2_from_c1(data = ., to_column = "MH_tool_o1", from_column = 'Tools') %>%
   func_fill_c2_from_c1(data = ., to_column = "MH_tool_o2", from_column = 'Tools') %>%
+  dplyr::mutate(MH_tool_o1 = case_when(MH_tool_o1 == "GHQ" ~ "GHQ-12", TRUE ~ MH_tool_o1),
+                MH_tool_o2 = case_when(MH_tool_o2 == "GHQ" ~ "GHQ-12", TRUE ~ MH_tool_o2)) %>%
+  
   ## `func_fill_c2_from_c1()` is adapted from `func_fill_tool` (deleted) but can replace the latter
   func_fill_c2_from_c1(data = ., to_column = 'nature_type_o1', from_column = "nature_type") %>%
   func_fill_c2_from_c1(data = ., to_column = 'nature_type_o2', from_column = "nature_type") %>%
@@ -864,6 +869,8 @@ exp_sub_long_clean <- exp_sub_long %>%
 
 
 # names(exp_sub_long_clean)
+unique(exp_sub_long_clean$MH_tool_o1)
+unique(exp_sub_long_clean$MH_tool_o2)
 
 unique(exp_sub_long_clean$id) %>% length() %>% cat(., 'unique papers for', mh_tool, '\n')
 ```
@@ -884,7 +891,7 @@ unique(exp_sub_long_clean$effect_size_indices)
 exp_sub_mods <- exp_sub_long_clean %>%
   dplyr::mutate(
     mean = case_when(
-      effect_size_indices %in% c("Standardized coefficients", "Unstandardized coefficients") & 
+      effect_size_indices %in% c("Standardized coefficients", "Unstandardized coefficients", "coefficient") & 
         `Health outcome direction` == "Lower is better" ~ -mean,
       effect_size_indices == 'or' & 
         `Health outcome direction` == "Lower is better" ~ 1-(mean-1),

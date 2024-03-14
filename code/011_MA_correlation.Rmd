@@ -41,6 +41,7 @@ exp_sub_mods_cor <- exp_sub_mods_coef %>%
 
 dat <- escalc(data=exp_sub_mods_cor, measure="ZCOR", ri=mean, ni=n)
 study_label <- paste(dat$id, dat$model_id, sep = '_')
+MH_tool_o1_list <- unique(exp_sub_mods_cor$MH_tool_o1); MH_tool_o1_list
 
 res <- metafor::rma(yi, vi, data=dat, slab = study_label)
 res
@@ -108,7 +109,7 @@ summary(m.cor)
 # print(forest(res, addpred=TRUE, header=TRUE))
 xlim_custmize = c(-1,1)
 
-f <- paste0('./figures/', 'forest_cor_', paste(MH_tool_o1_list, collapse = "_"), '_all_', today ,'.png'); f
+f <- paste0('./figures/', 'forest_cor/', paste(MH_tool_o1_list, collapse = "_"), '_all_', today ,'.png'); f
 png(file=f, 
     # width = 3.5, height = 4, units = 'in', 
     width = 1000, height = 1000, units = "px", pointsize = 22,
@@ -207,7 +208,7 @@ height_cm <- nrow(exp_sub_mods_cor)/1.1
 f <- paste0('./figures/', 'forest_cor/', paste(MH_tool_o1_list, collapse = "_"), '_all_', today, '_meta.png'); f
 png(filename = f, 
     # width = 3000, height = 3000, units = "px", pointsize = 22,
-    width = width_forestPlot, height = height_cm/1.5, units = "cm", res = 100)
+    width = width_forestPlot, height = height_cm/1.5, units = "cm", res = 100);
   
   
 p_forest <- meta::forest(
@@ -296,7 +297,6 @@ if (add_subgroup_analysis == T) {
 
 
 ## extract the overall effect size data to a dataframe ===================================
-MH_tool_o1_list <- unique(ma_cor_data$MH_tool_o1); MH_tool_o1_list
 
 ma_result.overall <- data.frame()
 ma_result.subgroup <- data.frame()
