@@ -574,11 +574,11 @@ We need to put all data on models in rows.
 
 ```{r - ? choose one as input}
 
-f <- paste0('./data/0301-MA-input/', 'sub_ghq.RData')
-f <- paste0('./data/0301-MA-input/', 'sub_panas.RData')
+# f <- paste0('./data/0301-MA-input/', 'sub_ghq.RData')   # `mh_tool`, `exposure_type_i`, `effect_size_ind_i`, `exp_sub_df`
+# f <- paste0('./data/0301-MA-input/', 'sub_panas.RData')
 # f <- paste0('./data/0301-MA-input/', 'sub_poms.RData')
 
-load(file = f)
+# load(file = f)
 ```
 
 
@@ -869,69 +869,61 @@ unique(exp_sub_long_clean$id) %>% length() %>% cat(., 'unique papers for', mh_to
 ```
 
 
-### subset one `effect_size_indice`
+### subset `effect_size_indice`
 
 ```{r}
 
-if (length(effect_size_ind_i) == 1) {
-  if(effect_size_ind_i == 'coefficients') {
-    exp_sub_mods <- exp_sub_long_clean %>%
-      dplyr::mutate(
-       mean = case_when(
-          effect_size_indices == 'coefficients' & `Health outcome direction` == "Higher is better" ~ -mean,
-          effect_size_indices == 'or' & `Health outcome direction` == "Higher is better" ~ 1-(mean-1),
-          TRUE ~ mean
-          ),
-      )
-  } else {
-    exp_sub_mods <- exp_sub_long_clean
-  } 
-} else {
-  exp_sub_mods <- exp_sub_long_clean
-}
-  
+unique(exp_sub_long_clean$effect_size_indices)
 
 
-## 
-unique(exp_sub_mods$effect_size_indices)
+##' Unify the direction of MH outcomes, mainly apply to the following tools --------------
+##'   - GHQ-12 
+##'   - SF
+##'   - WHO-5
+##'   - WEMWBS
+exp_sub_mods <- exp_sub_long_clean %>%
+  dplyr::mutate(
+    mean = case_when(
+      effect_size_indices %in% c("Standardized coefficients", "Unstandardized coefficients") & 
+        `Health outcome direction` == "Lower is better" ~ -mean,
+      effect_size_indices == 'or' & 
+        `Health outcome direction` == "Lower is better" ~ 1-(mean-1),
+      TRUE ~ mean),
+    )
 
-if (mh_tool == 'GHQ-12') {
+
+##' further filter data based on MH tools ------------------------------------------------
+unique(exp_sub_long_clean$MH_tool_o1)
+unique(exp_sub_long_clean$MH_tool_o2)
+
+if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36")) ) {
   exp_sub_mods_coef <- exp_sub_mods %>%
     dplyr::filter((str_detect(pattern = paste(effect_size_ind_i, collapse = "|"), string = effect_size_indices))) %>%
+    dplyr::filter(MH_tool_o1 %in% mh_tool | MH_tool_o2 %in% mh_tool) %>%
     as.data.frame() 
   
-  } else if (mh_tool == 'PANAS') {
+  } else if ( all(mh_tool %in% c('PANAS', 'POMS', 'ROS', 'PSS')) ) {
     exp_sub_mods_md <- exp_sub_mods %>%
       dplyr::filter((str_detect(pattern = paste(effect_size_ind_i, collapse = "|"), string = effect_size_indices))) %>%
-      dplyr::filter(MH_tool_o1 == mh_tool | MH_tool_o2 == mh_tool) %>%
+      dplyr::filter(MH_tool_o1 %in% mh_tool | MH_tool_o2 %in% mh_tool) %>%
       func_clean_indicator_sub(data = ., column_name = 'MH_indicator_o1') %>%
       func_clean_indicator_sub(data = ., column_name = 'MH_indicator_o2') %>%
       as.data.frame()
     ## make a copy of the data
-    exp_sub_mods_panas <- exp_sub_mods_md
-    
-  } else if (mh_tool == 'POMS') {
-    exp_sub_mods_md <- exp_sub_mods %>%
-      dplyr::filter((str_detect(pattern = paste(effect_size_ind_i, collapse = "|"), string = effect_size_indices))) %>%
-      dplyr::filter(MH_tool_o1 == mh_tool | MH_tool_o2 == mh_tool) %>%
-      func_clean_indicator_sub(data = ., column_name = 'MH_indicator_o1') %>%
-      func_clean_indicator_sub(data = ., column_name = 'MH_indicator_o2') %>%
-      as.data.frame()
-    ## make a copy of the data
-    exp_sub_mods_poms <- exp_sub_mods_md
-      
+    # exp_sub_mods_panas <- exp_sub_mods_md
+
   } else {
     print('...')
   }
 
 
 ## how many unique papers?
-if (mh_tool != 'GHQ-12') {
-  length(unique(exp_sub_mods_md$id)) %>% cat('\nFor', mh_tool, '\n In total, there are', ., 'unique papers.')
-  nrow(exp_sub_mods_md) %>% cat('\n In total, there are', ., 'studies. \n\n')
-} else {
+if ( any(mh_tool %in% c('GHQ-12', "SF-12", "SF-36")) ) {
   length(unique(exp_sub_mods_coef$id)) %>% cat('\nFor', mh_tool, '\n In total, there are', ., 'unique papers.')
   nrow(exp_sub_mods_coef) %>% cat('\n In total, there are', ., 'studies. \n\n')
+} else {
+  length(unique(exp_sub_mods_md$id)) %>% cat('\nFor', mh_tool, '\n In total, there are', ., 'unique papers.')
+  nrow(exp_sub_mods_md) %>% cat('\n In total, there are', ., 'studies. \n\n')
 }
 
 ## for PANAS -----------------------------------------
