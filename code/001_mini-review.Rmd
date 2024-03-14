@@ -142,7 +142,8 @@ dt.tool.clean <- dt.tool.expand %>%
 
 
 ```{r - tools selected for MA, include=FALSE}
-## select the most used measures in literature for meta-analysis
+##' select the most used measures in literature for meta-analysis
+##' we will use this to create the paper list in gsheet "paperID_byTopTools"
 
 ### - 1. top 3
 tools_selected <- c('POMS', 'GHQ-12', 'PANAS')
@@ -161,8 +162,8 @@ dt.tool.expand.selected <- dt.tool.expand %>%
   dplyr::mutate(id = paste0('#', id)) %>%
   as.data.frame()
 
-f <- paste0('./data/0301-MA-input/', 'paperID_byTopTools2_', today, '.CSV'); f
-readr::write_csv(x = dt.tool.expand.selected, file = f)
+# f <- paste0('./data/0301-MA-input/', 'paperID_byTopTools_for_gsheet.CSV'); f
+# readr::write_csv(x = dt.tool.expand.selected, file = f)
 ```
 
 
