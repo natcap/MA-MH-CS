@@ -101,14 +101,14 @@ summary(m.cor)
 
 ### Forest plot
   https://wviechtb.github.io/metafor/reference/forest.rma.html
-```{r - forest}
+```{r - forest, warning=FALSE}
 ### forest plot --------------------------------------------------------------------------
 # forest(res)
 # forest(res, addpred=TRUE, header=TRUE)
 # print(forest(res, addpred=TRUE, header=TRUE))
 xlim_custmize = c(-1,1)
 
-f <- paste0('./figures/', 'plot_forest_cor_', today ,'.png'); f
+f <- paste0('./figures/', 'forest_cor_', paste(MH_tool_o1_list, collapse = "_"), '_all_', today ,'.png'); f
 png(file=f, 
     # width = 3.5, height = 4, units = 'in', 
     width = 1000, height = 1000, units = "px", pointsize = 22,
@@ -124,10 +124,10 @@ dev.off()
 
 
 
-forest(res, addpred=TRUE, header=TRUE, xlim=xlim_custmize, slab = study_label) # showweights=TRUE
-forest(res, addpred=TRUE, header=TRUE, xlim=xlim_custmize, atransf=exp)
-#' optional argument to specify a function to transform the x-axis labels and annotations (e.g., atransf=exp)
-forest(res, addpred=TRUE, header=TRUE, xlim=xlim_custmize, atransf=exp, at=log(c(.6, .8, 1, 1.2, 1.4)))
+# forest(res, addpred=TRUE, header=TRUE, xlim=xlim_custmize, slab = study_label) # showweights=TRUE
+# forest(res, addpred=TRUE, header=TRUE, xlim=xlim_custmize, atransf=exp)
+# #' optional argument to specify a function to transform the x-axis labels and annotations (e.g., atransf=exp)
+# forest(res, addpred=TRUE, header=TRUE, xlim=xlim_custmize, atransf=exp, at=log(c(.6, .8, 1, 1.2, 1.4)))
 ```
 
 
@@ -200,11 +200,11 @@ text(x = -16, y = -1.8, pos=4, cex=0.90, bquote(paste("Test for Subgroup Differe
 
 
 
-```{r - forest - meta}
+```{r - forest - meta - plot}
 width_forestPlot = 40
 height_cm <- nrow(exp_sub_mods_cor)/1.1
 
-f <- paste0('./figures/', 'plot_forest_cor_meta_', today, '3.png'); f
+f <- paste0('./figures/', 'forest_cor/', paste(MH_tool_o1_list, collapse = "_"), '_all_', today, '_meta.png'); f
 png(filename = f, 
     # width = 3000, height = 3000, units = "px", pointsize = 22,
     width = width_forestPlot, height = height_cm/1.5, units = "cm", res = 100)
@@ -237,7 +237,7 @@ dev.off()
 ```
 
 
-```{r - forest - meta - subgroup}
+```{r - forest - meta - subgroup data}
 add_subgroup_analysis <- T
 
 subgroup_select <- 'exposure_o1'
@@ -261,29 +261,31 @@ ma_cor_data <- exp_sub_mods_cor %>%
 unique(ma_cor_data$exposure_o1)
 unique(ma_cor_data$nature_type_o1)
 
-ma_cor <-
-  meta::metacor(
-    data = ma_cor_data,
-    cor = mean, 
-    n = n,
-    studlab = study_label,
-    fixed = FALSE,
-    random = TRUE,
-    method.tau = "REML",
-    tau.common = TRUE,
-    hakn = TRUE,
-    title = "Health and Wellbeing")
+ma_cor <- meta::metacor(
+  data = ma_cor_data,
+  cor = mean, 
+  n = n,
+  studlab = study_label,
+  fixed = FALSE,
+  random = TRUE,
+  method.tau = "REML",
+  tau.common = TRUE,
+  hakn = TRUE,
+  title = "Health and Wellbeing")
 
 
+h_just <- nrow(ma_cor_data)/50
 
 
-
-## update the MA by adding subgroup analysis
+## update the MA by adding subgroup analysis ---------------------------------------------
 if (add_subgroup_analysis == T) {
-  ma_cor <- update(ma_cor, subgroup = subgroup_selected)
+  ma_cor <- ma_cor %>%
+    # dplyr::mutate(subgroup_selected = !!sym(subgroup_select)) %>%
+    # dplyr::filter(!is.na(subgroup_selected)) %>%
+    update(., subgroup = subgroup_selected)
   
   test.effect.subgroup.random_para = TRUE
-  postfix_subgroup <- paste0("_subgroup_", subgroup_select)
+  postfix_subgroup <- paste0("subgroup_", subgroup_select)
   height_cm <- height_cm
     
   } else {
@@ -291,10 +293,89 @@ if (add_subgroup_analysis == T) {
     postfix_subgroup <- ""
   }
 
-f <- paste0('./figures/', 'plot_forest_cor_meta_',postfix_subgroup,  today, '.png'); f
+
+
+## extract the overall effect size data to a dataframe ===================================
+MH_tool_o1_list <- unique(ma_cor_data$MH_tool_o1); MH_tool_o1_list
+
+ma_result.overall <- data.frame()
+ma_result.subgroup <- data.frame()
+
+### 1. overall model data
+ma_cor.df <- data.frame(
+  tool = paste(MH_tool_o1_list, collapse = ";"), 
+  ind_sub = paste(MH_tool_o1_list, collapse = ";"),
+  subgroup = 'Overall',
+  es.mean = ma_cor$TE.random,
+  es.lower= ma_cor$lower.random,
+  es.upper= ma_cor$upper.random,
+  pval    = ma_cor$pval.random %>% round(., digits = 10),
+  I2      = as.numeric(ma_cor$I2) %>% round(., digits = 2),
+  p_subgroup = NA,
+  ## Number of studies
+  n_study = ma_cor$k.all,
+  ## Number of observations
+  n_obs   = sum(ma_cor$n, na.rm = T)
+) %>%
+  dplyr::mutate(
+    p.star  = case_when(pval < 0.001 ~ '***',
+                      pval < 0.01 ~ '**',
+                      pval < 0.05 ~ '*',
+                      T ~ ''),
+  )
+ma_result.overall <- rbind(ma_result.overall, ma_cor.df)
+
+### 2. subgroup model data
+if (add_subgroup_analysis == T) {
+  ma_cor.df.subgroup <- data.frame(
+    tool = paste(MH_tool_o1_list, collapse = ";"), 
+    ind_sub = paste(MH_tool_o1_list, collapse = ";"), 
+    subgroup = names(ma_cor$TE.common.w),
+    es.mean = as.numeric(ma_cor$TE.random.w),
+    es.lower= as.numeric(ma_cor$lower.random.w),
+    es.upper= as.numeric(ma_cor$upper.random.w),
+    pval    = as.numeric(ma_cor$pval.random.w) %>% round(., digits = 10),
+    I2      = as.numeric(ma_cor$I2.w) %>% round(., digits = 2),
+    p_subgroup = as.numeric(ma_cor$pval.Q.b.random) %>% round(., digits = 10),
+    ## Number of studies
+    n_study = as.numeric(ma_cor$k.all.w),
+    ## Number of observations
+    n_obs   = NA
+  ) %>%
+    dplyr::mutate(
+      p.star  = case_when(pval < 0.001 ~ '***',
+                        pval < 0.01 ~ '**',
+                        pval < 0.05 ~ '*',
+                        T ~ ''),
+    )
+  ma_result.subgroup <- rbind(ma_result.subgroup, ma_cor.df.subgroup)
+}
+
+
+## save MA result 
+cat('\n')
+fname <- paste0('./data/0302-MA-output/', 
+                paste('ma_result.overall_', paste(MH_tool_o1_list, collapse = "_"), '.rds', sep = '')); fname
+saveRDS(ma_result.overall, file = fname)
+
+if (add_subgroup_analysis == T) {
+  fname <- paste0('./data/0302-MA-output/', 
+                  paste('ma_result.subgroup', paste(MH_tool_o1_list, collapse = "_"), subgroup_select, '.rds', sep = '_')); fname
+  saveRDS(ma_result.subgroup, file = fname)
+}
+```
+
+
+
+### Plot effect size 
+
+```{r - forest - subgroup plot - detail}
+## forest plot ---------------------------------------------------------------------------
+
+f <- paste0('./figures/', 'forest_cor/', paste(MH_tool_o1_list, collapse = "_"), '_', postfix_subgroup, '_',  today, '_meta.png'); f
 png(filename = f, 
     # width = 3000, height = 3000, units = "px", pointsize = 22,
-    width = width_forestPlot/2, height = height_cm/2.2, units = "cm", res = 100)
+    width = width_forestPlot/2, height = height_cm*h_just, units = "cm", res = 100)
 
 p_forest <- meta::forest(
   ma_cor, 
@@ -324,12 +405,50 @@ dev.off()
 
 
 
+
+
+```{r - forest - subgroup plot - overall}
+source('./code/func_plot_ma.R')
+
+fs <- list.files(path = "./data/0302-MA-output/", 
+                 pattern = paste('^ma_result.*_', mh_tool, collapse = '|', sep = ''), 
+                 full.names = T);
+cat('\n This', length(fs), 'files will be included:\n')
+print(fs)
+
+ma_result_all <- data.frame()
+for (f in fs) {
+  d <- readRDS(file = f) 
+  ma_result_all <- rbind(ma_result_all, d)
+}
+
+## pool all data together 
+ma_result_all %>%
+  # dplyr::filter(subgroup == 'Overall') %>%
+  plot_effect_size_overall(data = ., color_var = 'subgroup', show_legend = T) +
+  theme(legend.position = c(0.3, 0.15)) +
+  guides(color = guide_legend(title="MH Tools"))
+
+
+
+fname <- paste0(dir.fig, 'es_combined_', paste(MH_tool_o1_list, collapse = "_"), '_', postfix_subgroup, '_',
+                today, '.png'); fname
+func_ggsave(fname, w = 6, h = 5.5, save_png = T)
+```
+
+
+
+
+  A drapery plot plots a confidence curve for each study, as well as for the average effect. The x-axis shows the effect size metric. 
+  The drapery plot is available in the R package meta
+
 ```{r}
 
-drapery(m.cor, 
-        labels = "id",
-        type = "pval", 
-        legend = FALSE)
+# meta::drapery(
+#   x = m.cor,
+#   labels = "id",
+#   type = "pval",
+#   legend = FALSE)
 ```
 
 
@@ -372,7 +491,7 @@ funnel(trimfill(res), # , side = 'left'
 #        # back="grey90",
 #        hlines=NULL, ylab="Precision (1/se)")
 
-f <- paste0('./figures/', 'plot_funnel_cor_', today, '.png'); f
+f <- paste0('./figures/', 'funnel_cor_', paste(MH_tool_o1_list, collapse = "_"), '_', today ,'.png'); f
 png(file=f, 
     width = 1000, height = 1000, units = "px", pointsize = 22) 
 funnel(
