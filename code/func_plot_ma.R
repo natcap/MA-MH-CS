@@ -1,6 +1,7 @@
 # Install and load necessary packages
 # install.packages(c("ggplot2", "metafor"))
 library(ggplot2)
+library(ggpubr)
 source('./code/func_ggsave.R')
 source('./code/func_make_gradient_bg.R')
 
@@ -34,6 +35,7 @@ plot_effect_size_overall <- function(
              aes(x = es.mean, 
                  # y = reorder(ind_sub, desc(abs(es.mean))), # the largest effect on the top 
                  y = reorder(ind_sub, desc(es.mean)), # the largest effect on the top 
+                 group = .data[[color_var]],
                  color = .data[[color_var]]))
   } else {
     p <- p %>%
