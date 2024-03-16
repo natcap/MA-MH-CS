@@ -49,7 +49,7 @@ save_plot <- T
 ## load data 
 fs <- list.files(path = "./data/0301-MA-input/", pattern = '^df_covidenceFull', full.names = T)
 fs
-f <- fs[length(fs)-1]; f
+f <- fs[length(fs)-2]; f
 df <- readRDS(file = f)
 
 df_bf <- df %>%

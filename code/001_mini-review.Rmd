@@ -237,7 +237,7 @@ rm(dt.ind_match_scale1, dt.ind_match_scale2)
 library(googlesheets4)
 link <- 'https://docs.google.com/spreadsheets/d/1Tu7m6A7LOplbuXaLTYV0X3JUs0AhX90T0v-TcFTW3Yg/edit?usp=sharing'
 
-### Footprint indicators
+### matching doc
 mat <- googlesheets4::read_sheet(link, sheet = 'MH_indicators_tools', skip = 1) 
 
 matching <- mat %>%

@@ -242,7 +242,7 @@ dev.off()
 add_subgroup_analysis <- T
 
 subgroup_select <- 'exposure_o1'
-subgroup_select <- 'nature_type_o1'
+subgroup_select <- 'nature_type_o1'; subgroup_label = 'Nature type'
 
 ma_cor_data <- exp_sub_mods_cor %>%
   dplyr::mutate(nature_type_o1 = str_to_sentence(nature_type_o1),
@@ -427,7 +427,7 @@ ma_result_all %>%
   # dplyr::filter(subgroup == 'Overall') %>%
   plot_effect_size_overall(data = ., color_var = 'subgroup', show_legend = T) +
   theme(legend.position = c(0.3, 0.15)) +
-  guides(color = guide_legend(title="MH Tools"))
+  guides(color = guide_legend(title=subgroup_label))
 
 
 

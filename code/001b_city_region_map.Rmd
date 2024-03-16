@@ -264,7 +264,7 @@ plot.with.inset <-
 plot.with.inset
 
 
-fname <- paste0(dir.fig, 'pub_byYearRegion_map.png'); fname
+fname <- paste0(dir.fig, 'pub_byYearRegion_map_', today, '.png'); fname
 func_ggsave(fname = fname, w = 6.5, h = 2.8, dpi = 600, save_png = T)
 ```
 
