@@ -21,24 +21,37 @@ plot_effect_size_overall <- function(
   
   gradient_bg <- make_gradient_bg(deg = 180, n = 500, cols = brewer.pal(9, "RdBu"))
   
-  p <- data %>%
+  data <- data %>%
     dplyr::mutate(n_lab = paste0('n = ', n_study),
                   # I2_lab= paste0("I^{2} ==", I2*100, '~', "\"%\""),
                   I2_lab=  sprintf("italic(I)^2 == %.2f", I2), 
                   # I2_lab= paste0("I^{2} == ", I2)
                   )
   
+  
   ## if to include subgroup analysis
   if (is.null(subgroup)) { 
-    p <- p %>%
-      ggplot(., 
-             aes(x = es.mean, 
-                 # y = reorder(ind_sub, desc(abs(es.mean))), # the largest effect on the top 
-                 y = reorder(ind_sub, desc(es.mean)), # the largest effect on the top 
-                 group = .data[[color_var]],
-                 color = .data[[color_var]]))
+    
+    if (!is.null(color_var)) {
+      p <- data %>%
+        ggplot(., 
+               aes(x = es.mean, 
+                   # y = reorder(ind_sub, desc(abs(es.mean))), # the largest effect on the top 
+                   y = reorder(ind_sub, desc(es.mean)), # the largest effect on the top 
+                   group = .data[[color_var]],
+                   color = .data[[color_var]]
+                   ))
+    } else {
+      p <- data %>%
+        ggplot(., 
+               aes(x = es.mean, 
+                   y = reorder(ind_sub, desc(es.mean)), # the largest effect on the top 
+               ))
+    }
+    
+    
   } else {
-    p <- p %>%
+    p <- data %>%
       ggplot(., 
              aes(x = es.mean, 
                  y = reorder(ind_sub, desc(es.mean)), # the largest effect on the top 
@@ -50,12 +63,14 @@ plot_effect_size_overall <- function(
   if(add_gradient_bg == T){
     p <- p + 
       annotation_custom(grob = gradient_bg, xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf)
+    vline_0_color = "white"
   } else {
     p <- p
+    vline_0_color = "grey50"
   }
   
   p <- p + 
-    geom_vline(xintercept = 0, linewidth = 0.4, color = "red", alpha = 0.2) + # linetype = "dashed", 
+    geom_vline(xintercept = 0, linewidth = 0.4, color = vline_0_color, alpha = 0.8) + # linetype = "dashed", 
     ### SMD effect threshold values: small - moderate - large
     geom_vline(xintercept = -0.2, linewidth = 0.4, linetype = "dotted", color = "grey70") + ## , linewidth = 0.5
     geom_vline(xintercept = -0.5, linewidth = 0.4, linetype = "dotted", color = "grey70") +
@@ -75,8 +90,13 @@ plot_effect_size_overall <- function(
     geom_text(aes(x = es.mean, label = round(es.mean, digits = 2)), vjust = 1.7, size = 2.5, position=position_dodge(dodge_value), show.legend = F) +
     geom_text(aes(x = es.mean, label = p.star), vjust = 0, size = 4, position=position_dodge(dodge_value), show.legend = F) +
     labs(title = "", x = xlab_name, y = "") +
-    guides(color = guide_legend(reverse=TRUE)) +
-    scale_color_brewer(palette = "Dark2", direction = -1)
+    guides(color = guide_legend(reverse=TRUE)) 
+  
+  if (!is.null(color_var)) {
+    p <- p + scale_color_brewer(palette = "Dark2", direction = -1) 
+  } else {
+    p <- p
+  }
   
   ## for non-subgroup analysis
   if (is.null(subgroup)) { 
