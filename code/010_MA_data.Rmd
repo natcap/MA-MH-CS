@@ -157,11 +157,15 @@ writexl::write_xlsx(x = df_design, path = paste0("./data/0301-MA-input/", "df_st
 df_2o1 <- readRDS(file = f2o1) %>%
   func_clean_nature_type(data = ., column_name = 'nature_type') %>%
   func_clean_nature_quant(data = ., column_name = 'nature_quantity') %>%
+  dplyr::mutate(id = gsub('#', '', id),
+                id = trimws(id)) %>%
   as.data.frame()
 
 df_2o2 <- readRDS(file = f2o2) %>%
   func_clean_nature_type(data = ., column_name = 'nature_type') %>%
   func_clean_nature_quant(data = ., column_name = 'nature_quantity') %>%
+  dplyr::mutate(id = gsub('#', '', id),
+                id = trimws(id)) %>%
   as.data.frame()
 ```
 
@@ -575,8 +579,8 @@ We need to put all data on models in rows.
 ```{r - ? choose one as input}
 
 f <- paste0('./data/0301-MA-input/', 'sub_ghq.RData')   # `mh_tool`, `exposure_type_i`, `effect_size_ind_i`, `exp_sub_df`
-# f <- paste0('./data/0301-MA-input/', 'sub_panas.RData')
-# f <- paste0('./data/0301-MA-input/', 'sub_poms.RData')
+f <- paste0('./data/0301-MA-input/', 'sub_panas.RData')
+f <- paste0('./data/0301-MA-input/', 'sub_poms.RData')
 
 load(file = f)
 ```
@@ -710,9 +714,36 @@ exp_sub_l_o2 <- rbind(exp_sub_l_o2_cov, exp_sub_l_o2_gs) %>%
 
 
 
-## further combine data from the combined table option 1 and option 2 --------------------
-exp_sub_long <- exp_sub_l_o1 %>%
-  left_join(., exp_sub_l_o2, by = c("id", "model_id")) %>%
+##' further combine data from the combined table option 1 and option 2 -------------------
+##' 
+##' 1. get the shared/common info, and unique columns for tables o1 and o2
+tab_o1 <- exp_sub_l_o1 %>%
+  dplyr::select(id, model_id, exp:ncol(.))
+tab_o2 <- exp_sub_l_o2
+
+non_shared_cols <- setdiff(names(tab_o1), 'id')
+
+tab_share <- exp_sub_l_o1 %>%
+  dplyr::select(-any_of(non_shared_cols)) %>%
+  dplyr::distinct_all()
+
+##' 
+##' 2. merge table option 1 and table option 2 as a combined table
+##'     given the number of models for option 1 could be different from the number of 
+##'     models for option 2, we need to use `full_join()`, 
+##'     instead of `left_join()`, in order to keep all the data
+##'     
+tab_comb <- full_join(tab_o1, tab_o2, 
+                      by = c("id", "model_id")) %>%
+  ##' 3. merge shared info to the combined table
+  left_join(., tab_share, 
+            by = c('id')) %>%
+  ## move the common data columns to the most left side 
+  dplyr::select(any_of(names(tab_share)), everything()) %>%
+  dplyr::select(id, model_id, everything())
+
+
+exp_sub_long <- tab_comb %>%
   func_clean_indicatorsPro(data = ., column_name = 'Indicator') %>%
   func_clean_indicatorsPro(data = ., column_name = 'MH_indicator_o1') %>%
   func_clean_indicatorsPro(data = ., column_name = 'MH_indicator_o2') %>%
@@ -859,7 +890,7 @@ exp_sub_long_clean <- exp_sub_long %>%
   func_fill_c2_from_c1(data = ., to_column = 'exposure_o1', from_column = "exposure_type") %>%
   func_fill_c2_from_c1(data = ., to_column = 'exposure_o2', from_column = "exposure_type") %>%
   
-  dplyr::select(id, study_label, 
+  dplyr::select(id, model_id, study_label, 
                 all_of(cols_keep), 
                 effect_size_indices:Mean, mean, 
                 # CI_95_lower, ci95lower, 
@@ -869,10 +900,10 @@ exp_sub_long_clean <- exp_sub_long %>%
 
 
 # names(exp_sub_long_clean)
-unique(exp_sub_long_clean$MH_tool_o1)
-unique(exp_sub_long_clean$MH_tool_o2)
+unique(exp_sub_long_clean$MH_tool_o1) %>% cat('\nUnique MH_tool_o1: ', ., '\n')
+unique(exp_sub_long_clean$MH_tool_o2) %>% cat('\nUnique MH_tool_o2: ', ., '\n')
 
-unique(exp_sub_long_clean$id) %>% length() %>% cat(., 'unique papers for', mh_tool, '\n')
+unique(exp_sub_long_clean$id) %>% length() %>% cat('\n', ., 'unique papers for', mh_tool, '\n')
 ```
 
 
@@ -900,8 +931,11 @@ exp_sub_mods <- exp_sub_long_clean %>%
 
 
 ##' further filter data based on MH tools ------------------------------------------------
-unique(exp_sub_long_clean$MH_tool_o1)
-unique(exp_sub_long_clean$MH_tool_o2)
+source('./code/func_clean_indicatorsPro.R')
+
+cat('\n\n')
+unique(exp_sub_long_clean$MH_tool_o1) %>% cat('unique MH_tool_o1:', ., '\n')
+unique(exp_sub_long_clean$MH_tool_o2) %>% cat('unique MH_tool_o2:', ., '\n')
 
 if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36")) ) {
   exp_sub_mods_coef <- exp_sub_mods %>%
@@ -913,8 +947,8 @@ if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36")) ) {
     exp_sub_mods_md <- exp_sub_mods %>%
       dplyr::filter((str_detect(pattern = paste(effect_size_ind_i, collapse = "|"), string = effect_size_indices))) %>%
       dplyr::filter(MH_tool_o1 %in% mh_tool | MH_tool_o2 %in% mh_tool) %>%
-      func_clean_indicator_sub(data = ., column_name = 'MH_indicator_o1') %>%
-      func_clean_indicator_sub(data = ., column_name = 'MH_indicator_o2') %>%
+      func_clean_indicator_level2(data = ., column_name = 'MH_indicator_o1') %>%
+      func_clean_indicator_level2(data = ., column_name = 'MH_indicator_o2') %>%
       as.data.frame()
     ## make a copy of the data
     # exp_sub_mods_panas <- exp_sub_mods_md
@@ -924,11 +958,25 @@ if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36")) ) {
   }
 
 
+##' inspect data for further cleaning 
+unique(exp_sub_mods_md$MH_indicator_o1) %>% sort()
+cat('\n');
+unique(exp_sub_mods_md$MH_indicator_o2) %>% sort();
+
+
 ## how many unique papers?
 if ( any(mh_tool %in% c('GHQ-12', "SF-12", "SF-36")) ) {
+  cat('\n\n')
+  unique(exp_sub_mods_coef$MH_tool_o1) %>% cat('unique MH_tool_o1:', ., '\n')
+  unique(exp_sub_mods_coef$MH_tool_o2) %>% cat('unique MH_tool_o2:', ., '\n')
+  
   length(unique(exp_sub_mods_coef$id)) %>% cat('\nFor', mh_tool, '\n In total, there are', ., 'unique papers.')
   nrow(exp_sub_mods_coef) %>% cat('\n In total, there are', ., 'studies. \n\n')
 } else {
+  cat('\n\n')
+  unique(exp_sub_mods_md$MH_tool_o1) %>% cat('unique MH_tool_o1:', ., '\n')
+  unique(exp_sub_mods_md$MH_tool_o2) %>% cat('unique MH_tool_o2:', ., '\n')
+  
   length(unique(exp_sub_mods_md$id)) %>% cat('\nFor', mh_tool, '\n In total, there are', ., 'unique papers.')
   nrow(exp_sub_mods_md) %>% cat('\n In total, there are', ., 'studies. \n\n')
 }
