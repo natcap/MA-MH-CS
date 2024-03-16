@@ -7,12 +7,17 @@ output: html_document
 
 
 
-```{r eval=FALSE, include=FALSE}
-install.packages("remotes")
-remotes::install_github("guido-s/meta", ref = "develop", build_vignettes = TRUE, force = TRUE)
+```{r include=FALSE}
+# install.packages("remotes")
+# remotes::install_github("guido-s/meta", ref = "develop", build_vignettes = TRUE, force = TRUE)
 
 library(meta)
 packageVersion("meta")
+
+
+##' an extra post fix for figure's version control
+vv <- ""
+vv <- "v2"
 ```
 
 
@@ -89,7 +94,7 @@ subgroup_select <- 'nature_type_o2'
 # subgroup_select <- '' ## age group
 # subgroup_select <- '' ## exposure duration 
 
-
+n_group <- unique(exp_sub_mods_md2[subgroup_select]) %>% nrow()
 
 ma_result.overall <- data.frame()
 ma_result.subgroup <- data.frame()
@@ -212,17 +217,17 @@ for (sub_ind_i in sub_indicator_selected) {
   if (add_subgroup_analysis == T) {
     test.effect.subgroup.random_para = TRUE
     postfix_subgroup <- paste0("_subgroup_", subgroup_select)
-    height_cm <- height_cm + 10
+    height_cm <- height_cm + 10 + n_group
   } else {
     test.effect.subgroup.random_para = F
     postfix_subgroup <- ""
   }
   
   
-  f <- paste0('./figures/', 'plot_forest_', mh_tool, '_', sub_ind_i, '_', today, 
+  f <- paste0('./figures/', 'forest_', mh_tool, '/', sub_ind_i, '_', 
               postfix_simplify, 
-              postfix_subgroup, 
-              '_.png'); f
+              postfix_subgroup, '_', today, 
+              '.png'); f
   png(filename = f, 
       # width = 3000, height = 3000, units = "px", pointsize = 22,
       width = width_forestPlot, height = height_cm/1.5, units = "cm", res = 100)
@@ -335,13 +340,15 @@ ggarrange(p1 + rremove("x.title"),
 ## pool all data together 
 ma_result_all %>%
   dplyr::filter(subgroup == 'Overall') %>%
-  plot_effect_size_overall(data = ., color_var = 'tool', show_legend = T) +
+  plot_effect_size_overall(data = ., 
+                           color_var = 'tool', 
+                           show_legend = T) +
   theme(legend.position = c(0.9, 0.8)) +
   guides(color = guide_legend(title="MH Tools"))
 
 
 
-fname <- paste0(dir.fig, 'plot_es_combined', today, postfix_subgroup, '.png'); fname
+fname <- paste0(dir.fig, 'es_combined_PANAS_POMS_', today, vv, '.png'); fname
 func_ggsave(fname, w = 6, h = 5.5, save_png = T)
 ```
 
@@ -447,7 +454,7 @@ p2 <- p2_tool %>%
 set.seed(1) # for reproducibility
 ls_element <- unique(c(element_list, element_list2))
 ls <- unique(c(colors_nature_type_included1, colors_nature_type_included2))
-n  <- length(ls)
+n  <- length(ls); n
 
 # generate 5 random points
 tbl <- tibble(x = runif(n),
@@ -485,8 +492,8 @@ p_comb <-
             common.legend = F, 
             align = "v")
 p_comb
-fname <- paste0(dir.fig, 'plot_es_combined_subgroup', today, postfix_subgroup, '_.png'); fname
-func_ggsave(fname, w = 6, h = 5.5+1, save_png = T)
+fname <- paste0(dir.fig, 'es_combined_PANAS_POMS', postfix_subgroup, '_', today, vv, '.png'); fname
+# func_ggsave(fname, w = 6, h = 5.5+1, save_png = T)
 
 
 library(grid)
