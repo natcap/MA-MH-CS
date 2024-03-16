@@ -1,5 +1,10 @@
 
 
+library(dplyr)
+library(stringr)
+library(conflicted)
+conflict_prefer_all(winner = "dplyr", quiet = T)
+
 func_clean_indicatorsPro <-  function(data, column_name) {
   d <- data %>%
     dplyr::mutate(
@@ -36,12 +41,12 @@ func_clean_indicatorsPro <-  function(data, column_name) {
 
 
 
-func_clean_indicator_sub <-  function(data, column_name, upper_case = T) {
+func_clean_indicator_level2 <-  function(data, column_name, upper_case = T) {
   d <- data %>%
     dplyr::mutate(
       
       !!column_name := gsub("\\s*\\([^\\)]+\\)", "", !!sym(column_name)), # remove text within parenthesis 
-      !!column_name := str_squish(!!sym(column_name)),
+      !!column_name := stringr::str_squish(!!sym(column_name)),
       
       !!column_name := gsub("–|\\/", "-", !!sym(column_name)),
       !!column_name := gsub("A\\-H|anger\\-hostility|anger and hostility", "Anger", !!sym(column_name), ignore.case = T),
@@ -52,6 +57,7 @@ func_clean_indicator_sub <-  function(data, column_name, upper_case = T) {
       !!column_name := gsub("tension\\-anxiety|tension and anxiety|Tension\\/Anxiety|T\\-A", "Tension Anxiety", !!sym(column_name), ignore.case = T),
       !!column_name := gsub("Tension Anxiety|Tension", "Anxiety", !!sym(column_name), ignore.case = T),
       !!column_name := gsub("total mood disturbance|Total Mood of Disturbance", "TMD", !!sym(column_name), ignore.case = T),
+      !!column_name := gsub("Mood Disturbance|Total POMS", "TMD", !!sym(column_name), ignore.case = T),
       !!column_name := gsub("vigor\\-activity|Vigour", "Vigor", !!sym(column_name), ignore.case = T),
       
       !!column_name := ifelse(!!sym(column_name) == "C", "Confusion", !!sym(column_name)),
@@ -68,7 +74,7 @@ func_clean_indicator_sub <-  function(data, column_name, upper_case = T) {
   
   
   if(upper_case == T) {
-    d <- data %>%
+    d <- d %>%
       dplyr::mutate(
         !!column_name := ifelse(
           !!sym(column_name) == toupper(!!sym(column_name)), !!sym(column_name),
