@@ -17,7 +17,7 @@ packageVersion("meta")
 
 ##' an extra post fix for figure's version control
 vv <- ""
-vv <- "v2"
+# vv <- "v2"
 ```
 
 
@@ -135,7 +135,7 @@ for (sub_ind_i in sub_indicator_selected) {
     method.tau = "REML",
     hakn = TRUE, 
     subgroup = NULL,  ## Grouping results by a variable, default = NULL
-    title = mh_tool)
+    title = paste(mh_tool, collapse = '; '))
   ma_smd
   
   ## update the MA by adding subgroup analysis
@@ -163,17 +163,18 @@ for (sub_ind_i in sub_indicator_selected) {
     n_obs   = ma_smd$n.e.pooled + ma_smd$n.c.pooled
   ) %>%
     dplyr::mutate(
-      p.star  = case_when(pval < 0.001 ~ '***',
-                        pval < 0.01 ~ '**',
-                        pval < 0.05 ~ '*',
-                        T ~ ''),
+      p.star  = case_when(
+        pval < 0.001 ~ '***',
+        pval < 0.01 ~ '**',
+        pval < 0.05 ~ '*',
+        T ~ ''),
     )
   ma_result.overall <- rbind(ma_result.overall, ma_smd.df)
   
   ### 2. subgroup model data
   if (add_subgroup_analysis == T) {
     ma_smd.df.subgroup <- data.frame(
-      tool = mh_tool, 
+      tool = paste(mh_tool, collapse = '; '), 
       ind_sub = sub_ind_i, 
       subgroup = names(ma_smd$TE.common.w),
       es.mean = as.numeric(ma_smd$TE.random.w),
@@ -188,10 +189,11 @@ for (sub_ind_i in sub_indicator_selected) {
       n_obs   = NA
     ) %>%
       dplyr::mutate(
-        p.star  = case_when(pval < 0.001 ~ '***',
-                          pval < 0.01 ~ '**',
-                          pval < 0.05 ~ '*',
-                          T ~ ''),
+        p.star  = case_when(
+          pval < 0.001 ~ '***',
+          pval < 0.01  ~ '**',
+          pval < 0.05  ~ '*',
+          T ~ ''),
       )
     ma_result.subgroup <- rbind(ma_result.subgroup, ma_smd.df.subgroup)
   }
@@ -288,11 +290,13 @@ for (sub_ind_i in sub_indicator_selected) {
 
 ## save MA result 
 cat('\n')
-fname <- paste0('./data/0302-MA-output/', paste('ma_result.overall', mh_tool, '.rds', sep = '_')); fname
+fname <- paste0('./data/0302-MA-output/', 
+                paste('ma_result.overall', paste(mh_tool, collapse = "_"), '.rds', sep = '_')); fname
 saveRDS(ma_result.overall, file = fname)
 
 if (add_subgroup_analysis == T) {
-  fname <- paste0('./data/0302-MA-output/', paste('ma_result.subgroup', mh_tool, subgroup_select, '.rds', sep = '_')); fname
+  fname <- paste0('./data/0302-MA-output/', 
+                  paste('ma_result.subgroup', paste(mh_tool, collapse = "_"), subgroup_select, '.rds', sep = '_')); fname
   saveRDS(ma_result.subgroup, file = fname)
 }
 ```
@@ -304,8 +308,10 @@ if (add_subgroup_analysis == T) {
 source('./code/func_plot_ma.R')
 library(ggpubr)
 
+mh_tool_list <- c('GHQ-12', 'PANAS', 'POMS', 'PSS', 'ROS', 'SF') 
+
 fs <- list.files(path = "./data/0302-MA-output/", 
-                 pattern = '^ma_result.*_PANAS|^ma_result.*_POMS', 
+                 pattern = paste('^ma_result.*_*', sep = ''), 
                  full.names = T);
 cat('\n This', length(fs), 'files will be included:\n')
 print(fs)
@@ -322,19 +328,19 @@ for (f in fs) {
 
 
 
-p1 <- ma_result_all %>%
-  dplyr::filter(subgroup == 'Overall', tool == 'PANAS') %>%
-  plot_effect_size_overall(data = ., subgroup = NULL)
-p2 <- ma_result_all %>%
-  dplyr::filter(subgroup == 'Overall', tool == 'POMS') %>%
-  plot_effect_size_overall(data = .)
-
-
-ggarrange(p1 + rremove("x.title"), 
-          p2, 
-          labels = c("A", "B"), ncol = 1, nrow = 2,
-          heights = c(0.4, 1),
-          align = "v")
+# p1 <- ma_result_all %>%
+#   dplyr::filter(subgroup == 'Overall', tool == 'PANAS') %>%
+#   plot_effect_size_overall(data = ., subgroup = NULL)
+# p2 <- ma_result_all %>%
+#   dplyr::filter(subgroup == 'Overall', tool == 'POMS') %>%
+#   plot_effect_size_overall(data = .)
+# 
+# 
+# ggarrange(p1 + rremove("x.title"), 
+#           p2, 
+#           labels = c("A", "B"), ncol = 1, nrow = 2,
+#           heights = c(0.4, 1),
+#           align = "v")
 
 
 ## pool all data together 
@@ -348,7 +354,7 @@ ma_result_all %>%
 
 
 
-fname <- paste0(dir.fig, 'es_combined_PANAS_POMS_', today, vv, '.png'); fname
+fname <- paste0(dir.fig, 'es_combined_tool', length(mh_tool_list), '_', today, vv, 'v2.png'); fname
 func_ggsave(fname, w = 6, h = 5.5, save_png = T)
 ```
 
@@ -492,7 +498,7 @@ p_comb <-
             common.legend = F, 
             align = "v")
 p_comb
-fname <- paste0(dir.fig, 'es_combined_PANAS_POMS', postfix_subgroup, '_', today, vv, '.png'); fname
+fname <- paste0(dir.fig, 'es_combined_tool', length(mh_tool_list), postfix_subgroup, '_', today, vv, '.png'); fname
 # func_ggsave(fname, w = 6, h = 5.5+1, save_png = T)
 
 
