@@ -373,7 +373,8 @@ df_type_exp_tool %>% func_alluvial(
 
 ## Prepare data for MA
 
-### subset one `exposure_type`
+### * Coefficient-focused outcomes ---
+
 ```{r}
 tool_selected
 
@@ -437,62 +438,13 @@ exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_too
 sub_ghq <- exp_sub_df
 
 ## save for later use
-f <- paste0('./data/0301-MA-input/', 'sub_ghq.RData')
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData'); f
 save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
 ```
 
 
 
-#### - PANAS
-```{r}
-mh_tool           <- "PANAS"
-
-# exposure_type_i   <- c('stay static in nature', 'physical activity in nature') 
-exposure_type_i   <- c('In nature - Static', 'In nature - PA')
- 
-
-## [] TBD - clean the data
-effect_size_ind_i <- c("Mean_pre_post")
-  
-
-
-exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
-sub_panas <- exp_sub_df
-
-## save for later use
-f <- paste0('./data/0301-MA-input/', 'sub_panas.RData')
-save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
-```
-
-
-
-#### - POMS
-```{r}
-mh_tool           <- "POMS"
-
-# exposure_type_i   <- c('stay static in nature', 'physical activity in nature') 
-exposure_type_i   <- c('In nature - Static', 'In nature - PA')
- 
-
-## [] TBD - clean the data
-effect_size_ind_i <- c(
-  "D",
-  "d",
-  "Mean_pre_post")
-  
-###' subset papers that examined `exposure_type_i`
-exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
-sub_poms <- exp_sub_df
-
-## save for later use
-f <- paste0('./data/0301-MA-input/', 'sub_poms.RData')
-save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
-```
-
-
-
-
-#### - SF-12/36
+#### - SF-12, SF-36
 ```{r}
 mh_tool <- c("SF-12", "SF-36")
 
@@ -513,7 +465,7 @@ exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_too
 sub_sf <- exp_sub_df
 
 ## save for later use
-f <- paste0('./data/0301-MA-input/', 'sub_coef_SF.rds')
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.rds')
 saveRDS(exp_sub_df, file = f)
 ```
 
@@ -539,14 +491,69 @@ exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_too
 sub_ww <- exp_sub_df
 
 ## save for later use
-f <- paste0('./data/0301-MA-input/', 'sub_coef_WW.rds')
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.rds')
 saveRDS(exp_sub_df, file = f)
 ```
 
 
-#### - PSS, ROS
+
+
+### * MD-focused outcomes ---
+
+#### - PANAS
 ```{r}
-mh_tool <- c('PSS', 'ROS')
+mh_tool           <- "PANAS"
+
+# exposure_type_i   <- c('stay static in nature', 'physical activity in nature') 
+exposure_type_i   <- c('In nature - Static', 'In nature - PA')
+ 
+
+## [] TBD - clean the data
+effect_size_ind_i <- c("Mean_pre_post")
+  
+
+
+exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
+sub_panas <- exp_sub_df
+
+## save for later use
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData')
+save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
+```
+
+
+
+#### - POMS
+```{r}
+mh_tool           <- "POMS"
+
+# exposure_type_i   <- c('stay static in nature', 'physical activity in nature') 
+exposure_type_i   <- c('In nature - Static', 'In nature - PA')
+ 
+
+## [] TBD - clean the data
+effect_size_ind_i <- c(
+  "D",
+  "d",
+  "Mean_pre_post")
+  
+###' subset papers that examined `exposure_type_i`
+exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
+sub_poms <- exp_sub_df
+
+## save for later use
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData')
+save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
+```
+
+
+
+
+
+
+#### - PSS
+```{r}
+mh_tool <- c('PSS')
 
 ##' filter exposure types based on this broader category
 ##' It is likely this does not cover all the list in papers
@@ -562,13 +569,38 @@ df_test <- df %>%
   as.data.frame()
 
 exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
-sub_pss_ros <- exp_sub_df
+sub_pss <- exp_sub_df
 
 ## save for later use
-f <- paste0('./data/0301-MA-input/', 'sub_coef_pss_ros.rds')
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.rds'); f
 saveRDS(exp_sub_df, file = f)
 ```
 
+
+#### - ROS
+```{r}
+mh_tool <- c('ROS')
+
+##' filter exposure types based on this broader category
+##' It is likely this does not cover all the list in papers
+unique(df_exp_l$exposure_type)
+exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
+# effect_size_ind_i <- c('coefficient')
+  
+
+## test 
+df_test <- df %>%
+  # dplyr::filter(id %in% exp_sub_id) %>%
+  dplyr::filter(stringr::str_detect(Tools, paste(mh_tool, collapse = "|"))) %>%
+  as.data.frame()
+
+exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
+sub_ros <- exp_sub_df
+
+## save for later use
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.rds'); f
+saveRDS(exp_sub_df, file = f)
+```
 
 
 ## Choose and load input data
@@ -578,11 +610,11 @@ We need to put all data on models in rows.
 
 ```{r - ? choose one as input}
 
-f <- paste0('./data/0301-MA-input/', 'sub_ghq.RData')   # `mh_tool`, `exposure_type_i`, `effect_size_ind_i`, `exp_sub_df`
-f <- paste0('./data/0301-MA-input/', 'sub_panas.RData')
-f <- paste0('./data/0301-MA-input/', 'sub_poms.RData')
-
-load(file = f)
+# f <- paste0('./data/0301-MA-input/', 'sub_ghq.RData')   # `mh_tool`, `exposure_type_i`, `effect_size_ind_i`, `exp_sub_df`
+# f <- paste0('./data/0301-MA-input/', 'sub_panas.RData')
+# f <- paste0('./data/0301-MA-input/', 'sub_poms.RData')
+# 
+# load(file = f)
 ```
 
 
@@ -910,7 +942,6 @@ unique(exp_sub_long_clean$id) %>% length() %>% cat('\n', ., 'unique papers for',
 ### subset `effect_size_indice`
 
 ```{r}
-
 unique(exp_sub_long_clean$effect_size_indices)
 
 
@@ -941,6 +972,8 @@ if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36")) ) {
   exp_sub_mods_coef <- exp_sub_mods %>%
     dplyr::filter((str_detect(pattern = paste(effect_size_ind_i, collapse = "|"), string = effect_size_indices))) %>%
     dplyr::filter(MH_tool_o1 %in% mh_tool | MH_tool_o2 %in% mh_tool) %>%
+    func_clean_indicator_level2(data = ., column_name = 'MH_indicator_o1') %>%
+    func_clean_indicator_level2(data = ., column_name = 'MH_indicator_o2') %>%
     as.data.frame() 
   
   } else if ( all(mh_tool %in% c('PANAS', 'POMS', 'ROS', 'PSS')) ) {
@@ -958,15 +991,21 @@ if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36")) ) {
   }
 
 
-##' inspect data for further cleaning 
-unique(exp_sub_mods_md$MH_indicator_o1) %>% sort()
-cat('\n');
-unique(exp_sub_mods_md$MH_indicator_o2) %>% sort();
 
 
-## how many unique papers?
+### print and double-check results =======================================================
 if ( any(mh_tool %in% c('GHQ-12', "SF-12", "SF-36")) ) {
   cat('\n\n')
+  
+  ##' inspect data for further cleaning 
+  unique(exp_sub_mods_coef$MH_indicator_o1) %>% sort() %>% 
+    paste(., collapse = '\t\n\t') %>%
+    cat('MH_indicator_o1:\n\t', ., '\n');
+  unique(exp_sub_mods_coef$MH_indicator_o2) %>% sort() %>% 
+    paste(., collapse = '\t\n\t') %>%
+    cat('MH_indicator_o2:\n\t', ., '\n\n');
+  
+  ## how many unique papers?
   unique(exp_sub_mods_coef$MH_tool_o1) %>% cat('unique MH_tool_o1:', ., '\n')
   unique(exp_sub_mods_coef$MH_tool_o2) %>% cat('unique MH_tool_o2:', ., '\n')
   
@@ -974,6 +1013,16 @@ if ( any(mh_tool %in% c('GHQ-12', "SF-12", "SF-36")) ) {
   nrow(exp_sub_mods_coef) %>% cat('\n In total, there are', ., 'studies. \n\n')
 } else {
   cat('\n\n')
+  
+  ##' inspect data for further cleaning --------------------------------------------------
+  unique(exp_sub_mods_md$MH_indicator_o1) %>% sort() %>% 
+    paste(., collapse = '\n') %>%
+    cat('MH_indicator_o1:\n\t', ., '\n\t');
+  unique(exp_sub_mods_md$MH_indicator_o2) %>% sort() %>% 
+    paste(., collapse = '\n') %>%
+    cat('MH_indicator_o2:\n\t', ., '\n\t');
+  
+  ## how many unique papers?
   unique(exp_sub_mods_md$MH_tool_o1) %>% cat('unique MH_tool_o1:', ., '\n')
   unique(exp_sub_mods_md$MH_tool_o2) %>% cat('unique MH_tool_o2:', ., '\n')
   
