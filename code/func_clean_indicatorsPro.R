@@ -60,6 +60,15 @@ func_clean_indicator_level2 <-  function(data, column_name, upper_case = T) {
       !!column_name := gsub("Mood Disturbance|Total POMS", "TMD", !!sym(column_name), ignore.case = T),
       !!column_name := gsub("vigor\\-activity|Vigour", "Vigor", !!sym(column_name), ignore.case = T),
       
+      ## for PSS
+      !!column_name := gsub("PSS|Percieved Stress|Perceived Stress|Overall Stress", "Stress", !!sym(column_name), ignore.case = T),
+      ## for ROS
+      !!column_name := gsub("Restorative Effects Outcome|ROS", "Restorative effect", !!sym(column_name), ignore.case = T),
+      
+      ## for SF
+      !!column_name := gsub(" in general", "", !!sym(column_name), ignore.case = T),
+      !!column_name := gsub("mental health|mental well\\-being|Mental Wellbeing|Psychological wellbeing", "Mental health", !!sym(column_name), ignore.case = T),
+      
       !!column_name := ifelse(!!sym(column_name) == "C", "Confusion", !!sym(column_name)),
       !!column_name := ifelse(!!sym(column_name) == "D", "Depression", !!sym(column_name)),
       !!column_name := ifelse(!!sym(column_name) == "F", "Fatigue", !!sym(column_name)),
