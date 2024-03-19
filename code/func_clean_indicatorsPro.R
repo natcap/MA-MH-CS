@@ -48,6 +48,7 @@ func_clean_indicator_level2 <-  function(data, column_name, upper_case = T) {
       !!column_name := gsub("\\s*\\([^\\)]+\\)", "", !!sym(column_name)), # remove text within parenthesis 
       !!column_name := stringr::str_squish(!!sym(column_name)),
       
+      ## for POMS
       !!column_name := gsub("–|\\/", "-", !!sym(column_name)),
       !!column_name := gsub("A\\-H|anger\\-hostility|anger and hostility", "Anger", !!sym(column_name), ignore.case = T),
       !!column_name := gsub("hostility", "Anger", !!sym(column_name), ignore.case = T),
@@ -59,6 +60,11 @@ func_clean_indicator_level2 <-  function(data, column_name, upper_case = T) {
       !!column_name := gsub("total mood disturbance|Total Mood of Disturbance", "TMD", !!sym(column_name), ignore.case = T),
       !!column_name := gsub("Mood Disturbance|Total POMS", "TMD", !!sym(column_name), ignore.case = T),
       !!column_name := gsub("vigor\\-activity|Vigour", "Vigor", !!sym(column_name), ignore.case = T),
+      
+      ## for GHQ-12
+      !!column_name := gsub("Minor ", "", !!sym(column_name), ignore.case = T),
+      !!column_name := gsub("Mental Disorder|Poor Mental Health", "Mental distress", !!sym(column_name), ignore.case = T),
+      !!column_name := gsub("Perceived Mental Health", "Mental health", !!sym(column_name), ignore.case = T),
       
       ## for PSS
       !!column_name := gsub("PSS|Percieved Stress|Perceived Stress|Overall Stress", "Stress", !!sym(column_name), ignore.case = T),
