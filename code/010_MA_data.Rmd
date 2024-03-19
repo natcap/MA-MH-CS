@@ -108,6 +108,8 @@ df <- df_1 %>%
   dplyr::mutate(id = as.character(id),
                 effect_size_indices = `Effect size indices`) %>%
   dplyr::select(1:`Effect size indices`, effect_size_indices, everything()) %>%
+  ## remove some columns 
+  dplyr::select(-matches("If No")) %>%
   dplyr::mutate(
     # remove text within parenthesis 
     `Health outcome direction` = gsub("\\s*\\([^\\)]+\\)", "", `Health outcome direction`), 
@@ -735,7 +737,10 @@ names(exp_sub_l_o2_cov)
 
 
 exp_sub_l_o2_gs <- df_2o2 %>%
-  dplyr::select(-c("group_id", "Study ID", "Reviewer", "Reviewer_id"))
+  dplyr::select(-c("group_id", "Study ID", "Reviewer", "Reviewer_id")) %>%
+  ## only include the selected `mh_tool`
+  dplyr::filter(id %in% unique(exp_sub_df$id)) %>%
+  as.data.frame()
 names(exp_sub_l_o2_cov)
 names(exp_sub_l_o2_gs)
 names(exp_sub_l_o2_gs) <- names(exp_sub_l_o2_cov)
@@ -952,13 +957,22 @@ unique(exp_sub_long_clean$effect_size_indices)
 ##'   - WEMWBS
 exp_sub_mods <- exp_sub_long_clean %>%
   dplyr::mutate(
+    MH_direction_o1 = as.numeric(MH_direction_o1),
+    MH_direction_o1 = case_when(
+      is.na(MH_direction_o1) & `Health outcome direction` == "Lower is better"  ~ -1, 
+      is.na(MH_direction_o1) & `Health outcome direction` == "Higher is better" ~ 1, 
+      TRUE ~ MH_direction_o1),
+    
+    ## change coefficient-related outcomes to positive direction 
     mean = case_when(
-      effect_size_indices %in% c("Standardized coefficients", "Unstandardized coefficients", "coefficient") & 
-        `Health outcome direction` == "Lower is better" ~ -mean,
-      effect_size_indices == 'or' & 
-        `Health outcome direction` == "Lower is better" ~ 1-(mean-1),
-      TRUE ~ mean),
-    )
+      effect_size_indices %in% c("Standardized coefficients", "Unstandardized coefficients", "coefficient") &
+        MH_direction_o1 == -1 ~ -mean,
+      effect_size_indices == 'or' &
+        MH_direction_o1 == -1 ~ 1-(mean-1),
+      TRUE ~ mean)
+    ) %>%
+  # dplyr::select(1:`Health outcome direction`, MH_direction_o1, everything()) %>%
+  as.data.frame()
 
 
 ##' further filter data based on MH tools ------------------------------------------------
@@ -1006,11 +1020,11 @@ if ( any(mh_tool %in% c('GHQ-12', "SF-12", "SF-36")) ) {
     cat('MH_indicator_o2:\n\t', ., '\n\n');
   
   ## how many unique papers?
+  length(unique(exp_sub_mods_coef$id)) %>% cat('\nFor', mh_tool, '------ \n In total, there are', ., 'unique papers.')
+  nrow(exp_sub_mods_coef) %>% cat('\n In total, there are', ., 'studies. \n\n')
+  ##' unique tools
   unique(exp_sub_mods_coef$MH_tool_o1) %>% cat('unique MH_tool_o1:', ., '\n')
   unique(exp_sub_mods_coef$MH_tool_o2) %>% cat('unique MH_tool_o2:', ., '\n')
-  
-  length(unique(exp_sub_mods_coef$id)) %>% cat('\nFor', mh_tool, '\n In total, there are', ., 'unique papers.')
-  nrow(exp_sub_mods_coef) %>% cat('\n In total, there are', ., 'studies. \n\n')
 } else {
   cat('\n\n')
   
@@ -1023,11 +1037,12 @@ if ( any(mh_tool %in% c('GHQ-12', "SF-12", "SF-36")) ) {
     cat('MH_indicator_o2:\n\t', ., '\n\t');
   
   ## how many unique papers?
+  length(unique(exp_sub_mods_md$id)) %>% cat('\nFor', mh_tool, '------ \n In total, there are', ., 'unique papers.')
+  nrow(exp_sub_mods_md) %>% cat('\n In total, there are', ., 'studies. \n\n')
+  
+  ##' unique tools 
   unique(exp_sub_mods_md$MH_tool_o1) %>% cat('unique MH_tool_o1:', ., '\n')
   unique(exp_sub_mods_md$MH_tool_o2) %>% cat('unique MH_tool_o2:', ., '\n')
-  
-  length(unique(exp_sub_mods_md$id)) %>% cat('\nFor', mh_tool, '\n In total, there are', ., 'unique papers.')
-  nrow(exp_sub_mods_md) %>% cat('\n In total, there are', ., 'studies. \n\n')
 }
 
 ## for PANAS -----------------------------------------
