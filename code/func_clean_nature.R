@@ -27,6 +27,19 @@ func_clean_nature_type <-  function(data, column_name, aggregate = F) {
       !!column_name := gsub("\\s*\\([^\\)]+\\)", "", !!sym(column_name)), # remove text within parenthesis 
       !!column_name := gsub("Other\\: | \\- General", "", !!sym(column_name)),
       !!column_name := gsub("\\*", "", !!sym(column_name)),
+      
+      !!column_name := gsub("bluespace", "Bluespace", !!sym(column_name), ignore.case = T),
+      !!column_name := case_when(
+        tolower(!!sym(column_name)) %in% tolower(c("Home/ courtyard garden", 
+                                                   'garden',
+                                                   'Greenspace-Garden',
+                                                   "Community private green space")) ~ "Greenspace - Garden", 
+        tolower(!!sym(column_name)) %in% tolower(c("Green view", 
+                                                   'greenspace', 
+                                                   'Greenspace use',
+                                                   'Neighbourhood greenness',
+                                                   'Views of nature')) ~ "Greenspace", 
+        TRUE ~ !!sym(column_name)),
 
       !!column_name := gsub(",", ";", !!sym(column_name)),
       !!column_name := trimws(!!sym(column_name)),

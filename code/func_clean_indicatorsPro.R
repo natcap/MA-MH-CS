@@ -55,6 +55,7 @@ func_clean_indicator_level2 <-  function(data, column_name, upper_case = T) {
       !!column_name := gsub("Confused|confusion\\-bewilderment", "Confusion", !!sym(column_name), ignore.case = T),
       !!column_name := gsub("depression-dejection|depression and dejection", "Depression", !!sym(column_name), ignore.case = T),
       !!column_name := gsub("fatigue\\-inertia|Mental Fatigue", "Fatigue", !!sym(column_name), ignore.case = T),
+      !!column_name := gsub("Self-Esteen", "Self-Esteem", !!sym(column_name), ignore.case = T),
       !!column_name := gsub("tension\\-anxiety|tension and anxiety|Tension\\/Anxiety|T\\-A", "Tension Anxiety", !!sym(column_name), ignore.case = T),
       !!column_name := gsub("Tension Anxiety|Tension", "Anxiety", !!sym(column_name), ignore.case = T),
       !!column_name := gsub("total mood disturbance|Total Mood of Disturbance", "TMD", !!sym(column_name), ignore.case = T),
@@ -64,7 +65,7 @@ func_clean_indicator_level2 <-  function(data, column_name, upper_case = T) {
       ## for GHQ-12
       !!column_name := gsub("Minor ", "", !!sym(column_name), ignore.case = T),
       !!column_name := gsub("Mental Disorder|Poor Mental Health", "Mental distress", !!sym(column_name), ignore.case = T),
-      !!column_name := gsub("Perceived Mental Health", "Mental health", !!sym(column_name), ignore.case = T),
+      !!column_name := gsub("Perceived Mental Health|Positive Mental Health", "Mental health", !!sym(column_name), ignore.case = T),
       
       ## for PSS
       !!column_name := gsub("PSS|Percieved Stress|Perceived Stress|Overall Stress", "Stress", !!sym(column_name), ignore.case = T),
@@ -73,7 +74,10 @@ func_clean_indicator_level2 <-  function(data, column_name, upper_case = T) {
       
       ## for SF
       !!column_name := gsub(" in general", "", !!sym(column_name), ignore.case = T),
-      !!column_name := gsub("mental health|mental well\\-being|Mental Wellbeing|Psychological wellbeing", "Mental health", !!sym(column_name), ignore.case = T),
+      !!column_name := case_when(
+        tolower(!!sym(column_name)) %in% tolower(c("Wellbeing", "Well-Being")) ~ "Mental Wellbeing", 
+        TRUE ~ !!sym(column_name)),
+      !!column_name := gsub("mental health|mental well\\-being|Mental Wellbeing|Psychological wellbeing|Psychological Well-Being", "Mental health", !!sym(column_name), ignore.case = T),
       
       !!column_name := ifelse(!!sym(column_name) == "C", "Confusion", !!sym(column_name)),
       !!column_name := ifelse(!!sym(column_name) == "D", "Depression", !!sym(column_name)),
