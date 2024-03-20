@@ -472,9 +472,34 @@ saveRDS(exp_sub_df, file = f)
 ```
 
 
-#### - WEMWBS, WHO-5
+#### - WEMWBS
 ```{r}
-mh_tool <- c('WEMWBS', 'WHO-5')
+mh_tool <- c('WEMWBS')
+
+##' filter exposure types based on this broader category
+##' It is likely this does not cover all the list in papers
+unique(df_exp_l$exposure_type)
+exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
+# effect_size_ind_i <- c('coefficient')
+  
+
+## test 
+df_test <- df %>%
+  # dplyr::filter(id %in% exp_sub_id) %>%
+  dplyr::filter(stringr::str_detect(Tools, paste(mh_tool, collapse = "|"))) %>%
+  as.data.frame()
+
+exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
+sub_WEMWBS <- exp_sub_df
+
+## save for later use
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.rds'); f
+saveRDS(exp_sub_df, file = f)
+```
+
+#### - WHO-5
+```{r}
+mh_tool <- c('WHO-5')
 
 ##' filter exposure types based on this broader category
 ##' It is likely this does not cover all the list in papers
@@ -493,11 +518,9 @@ exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_too
 sub_ww <- exp_sub_df
 
 ## save for later use
-f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.rds')
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.rds'); f
 saveRDS(exp_sub_df, file = f)
 ```
-
-
 
 
 ### * MD-focused outcomes ---
@@ -787,6 +810,9 @@ exp_sub_long <- tab_comb %>%
   func_clean_buffer(data = ., column_name = 'buffer_o1') %>%
   func_clean_buffer(data = ., column_name = 'buffer_o2') %>%
   
+  func_clean_tools(data = ., column_name = 'MH_tool_o1') %>%
+  func_clean_tools(data = ., column_name = 'MH_tool_o2') %>%
+  
   func_clean_exposure(data = ., column_name = 'exposure_o1') %>%
   func_clean_exposure(data = ., column_name = 'exposure_o2') %>%
   
@@ -982,7 +1008,7 @@ cat('\n\n')
 unique(exp_sub_long_clean$MH_tool_o1) %>% cat('unique MH_tool_o1:', ., '\n')
 unique(exp_sub_long_clean$MH_tool_o2) %>% cat('unique MH_tool_o2:', ., '\n')
 
-if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36")) ) {
+if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5')) ) {
   exp_sub_mods_coef <- exp_sub_mods %>%
     dplyr::filter((str_detect(pattern = paste(effect_size_ind_i, collapse = "|"), string = effect_size_indices))) %>%
     dplyr::filter(MH_tool_o1 %in% mh_tool | MH_tool_o2 %in% mh_tool) %>%
@@ -1003,60 +1029,37 @@ if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36")) ) {
   } else {
     print('...')
   }
+```
 
 
 
-
+```{r - print & check}
 ### print and double-check results =======================================================
-if ( any(mh_tool %in% c('GHQ-12', "SF-12", "SF-36")) ) {
-  cat('\n\n')
-  
-  ##' inspect data for further cleaning 
-  unique(exp_sub_mods_coef$MH_indicator_o1) %>% sort() %>% 
-    paste(., collapse = '\t\n\t') %>%
-    cat('MH_indicator_o1:\n\t', ., '\n');
-  unique(exp_sub_mods_coef$MH_indicator_o2) %>% sort() %>% 
-    paste(., collapse = '\t\n\t') %>%
-    cat('MH_indicator_o2:\n\t', ., '\n\n');
-  
-  ## how many unique papers?
-  length(unique(exp_sub_mods_coef$id)) %>% cat('\nFor', mh_tool, '------ \n In total, there are', ., 'unique papers.')
-  nrow(exp_sub_mods_coef) %>% cat('\n In total, there are', ., 'studies. \n\n')
-  ##' unique tools
-  unique(exp_sub_mods_coef$MH_tool_o1) %>% cat('unique MH_tool_o1:', ., '\n')
-  unique(exp_sub_mods_coef$MH_tool_o2) %>% cat('unique MH_tool_o2:', ., '\n')
+if ( any(mh_tool %in% c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5')) ) {
+  exp_sub_mods_print <- exp_sub_mods_coef
 } else {
-  cat('\n\n')
-  
-  ##' inspect data for further cleaning --------------------------------------------------
-  unique(exp_sub_mods_md$MH_indicator_o1) %>% sort() %>% 
-    paste(., collapse = '\n') %>%
-    cat('MH_indicator_o1:\n\t', ., '\n\t');
-  unique(exp_sub_mods_md$MH_indicator_o2) %>% sort() %>% 
-    paste(., collapse = '\n') %>%
-    cat('MH_indicator_o2:\n\t', ., '\n\t');
-  
-  ## how many unique papers?
-  length(unique(exp_sub_mods_md$id)) %>% cat('\nFor', mh_tool, '------ \n In total, there are', ., 'unique papers.')
-  nrow(exp_sub_mods_md) %>% cat('\n In total, there are', ., 'studies. \n\n')
-  
-  ##' unique tools 
-  unique(exp_sub_mods_md$MH_tool_o1) %>% cat('unique MH_tool_o1:', ., '\n')
-  unique(exp_sub_mods_md$MH_tool_o2) %>% cat('unique MH_tool_o2:', ., '\n')
+  exp_sub_mods_print <- exp_sub_mods_md
 }
 
-## for PANAS -----------------------------------------
-# if (mh_tool == 'PANAS') {
-#   unique(exp_sub_mods_panas$effect_size_indices)
-#   
-#   unique(exp_sub_mods_panas$Tools) 
-#   unique(exp_sub_mods_panas$MH_tool_o1)
-#   unique(exp_sub_mods_panas$MH_tool_o2) 
-#   
-#   unique(exp_sub_mods_panas$MH_indicator_o1)
-#   unique(exp_sub_mods_panas$MH_indicator_o2)
-# }
+## how many unique papers?
+length(unique(exp_sub_mods_print$id)) %>% cat('\nFor', mh_tool, '------ \n In total, there are', ., 'unique papers.')
+nrow(exp_sub_mods_print) %>% cat('\n In total, there are', ., 'studies. \n\n')
 
+##' unique tools 
+unique(exp_sub_mods_print$MH_tool_o1) %>% cat('unique MH_tool_o1:', ., '\n')
+unique(exp_sub_mods_print$MH_tool_o2) %>% cat('unique MH_tool_o2:', ., '\n\n')
+
+##' inspect data for further cleaning --------------------------------------------------
+unique(exp_sub_mods_print$MH_indicator_o1) %>% sort() %>% 
+  paste(., collapse = '\n\t', sep = '') %>%
+  cat('MH_indicator_o1:\n\t', ., '\n\n');
+unique(exp_sub_mods_print$MH_indicator_o2) %>% sort() %>% 
+  paste(., collapse = '\n\t', sep = '') %>%
+  cat('MH_indicator_o2:\n\t', ., '\n\n');
+
+
+unique(exp_sub_mods_print$nature_type_o1) %>% sort()
+unique(exp_sub_mods_print$nature_type_o2) %>% sort()
 ```
   
 # Meta-analysis
