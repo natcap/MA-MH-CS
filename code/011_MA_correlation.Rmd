@@ -33,7 +33,7 @@ The options for the measure argument are then:
 # load the metafor package
 library(metafor)
 
-## [] need to fix data that are out of range later ... 
+## [] need to fix data that are out of range later ................................... 
 exp_sub_mods_cor <- exp_sub_mods_coef %>%
   dplyr::filter(!is.na(mean)) %>%
   dplyr::filter(mean <=1 & mean >=-0.6)
@@ -208,7 +208,7 @@ height_cm <- nrow(exp_sub_mods_cor)/1.1
 f <- paste0('./figures/', 'forest_cor/', paste(MH_tool_o1_list, collapse = "_"), '_all_', today, '_meta.png'); f
 png(filename = f, 
     # width = 3000, height = 3000, units = "px", pointsize = 22,
-    width = width_forestPlot, height = height_cm/1.5, units = "cm", res = 100);
+    width = width_forestPlot, height = height_cm, units = "cm", res = 100);
   
   
 p_forest <- meta::forest(
@@ -245,16 +245,14 @@ subgroup_select <- 'exposure_o1'
 subgroup_select <- 'nature_type_o1'; subgroup_label = 'Nature type'
 
 ma_cor_data <- exp_sub_mods_cor %>%
-  dplyr::mutate(nature_type_o1 = str_to_sentence(nature_type_o1),
-                nature_type_o1 = case_when(
-                  nature_type_o1 %in% c("Other natural space/element", 'Garden', 
-                                        "Green view", "Views of nature",
-                                        "Greenspace - forest/tree", "Neighbourhood greenness" ,
-                                        "Public natural spaces",
-                                        "Greenspace use") ~ "Greenspace",
-                  nature_type_o1 == "Home/ courtyard garden" ~ "Greenspace",
-                  nature_type_o1 == "Community private green space" ~ "Greenspace",
-                  T ~ nature_type_o1
+  dplyr::mutate(
+    ##' further clean the nature types ---- ??? need to double-check original paper to
+    ##'   correct these classes 
+    nature_type_o1 = case_when(
+      str_to_sentence(nature_type_o1) %in% c(
+        "Other natural space/element", 
+        "Public natural spaces") ~ "Greenspace",
+      T ~ nature_type_o1
                 )) %>%
   dplyr::filter(!is.na(exposure_o1)) %>%
   dplyr::mutate(subgroup_selected = !!sym(subgroup_select)) 
@@ -276,7 +274,7 @@ ma_cor <- meta::metacor(
 
 
 h_just <- nrow(ma_cor_data)/50
-
+h_just <- if_else(h_just>1, h_just, 2)
 
 ## update the MA by adding subgroup analysis ---------------------------------------------
 if (add_subgroup_analysis == T) {
@@ -301,7 +299,7 @@ if (add_subgroup_analysis == T) {
 ma_result.overall <- data.frame()
 ma_result.subgroup <- data.frame()
 
-### 1. overall model data
+### 1. overall model data ----------------------------------------------------------------
 ma_cor.df <- data.frame(
   tool = paste(MH_tool_o1_list, collapse = ";"), 
   ind_sub = paste(MH_tool_o1_list, collapse = ";"),
@@ -325,7 +323,7 @@ ma_cor.df <- data.frame(
   )
 ma_result.overall <- rbind(ma_result.overall, ma_cor.df)
 
-### 2. subgroup model data
+### 2. subgroup model data ---------------------------------------------------------------
 if (add_subgroup_analysis == T) {
   ma_cor.df.subgroup <- data.frame(
     tool = paste(MH_tool_o1_list, collapse = ";"), 
@@ -367,7 +365,7 @@ if (add_subgroup_analysis == T) {
 
 
 
-### Plot effect size 
+### Plot by subgroup 
 
 ```{r - forest - subgroup plot - detail}
 ## forest plot ---------------------------------------------------------------------------
@@ -409,6 +407,7 @@ dev.off()
 
 ```{r - forest - subgroup plot - overall}
 source('./code/func_plot_ma.R')
+source('./code/func_color_nature_type.R')
 
 fs <- list.files(path = "./data/0302-MA-output/", 
                  pattern = paste('^ma_result.*_', mh_tool, collapse = '|', sep = ''), 
@@ -422,13 +421,21 @@ for (f in fs) {
   ma_result_all <- rbind(ma_result_all, d)
 }
 
+
+func_color_nature_type(df = ma_result_all, column_name = 'subgroup')
+v_just <- length(unique(ma_result_all$subgroup))/5*0.05
+
 ## pool all data together 
 ma_result_all %>%
   # dplyr::filter(subgroup == 'Overall') %>%
   plot_effect_size_overall(data = ., 
                            color_var = 'subgroup', 
                            show_legend = T) +
-  theme(legend.position = c(0.3, 0.15)) +
+  theme(legend.position = c(0, 0.1+v_just),
+        legend.justification = "left",
+        plot.margin = margin(0, 0, 0, 0, "pt"), 
+        ) +
+  scale_colour_manual(values = colors_nature_type) +
   guides(color = guide_legend(title=subgroup_label))
 
 

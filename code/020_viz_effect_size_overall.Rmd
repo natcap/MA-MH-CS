@@ -69,7 +69,8 @@ ma_result_all %>%
   plot_effect_size_overall(data = ., 
                            color_var = 'tool', 
                            show_legend = T) +
-  theme(legend.position = c(0.9, 0.8)) +
+  theme(legend.position = c(0.85, 0.75),
+        plot.margin = margin(0, 0, 0, 0, "pt")) +
   guides(color = guide_legend(title="MH Tools"))
 
 
@@ -90,55 +91,25 @@ ma_result.subgroup_psubgroup <- ma_result_all %>%
 
 ```{r - plot}
 source('./code/func_plot_ma.R')
-
-##' color from https://developers.google.com/earth-engine/datasets/catalog/USGS_NLCD_RELEASES_2021_REL_NLCD#bands
-nature_type_list <- c("Greenspace",               # '#68ab5f'	(Deciduous Forest)
-                      "Greenspace - Forest/Tree", # '#1c5f2c'	
-                      "Greenspace - Shrub/scrub", # '#ccb879'	
-                      "Greenspace - Grassland",   # '#dfdfc2'
-                      "Greenspace - Farmland",    # '#ab6c28'
-                      "Greenspace - Park",        # 
-                      "Greenspace - Garden",      # '#aaff00'
-                      "Greenspace - Green alley/Roadside green", 
-                      "Greenspace - Green roof/wall",# '#79ffd2'              (Shrub-Forest)
-                      "Bluespace - Open water",      # '#466b9f'
-                      "Bluespace - Wetland",         # '#b8d9eb'
-                      "Bluespace - Sea",             # '#0000ff'
-                      "Bluespace - Beach/coastline", # '#0000ff'
-                      "Other"                        # '#000000'	
-                      )
-colors_nature_type <- c(
-  '#68ab5f', # "Greenspace"
-  '#1c5f2c', # "Greenspace - Forest/Tree"
-  '#ccb879', # "Greenspace - Shrub/scrub"
-  '#b2df8a', # "Greenspace - Grassland"
-  '#ab6c28', # "Greenspace - Farmland"
-  '#fb9a99', # "Greenspace - Park"
-  '#aaff00', # "Greenspace - Garden" (forest disturbed before/at 2006)
-  '#beaed4', # "Greenspace - Green alley/Roadside green"
-  '#79ffd2', # "Greenspace - Green roof/wall"
-  '#466b9f', # "Bluespace - Open water"
-  '#b8d9eb', # "Bluespace - Wetland"
-  '#0000ff', # "Bluespace - Sea"
-  '#0000ff', # "Bluespace - Beach/coastline"
-  '#000000'  # "Other"
-  )
-
-names(colors_nature_type) <- nature_type_list
+source('./code/func_color_nature_type.R')
 
 
 
 
+##' plot tool - 1 ------------------------------------------------------------------------
 p1_tool <- ma_result_all %>%
   data.table::as.data.table() %>%
   dplyr::filter(subgroup != 'Overall', tool == 'PANAS'); 
 
+
+##' the number of categories of a subgroup
+##' use this to decide whether to facet a plot 
 len <- length(unique(p1_tool$subgroup)); len
 facet_decide <- ifelse(len >3, T, F)
 
-## add named colors
-element_list <- unique(p1_tool$subgroup); element_list
-colors_nature_type_included1 <- colors_nature_type[element_list]; colors_nature_type_included1
+##' add named colors to each category 
+##' to keep the color consistent 
+colors_nature_type_included1 <- func_color_nature_type(df = p1_tool, column_name = "subgroup")
 # p1_tool$subgroup = factor(x = p1_tool$subgroup, levels = element_list_named)
 
 p1 <- p1_tool %>%
@@ -152,6 +123,8 @@ p1 <- p1_tool %>%
 
 
 
+##' plot tool - 2 ------------------------------------------------------------------------
+
 p2_tool <- ma_result_all %>%
   dplyr::filter(subgroup != 'Overall', tool == 'POMS') 
 
@@ -160,7 +133,7 @@ facet_decide <- ifelse(len >3, T, F)
 
 ## add named colors
 element_list2 <- unique(p2_tool$subgroup); 
-colors_nature_type_included2 <- colors_nature_type[element_list2]; colors_nature_type_included2
+colors_nature_type_included2 <- func_color_nature_type(df = p2_tool, column_name = "subgroup")
 
 p2 <- p2_tool %>%
   # dplyr::mutate(subgroup = factor(x = subgroup, levels = element_list_named)) %>%
@@ -176,7 +149,7 @@ p2 <- p2_tool %>%
 
 
 
-## create a legend that includes elements from both figures ------------------------------
+##' create a legend that includes elements from both figures -----------------------------
 set.seed(1) # for reproducibility
 ls_element <- unique(c(element_list, element_list2))
 ls <- unique(c(colors_nature_type_included1, colors_nature_type_included2))
@@ -189,10 +162,9 @@ tbl <- tibble(x = runif(n),
               class = factor( LETTERS[1:n] ))
 
 # print if x > 0.5
-legend_plot <- ggplot(data = tbl,
-            aes(x = x,
-                y = y,
-                color = `Nature Type`)) +
+legend_plot <- 
+  ggplot(data = tbl,
+         aes(x = x, y = y, color = `Nature Type`)) +
   geom_point(size = 2) +
   # scale_colour_discrete(drop = FALSE) +
   scale_colour_manual(values = colors_nature_type) +
@@ -209,7 +181,7 @@ legend_made <- get_legend(legend_plot)
 
 
 
-## 
+##' combine plots ------------------------------------------------------------------------ 
 p_comb <- 
   ggarrange(p1 + rremove("x.title"), 
             p2 + theme(legend.position = 'none'), 
@@ -222,6 +194,7 @@ fname <- paste0(dir.fig, 'es_combined_tool', length(mh_tool_list), postfix_subgr
 # func_ggsave(fname, w = 6, h = 5.5+1, save_png = T)
 
 
+##' add legend 
 library(grid)
 library(gridExtra)
 
