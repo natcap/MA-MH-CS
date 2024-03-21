@@ -93,9 +93,6 @@ ma_result.subgroup_psubgroup <- ma_result_all %>%
 source('./code/func_plot_ma.R')
 source('./code/func_color_nature_type.R')
 
-
-
-
 ##' plot tool - 1 ------------------------------------------------------------------------
 p1_tool <- ma_result_all %>%
   data.table::as.data.table() %>%
@@ -109,6 +106,7 @@ facet_decide <- ifelse(len >3, T, F)
 
 ##' add named colors to each category 
 ##' to keep the color consistent 
+element_list1 <- unique(p1_tool$subgroup); 
 colors_nature_type_included1 <- func_color_nature_type(df = p1_tool, column_name = "subgroup")
 # p1_tool$subgroup = factor(x = p1_tool$subgroup, levels = element_list_named)
 
@@ -151,7 +149,7 @@ p2 <- p2_tool %>%
 
 ##' create a legend that includes elements from both figures -----------------------------
 set.seed(1) # for reproducibility
-ls_element <- unique(c(element_list, element_list2))
+ls_element <- unique(c(element_list1, element_list2))
 ls <- unique(c(colors_nature_type_included1, colors_nature_type_included2))
 n  <- length(ls); n
 

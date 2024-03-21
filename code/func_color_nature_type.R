@@ -44,7 +44,7 @@ colors_nature_type <- c(
 names(colors_nature_type) <- nature_type_list
 
 func_color_nature_type <- function(df, column_name) {
-  df <- as.data.frame(column_name)
+  df <- as.data.frame(df)
   element_list <- unique(df[,column_name]); element_list
   colors_nature_type_viz<- colors_nature_type[element_list]; 
   

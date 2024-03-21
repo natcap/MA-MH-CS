@@ -31,7 +31,7 @@ dt <- df %>%
   dplyr::select(1:4, City, matches("Country|Mental health|Indicator|Tools")) %>%
   dplyr::select(!matches("duration", ignore.case = T)) %>%
   func_clean_indicatorsPro(data = ., column_name = 'Indicator') %>%
-  func_clean_indicator_sub(data = ., column_name = 'Indicator', upper_case = F) %>%
+  func_clean_indicator_level2(data = ., column_name = 'Indicator', upper_case = F) %>%
   dplyr::arrange(!is.na(Indicator), Reviewer) %>%
   as.data.frame()
 
