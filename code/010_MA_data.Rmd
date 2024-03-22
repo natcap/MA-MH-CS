@@ -63,6 +63,7 @@ source('./code/func_clean_effectsize.R')
 source('./code/func_clean_nature.R')
 source('./code/func_to_sd.R')
 source('./code/func_fill_c2_from_c1.R')
+source('./code/func_cell_mean.R')
 
 source('./code/func_plot_freq.R')
 source('./code/func_alluvial.R')
@@ -122,6 +123,18 @@ df <- df_1 %>%
   func_clean_bufferunit(data = ., column_name = 'buffers_unit') %>%
   func_clean_tools(data = ., column_name = 'Tools') %>%
   func_clean_exposure(data = ., column_name = 'exposure_type') %>%
+  dplyr::mutate(exposure_type = gsub("Other: |Other:", "", exposure_type)) %>%
+  dplyr::mutate(exposure_type = gsub("\\s*\\([^\\)]+\\)", "", exposure_type)) %>% # remove text within parenthesis
+  
+  dplyr::mutate(
+    study_design = case_when(
+      study_design == 'Randomised controlled trial (RCT)' ~ 'RCT',
+      TRUE ~ study_design  ),
+    study_design = gsub(" controlled before-after study", "", study_design),
+    study_design = gsub(", e.g., ", "", study_design),
+    study_design = gsub("\\s*\\([^\\)]+\\)", "", study_design), # remove text within parenthesis 
+    study_design = trimws(study_design)) %>%
+  
   ## clean messy text in `effect_size_indices`
   func_clean_effectsize(data = .) %>%
   dplyr::mutate(
@@ -133,22 +146,72 @@ df <- df_1 %>%
       effect_size_indices %in% c("coefficient", "coefficients") & if_standardized == "Yes"  ~ "Standardized coefficients", 
       TRUE ~ effect_size_indices)) %>%
   # dplyr::select(1:effect_size_indices, effect_size_name, everything()) %>% ## for data inspection 
+  
+  ##' clean duration in nature
+  func_cell_mean(df = ., column_name = 'duration_value', sep = ';') %>%
+  dplyr::mutate(
+    duration_unit = gsub("Other: |Other:", "", duration_unit),
+    duration_unit = trimws(duration_unit),
+    duration_unit = stringr::str_to_sentence(duration_unit),
+    
+    duration_mins = case_when(
+      !is.na(as.numeric(duration_value_mean)) & duration_unit =='Minutes' ~ as.numeric(duration_value_mean), 
+      !is.na(as.numeric(duration_value_mean)) & duration_unit =='Hours' ~ as.numeric(duration_value_mean)*60, 
+      ##' assuming 5 days a weeks, 5 hours per day, 4 weeks a month
+      !is.na(as.numeric(duration_value_mean)) & duration_unit =='Days'  ~ as.numeric(duration_value_mean)*60*5, 
+      !is.na(as.numeric(duration_value_mean)) & duration_unit =='Weeks' ~ as.numeric(duration_value_mean)*(5*5)*60,
+      !is.na(as.numeric(duration_value_mean)) & duration_unit =='Months' ~ as.numeric(duration_value_mean)*(5*5)*60*4,
+      TRUE ~ NA),
+    
+    duration_group = case_when(
+      is.na(duration_mins)   ~ NA,
+      duration_mins <= 15 ~ '<= 15', 
+      duration_mins <= 45 ~ '16-45',
+      TRUE ~ '>45'),
+    duration_group = factor(duration_group, levels = c('<= 15', '16-45', '>45'))
+    
+    ) %>%
+  dplyr::select(1:duration_unit, duration_mins, everything()) %>% 
+  
+  
+  ## clean average age, and % of male
+  dplyr::mutate(male_percent = gsub("%", "", male_percent)) %>%
+  func_cell_mean(df = ., column_name = 'male_percent', sep = ';') %>%
+  func_cell_mean(df = ., column_name = 'average_age', sep = ';') %>%
+  dplyr::mutate(
+    
+    gender_group = case_when(
+      is.na(male_percent_mean) ~ NA,
+      male_percent_mean < 40 ~ "Female > 60%",
+      male_percent_mean > 60 ~ "Male > 60%",
+      TRUE ~ "Gender Balance"
+    ), 
+    gender_group = factor(gender_group, levels = c("Female > 60%", 'Gender Balance', "Male > 60%")),
+    
+    age_group = case_when(
+      is.na(average_age_mean) ~ NA,
+      average_age_mean < 19 ~ 'Adolescents', # or "teenager" is common in everyday language
+      average_age_mean <= 25 ~ 'Young Adults',
+      average_age_mean < 65 ~ 'Adults',
+      TRUE ~ 'Older adults'),
+    age_group = factor(age_group, levels = c('Adolescents', 'Young Adults', 'Adults', 'Older adults'))
+    ) %>%
+  
   as.data.frame()
 # names(df)
+
+## selected variables for further analysis
+cols_keep <- c('Indicator', 'Tools', 'nature_type',  'nature_quantity', 'exposure_type',
+               "study_design", 
+               'duration_mins', 'duration_group', 
+               'male_percent_mean', 'gender_group', 
+               'average_age_mean', 'age_group') 
 
 
 ## To add study design tags in Covidence
 df_design <- df %>%
   dplyr::select(1:3, study_design) %>%
   dplyr::mutate(
-    study_design = case_when(
-      study_design == 'Randomised controlled trial (RCT)' ~ 'RCT',
-      TRUE ~ study_design  ),
-    study_design = gsub(" controlled before-after study", "", study_design),
-    study_design = gsub(", e.g., ", "", study_design),
-    study_design = gsub("\\s*\\([^\\)]+\\)", "", study_design), # remove text within parenthesis 
-    study_design = trimws(study_design),
-    
     id = paste0("#", id)
     ) %>%
   arrange(study_design)
@@ -175,15 +238,14 @@ df_2o2 <- readRDS(file = f2o2) %>%
 ## Clean data
 
 ```{r}
+
 ## selected variables for further analysis
-cols_keep <- c('Indicator', 'Tools', 'nature_type',  'nature_quantity', 'exposure_type')
+cols_keep2 <- c("duration_value", "duration_unit", 'duration_mins', 'male_percent', 'average_age')
 
 df_exp <- df %>%
-  dplyr::select(1:7, all_of(cols_keep)) %>%
+  dplyr::select(1:7, any_of(cols_keep), matches(paste(cols_keep2, collapse="|"))) %>%
   ## clean text in `exposure_type`
   dplyr::filter(!is.na(exposure_type)) %>%
-  dplyr::mutate(exposure_type = gsub("Other: |Other:", "", exposure_type)) %>%
-  dplyr::mutate(exposure_type = gsub("\\s*\\([^\\)]+\\)", "", exposure_type)) %>% # remove text within parenthesis
   as.data.frame()
 
 
@@ -308,6 +370,8 @@ func_alluvial(data = df_exp_tool_flow, indicator_n_min = 5, width_my = width_my,
 tool_selected <- c('GHQ-12', 'PANAS', 'POMS', 
                    'SF-12', 'SF-36', 'WEMWBS', 'WHO-5',
                    'PSS', 'ROS')
+n_tool <- length(unique(tool_selected)); n_tool
+
 # df_exp_tool_flow3 <- df_exp_tool_flow %>%
 #   dplyr::mutate(remove = ifelse(dimension == 'Tool' & !layers %in% tool_selected, 0, 1)) %>%
 #   dplyr::filter(remove != 0) %>% dplyr::select(-remove)
@@ -336,7 +400,7 @@ df_exp_tool_flow3 <- df_exp_l_toolL %>%
 func_alluvial(data = df_exp_tool_flow3, indicator_n_min = 5, width_my = width_my, w_p = 7,
               labele_small = 5,
               show_y_ticks = F, 
-              filename.prefix = '', filename.postfix = 'tool3_exposure')
+              filename.prefix = '', filename.postfix = paste0('tool', n_tool, '_exposure'))
 ```
 
 
@@ -369,7 +433,57 @@ df_type_exp_tool %>% func_alluvial(
   data = ., indicator_n_min = 5, width_my = width_my, w_p = 7,
   labele_small = 5,
   show_y_ticks = F, 
-  filename.prefix = '', filename.postfix = 'tool3_exposure_natureType')
+  filename.prefix = '', filename.postfix = paste0('tool', n_tool, '_exposure_natureType'))
+```
+
+'duration_mins', '', 'average_age'
+
+```{r age group}
+min(df$average_age_mean, na.rm = T) # 10.8
+
+df %>% 
+  ggplot() +
+  geom_histogram(aes(x = average_age_mean, fill = age_group), binwidth = 2) +
+  # scale_x_continuous()
+  theme_bw()
+
+```
+
+
+
+```{r gender %}
+df %>% 
+  ggplot() +
+  geom_histogram(aes(x = male_percent_mean, fill = gender_group), binwidth = 5) +
+  theme_bw()
+```
+
+
+
+```{r duration}
+df %>% 
+  dplyr::filter(duration_mins < quantile(.$duration_mins, probs = 0.99, na.rm = T) ) %>%
+  ggplot() +
+  geom_histogram(aes(x = duration_mins), binwidth = 10) +
+  theme_bw()
+
+
+# df %>% 
+#   # dplyr::filter(duration_mins < quantile(.$duration_mins, probs = 0.85, na.rm = T) ) %>%
+#   dplyr::filter(duration_mins < 120 ) %>%
+#   ggplot() +
+#   geom_histogram(aes(x = duration_mins), binwidth = 5) +
+#   scale_x_continuous(breaks = c(15, 20, 30, 60)) +
+#   theme_bw()
+
+
+df %>% 
+  # dplyr::filter(duration_mins < quantile(.$duration_mins, probs = 0.85, na.rm = T) ) %>%
+  dplyr::filter(duration_mins < 120 ) %>%
+  ggplot() +
+  geom_histogram(aes(x = duration_mins, fill = duration_group), binwidth = 10) +
+  scale_x_continuous(breaks = c(15, 30, 45, 60)) +
+  theme_bw()
 ```
 
 
@@ -550,7 +664,7 @@ save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
 
 #### - POMS
 ```{r}
-mh_tool           <- "POMS"
+mh_tool <- "POMS"
 
 # exposure_type_i   <- c('stay static in nature', 'physical activity in nature') 
 exposure_type_i   <- c('In nature - Static', 'In nature - PA')
@@ -984,10 +1098,18 @@ unique(exp_sub_long_clean$effect_size_indices)
 exp_sub_mods <- exp_sub_long_clean %>%
   dplyr::mutate(
     MH_direction_o1 = as.numeric(MH_direction_o1),
+    MH_direction_o2 = as.numeric(MH_direction_o2),
+    
+    ##' fix missing data in `MH_direction_o`
     MH_direction_o1 = case_when(
       is.na(MH_direction_o1) & `Health outcome direction` == "Lower is better"  ~ -1, 
       is.na(MH_direction_o1) & `Health outcome direction` == "Higher is better" ~ 1, 
       TRUE ~ MH_direction_o1),
+    
+    MH_direction_o2 = case_when(
+      is.na(MH_direction_o2) & `Health outcome direction` == "Lower is better"  ~ -1, 
+      is.na(MH_direction_o2) & `Health outcome direction` == "Higher is better" ~ 1, 
+      TRUE ~ MH_direction_o2),
     
     ## change coefficient-related outcomes to positive direction 
     mean = case_when(

@@ -17,7 +17,7 @@ packageVersion("meta")
 
 ##' an extra post fix for figure's version control
 vv <- ""
-# vv <- "v2"
+vv <- "v3"
 ```
 
 
@@ -27,11 +27,12 @@ vv <- ""
 ```{r - overall}
 source('./code/func_plot_ma.R')
 
-mh_tool_list <- c('GHQ-12', 'PANAS', 'POMS', 'PSS', 'ROS', 'SF') 
+mh_tool_list <- c('PANAS', 'POMS') 
+# mh_tool_list <- c('GHQ-12', 'PANAS', 'POMS', 'PSS', 'ROS', 'SF', 'WEMWBS') 
 
 fs <- list.files(path = "./data/0302-MA-output/", 
-                 pattern = paste('^ma_result.*_*', sep = ''), ## if opt to include all 
-                 # pattern = paste('^ma_result.*_', mh_tool_list, sep = '', collapse = '|'), ## if opt to include selected ones
+                 # pattern = paste('^ma_result.*_*', sep = ''), ## if opt to include all 
+                 pattern = paste('^ma_result.*_', mh_tool_list, sep = '', collapse = '|'), ## if opt to include selected ones
                  full.names = T);
 cat('\n This', length(fs), 'files will be included:\n')
 print(fs)
@@ -93,10 +94,25 @@ ma_result.subgroup_psubgroup <- ma_result_all %>%
 source('./code/func_plot_ma.R')
 source('./code/func_color_nature_type.R')
 
+
+##' Pick one for viz ---------------------------------------------------------------------
+subgroup_select <- 'subgroup_design' 
+# subgroup_select <- 'exposure_o2'
+subgroup_select <- 'nature_type_o2'
+# subgroup_select <- 'age_group' ## age group
+subgroup_select <- 'gender_group' ## age group
+# subgroup_select <- 'duration_group' ## exposure 
+
+postfix_group <- paste0("_subgroup_", subgroup_select); postfix_group
+
+
+
 ##' plot tool - 1 ------------------------------------------------------------------------
 p1_tool <- ma_result_all %>%
   data.table::as.data.table() %>%
-  dplyr::filter(subgroup != 'Overall', tool == 'PANAS'); 
+  dplyr::filter(subgroup != 'Overall', 
+                group_name == subgroup_select,
+                tool == 'PANAS'); 
 
 
 ##' the number of categories of a subgroup
@@ -107,8 +123,14 @@ facet_decide <- ifelse(len >3, T, F)
 ##' add named colors to each category 
 ##' to keep the color consistent 
 element_list1 <- unique(p1_tool$subgroup); 
-colors_nature_type_included1 <- func_color_nature_type(df = p1_tool, column_name = "subgroup")
 # p1_tool$subgroup = factor(x = p1_tool$subgroup, levels = element_list_named)
+if (subgroup_select == 'nature_type_o2') {
+  colors_group1 <- func_color_nature_type(df = p1_tool, column_name = "subgroup")
+  colored_group <- colors_nature_type
+} else {
+  colors_group1 <- brewer.pal(n = length(element_list1), "Set1")
+  colored_group <- colors_group1
+}
 
 p1 <- p1_tool %>%
   # dplyr::mutate(subgroup = factor(x = subgroup, levels = element_list_named)) %>%
@@ -117,21 +139,30 @@ p1 <- p1_tool %>%
                            facet_bygroup = facet_decide, 
                            add_gradient_bg = F,
                            show_legend = F) +
-  scale_colour_manual(values = colors_nature_type)
+  scale_colour_manual(values = colored_group)
 
 
 
 ##' plot tool - 2 ------------------------------------------------------------------------
 
 p2_tool <- ma_result_all %>%
-  dplyr::filter(subgroup != 'Overall', tool == 'POMS') 
+  dplyr::filter(subgroup != 'Overall', 
+                group_name == subgroup_select,
+                tool == 'POMS') 
 
 len <- length(unique(p2_tool$subgroup)); len
 facet_decide <- ifelse(len >3, T, F)
 
 ## add named colors
 element_list2 <- unique(p2_tool$subgroup); 
-colors_nature_type_included2 <- func_color_nature_type(df = p2_tool, column_name = "subgroup")
+if (subgroup_select == 'nature_type_o2') {
+  colors_group2 <- func_color_nature_type(df = p2_tool, column_name = "subgroup")
+  colored_group <- colors_nature_type
+} else {
+  colors_group2 <- brewer.pal(n = length(element_list2), "Set1")
+  colored_group <- colors_group2
+}
+
 
 p2 <- p2_tool %>%
   # dplyr::mutate(subgroup = factor(x = subgroup, levels = element_list_named)) %>%
@@ -139,10 +170,10 @@ p2 <- p2_tool %>%
                            subgroup = 'subgroup', 
                            facet_bygroup = facet_decide, 
                            add_gradient_bg = F,
-                           show_legend = T) + 
+                           show_legend = F) + 
   theme(legend.position = c(0.8, 0.1)) +
   # It's recommended to use a named vector
-  scale_colour_manual(values = colors_nature_type)
+  scale_colour_manual(values = colored_group)
 # p2
 
 
@@ -150,22 +181,22 @@ p2 <- p2_tool %>%
 ##' create a legend that includes elements from both figures -----------------------------
 set.seed(1) # for reproducibility
 ls_element <- unique(c(element_list1, element_list2))
-ls <- unique(c(colors_nature_type_included1, colors_nature_type_included2))
+ls <- unique(c(colors_group1, colors_group2))
 n  <- length(ls); n
 
 # generate 5 random points
 tbl <- tibble(x = runif(n),
               y = runif(n),
-              `Nature Type` = ls_element, 
+              Groups = ls_element, 
               class = factor( LETTERS[1:n] ))
 
 # print if x > 0.5
 legend_plot <- 
   ggplot(data = tbl,
-         aes(x = x, y = y, color = `Nature Type`)) +
+         aes(x = x, y = y, color = Groups)) +
   geom_point(size = 2) +
   # scale_colour_discrete(drop = FALSE) +
-  scale_colour_manual(values = colors_nature_type) +
+  scale_colour_manual(values = colored_group) +
   theme_bw() +
   theme(legend.spacing.y = unit(0, 'cm'),
         legend.spacing.x = unit(0, 'cm'),
@@ -188,7 +219,7 @@ p_comb <-
             common.legend = F, 
             align = "v")
 p_comb
-fname <- paste0(dir.fig, 'es_combined_tool', length(mh_tool_list), postfix_subgroup, '_', today, vv, '.png'); fname
+fname <- paste0(dir.fig, 'es_combined_tool', length(mh_tool_list), postfix_group, '_', today, vv, '.png'); fname
 # func_ggsave(fname, w = 6, h = 5.5+1, save_png = T)
 
 
@@ -229,6 +260,25 @@ dev.off()
 # print(p2, vp = define_region(row = 2:4, col = 1:3))
 # print(legend_made, vp = define_region(row = 4, col = 2))
 # dev.off()
+```
+
+
+```{r - p_all}
+p_all <- ma_result_all %>%
+  dplyr::filter(subgroup != 'Overall',
+                group_name == subgroup_select) %>%
+  dplyr::group_by(tool, ind_sub) %>%
+  plot_effect_size_overall(data = .,
+                           subgroup = 'subgroup', 
+                           facet_bygroup = facet_decide, 
+                           add_gradient_bg = F,
+                           show_legend = T) +
+  scale_colour_manual(values = colored_group)
+
+p_all
+
+fname <- paste0(dir.fig, 'es_combined_tool', length(mh_tool_list), postfix_group, '_', today, vv, '_.png'); fname
+func_ggsave(fname, w = 6, h = 5.5+1, save_png = T)
 ```
 
 **refs**

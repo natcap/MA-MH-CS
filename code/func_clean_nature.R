@@ -37,6 +37,7 @@ func_clean_nature_type <-  function(data, column_name, aggregate = F) {
         tolower(!!sym(column_name)) %in% tolower(c("Green view", 
                                                    'greenspace', 
                                                    'Greenspace use',
+                                                   'greenspace - general',
                                                    'Neighbourhood greenness',
                                                    'Views of nature')) ~ "Greenspace", 
         TRUE ~ !!sym(column_name)),

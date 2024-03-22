@@ -91,8 +91,9 @@ add_subgroup_analysis   <- T
 subgroup_select <- 'subgroup_design' ## ?? [] need to fix NAs in the column -> revise `subgroup_selected`
 # subgroup_select <- 'exposure_o2'
 subgroup_select <- 'nature_type_o2'
-# subgroup_select <- '' ## age group
-# subgroup_select <- '' ## exposure duration 
+# subgroup_select <- 'age_group' ## age group
+# subgroup_select <- 'gender_group' ## age group
+# subgroup_select <- 'duration_group' ## exposure  
 
 n_group <- unique(exp_sub_mods_md2[subgroup_select]) %>% nrow()
 
@@ -150,6 +151,7 @@ for (sub_ind_i in sub_indicator_selected) {
   ma_smd.df <- data.frame(
     tool = mh_tool, 
     ind_sub = sub_ind_i,
+    group_name = '',
     subgroup = 'Overall',
     es.mean = ma_smd$TE.random,
     es.lower= ma_smd$lower.random,
@@ -176,6 +178,7 @@ for (sub_ind_i in sub_indicator_selected) {
     ma_smd.df.subgroup <- data.frame(
       tool = paste(mh_tool, collapse = '; '), 
       ind_sub = sub_ind_i, 
+      group_name = subgroup_select,
       subgroup = names(ma_smd$TE.common.w),
       es.mean = as.numeric(ma_smd$TE.random.w),
       es.lower= as.numeric(ma_smd$lower.random.w),
@@ -291,19 +294,21 @@ for (sub_ind_i in sub_indicator_selected) {
 ## save MA result 
 cat('\n')
 fname <- paste0('./data/0302-MA-output/', 
-                paste('ma_result.overall', paste(mh_tool, collapse = "_"), '.rds', sep = '_')); fname
+                paste('ma_result.overall', paste(mh_tool, collapse = "_"), '.rds', sep = '_')); 
+print(fname)
 saveRDS(ma_result.overall, file = fname)
 
 if (add_subgroup_analysis == T) {
   fname <- paste0('./data/0302-MA-output/', 
-                  paste('ma_result.subgroup', paste(mh_tool, collapse = "_"), subgroup_select, '.rds', sep = '_')); fname
+                  paste('ma_result.subgroup', paste(mh_tool, collapse = "_"), subgroup_select, '.rds', sep = '_')); 
+  print(fname)
   saveRDS(ma_result.subgroup, file = fname)
 }
 ```
 
 
 
-## Using `metafor`
+## Using `metafor` - NOT in use
 
 ```{r eval=FALSE, include=FALSE}
 library(metafor)
