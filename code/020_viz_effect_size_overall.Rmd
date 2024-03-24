@@ -17,7 +17,7 @@ packageVersion("meta")
 
 ##' an extra post fix for figure's version control
 vv <- ""
-vv <- "v3"
+vv <- "v4"
 ```
 
 
@@ -76,7 +76,7 @@ ma_result_all %>%
 
 
 
-fname <- paste0(dir.fig, 'es_combined_tool', length(mh_tool_list), '_', today, vv, '.png'); fname
+fname <- paste0(dir.fig, 'es_comb_', today, vv, '.png'); fname
 func_ggsave(fname, w = 6, h = 5.5, save_png = T)
 ```
 
@@ -92,155 +92,174 @@ ma_result.subgroup_psubgroup <- ma_result_all %>%
 
 ```{r - plot}
 source('./code/func_plot_ma.R')
-source('./code/func_color_nature_type.R')
+source('./code/func_color_bygroup.R')
 
 
 ##' Pick one for viz ---------------------------------------------------------------------
-subgroup_select <- 'subgroup_design' 
+
+# subgroup_select <- 'subgroup_design' 
 # subgroup_select <- 'exposure_o2'
-subgroup_select <- 'nature_type_o2'
-# subgroup_select <- 'age_group' ## age group
-subgroup_select <- 'gender_group' ## age group
-# subgroup_select <- 'duration_group' ## exposure 
-
-postfix_group <- paste0("_subgroup_", subgroup_select); postfix_group
+# subgroup_select <- 'nature_type_o2';  color_bygroup = nature_type_color; group_list = nature_type_list
+# subgroup_select <- 'age_group';       
+# subgroup_select <- 'gender_group';    
+# subgroup_select <- 'duration_group';  
 
 
-
-##' plot tool - 1 ------------------------------------------------------------------------
-p1_tool <- ma_result_all %>%
-  data.table::as.data.table() %>%
-  dplyr::filter(subgroup != 'Overall', 
-                group_name == subgroup_select,
-                tool == 'PANAS'); 
+subgroups <- c(
+  # 'subgroup_design', 'exposure_o2', 
+  'nature_type_o2', 
+  'age_group', 'gender_group', 'duration_group')
 
 
-##' the number of categories of a subgroup
-##' use this to decide whether to facet a plot 
-len <- length(unique(p1_tool$subgroup)); len
-facet_decide <- ifelse(len >3, T, F)
+for (subgroup_select in subgroups) {
+  if(subgroup_select == 'nature_type_o2'){
+    color_bygroup = nature_type_color; 
+    group_list = nature_type_list
+  } else if(subgroup_select == 'age_group'){
+    color_bygroup = age_group_color; 
+    group_list = age_group_list
+  } else if(subgroup_select == 'gender_group'){
+    color_bygroup = gender_group_color; 
+    group_list = gender_group_list
+  } else if(subgroup_select == 'duration_group'){
+    color_bygroup = duration_group_color; 
+    group_list = duration_group_list
+  } else {
+    break
+  }
+  
+  
+  
+  ## postfix to be added to figure names
+  postfix_group <- paste0("_subgroup_", subgroup_select); postfix_group
 
-##' add named colors to each category 
-##' to keep the color consistent 
-element_list1 <- unique(p1_tool$subgroup); 
-# p1_tool$subgroup = factor(x = p1_tool$subgroup, levels = element_list_named)
-if (subgroup_select == 'nature_type_o2') {
-  colors_group1 <- func_color_nature_type(df = p1_tool, column_name = "subgroup")
-  colored_group <- colors_nature_type
-} else {
-  colors_group1 <- brewer.pal(n = length(element_list1), "Set1")
-  colored_group <- colors_group1
+
+
+
+  ##' plot tool - 1 ------------------------------------------------------------------------
+  p1_tool <- ma_result_all %>%
+    # data.table::as.data.table() %>%
+    dplyr::filter(subgroup != 'Overall', 
+                  group_name == subgroup_select,
+                  tool == 'PANAS'); 
+  
+  
+  ##' the number of categories of a subgroup
+  ##' use this to decide whether to facet a plot 
+  len <- length(unique(p1_tool$subgroup)); len
+  facet_decide <- ifelse(len >2, T, F)
+  
+  ##' add named colors to each category to keep the color consistent 
+  element_list1 <- unique(p1_tool$subgroup); element_list1
+  colors_group1 <- func_color_bygroup(df = p1_tool, column_name = "subgroup", color_pal = color_bygroup)
+  colored_group <- color_bygroup
+  
+  p1 <- p1_tool %>%
+    # dplyr::mutate(subgroup = factor(x = subgroup, levels = element_list_named)) %>%
+    plot_effect_size_overall(data = .,
+                             subgroup = 'subgroup', 
+                             facet_bygroup = facet_decide, 
+                             add_gradient_bg = F,
+                             show_legend = F) +
+    scale_colour_manual(values = colored_group)
+  
+  
+  
+  ##' plot tool - 2 ------------------------------------------------------------------------
+  
+  p2_tool <- ma_result_all %>%
+    dplyr::filter(subgroup != 'Overall', 
+                  group_name == subgroup_select,
+                  tool == 'POMS') 
+  
+  len <- length(unique(p2_tool$subgroup)); len
+  facet_decide <- ifelse(len >2, T, F)
+  
+  ## add named colors
+  element_list2 <- unique(p2_tool$subgroup); 
+  colors_group2 <- func_color_bygroup(df = p2_tool, column_name = "subgroup", color_pal = color_bygroup)
+  
+  p2 <- p2_tool %>%
+    # dplyr::mutate(subgroup = factor(x = subgroup, levels = element_list_named)) %>%
+    plot_effect_size_overall(data = ., 
+                             subgroup = 'subgroup', 
+                             facet_bygroup = facet_decide, 
+                             add_gradient_bg = F,
+                             show_legend = F) + 
+    theme(legend.position = c(0.8, 0.1)) +
+    # It's recommended to use a named vector
+    scale_colour_manual(values = colored_group)
+  # p2
+  
+  
+  
+  ##' create a legend that includes elements from both figures -----------------------------
+  set.seed(1) # for reproducibility
+  ls_element <- unique(c(element_list1, element_list2))
+  ls <- unique(c(colors_group1, colors_group2))
+  n  <- length(ls); n
+  
+  # generate 5 random points
+  tbl <- tibble(x = runif(n),
+                y = runif(n),
+                Groups = factor(ls_element, levels = group_list), 
+                class = factor( LETTERS[1:n] ))
+  
+  # print if x > 0.5
+  legend_plot <- 
+    ggplot(data = tbl,
+           aes(x = x, y = y, color = Groups)) +
+    geom_point(size = 2) +
+    # scale_colour_discrete(drop = FALSE) +
+    scale_colour_manual(values = colored_group) +
+    theme_bw() +
+    theme(legend.spacing.y = unit(0, 'cm'),
+          legend.spacing.x = unit(0, 'cm'),
+          legend.key.size = unit(0.05, 'cm'),
+          legend.justification = "left",
+          plot.margin = margin(0, 0, 0, 0, "pt"),
+          legend.title=element_text(size=7.5, face = 'bold'),
+          legend.text=element_text(size=7),
+              ) +
+    guides(color = guide_legend(reverse=TRUE))
+  # legend_plot  
+  legend_made <- get_legend(legend_plot)
+  
+  
+  
+  ##' combine plots ------------------------------------------------------------------------ 
+  p_comb <- 
+    ggarrange(p1 + rremove("x.title"), 
+              p2 + theme(legend.position = 'none'), 
+              labels = c("A", "B"), ncol = 1, nrow = 2,
+              heights = c(0.4, 1), 
+              common.legend = F, 
+              align = "v")
+  p_comb
+  fname <- paste0(dir.fig, 'es_comb', postfix_group, '_', today, vv, '.png'); fname
+  # func_ggsave(fname, w = 6, h = 5.5+1, save_png = T)
+  
+  
+  ##' add legend 
+  library(grid)
+  library(gridExtra)
+  
+  fname <- gsub('.png', '_legend.png', fname); fname
+  png(filename = fname, width = 6, height = 5.5+1, units = 'in', res = 300)
+  
+  grid.draw(p_comb)
+  sample_vp <- viewport(x = 2/3, y = 0, # legend position 
+                        width = 1/3+0.2, height = 0.3,
+                        just = c("left", "bottom")
+                        )
+  pushViewport(sample_vp)
+  # grid.draw(roundrectGrob())
+  grid.draw(legend_made)
+  popViewport()
+  
+  dev.off()
+  
 }
-
-p1 <- p1_tool %>%
-  # dplyr::mutate(subgroup = factor(x = subgroup, levels = element_list_named)) %>%
-  plot_effect_size_overall(data = .,
-                           subgroup = 'subgroup', 
-                           facet_bygroup = facet_decide, 
-                           add_gradient_bg = F,
-                           show_legend = F) +
-  scale_colour_manual(values = colored_group)
-
-
-
-##' plot tool - 2 ------------------------------------------------------------------------
-
-p2_tool <- ma_result_all %>%
-  dplyr::filter(subgroup != 'Overall', 
-                group_name == subgroup_select,
-                tool == 'POMS') 
-
-len <- length(unique(p2_tool$subgroup)); len
-facet_decide <- ifelse(len >3, T, F)
-
-## add named colors
-element_list2 <- unique(p2_tool$subgroup); 
-if (subgroup_select == 'nature_type_o2') {
-  colors_group2 <- func_color_nature_type(df = p2_tool, column_name = "subgroup")
-  colored_group <- colors_nature_type
-} else {
-  colors_group2 <- brewer.pal(n = length(element_list2), "Set1")
-  colored_group <- colors_group2
-}
-
-
-p2 <- p2_tool %>%
-  # dplyr::mutate(subgroup = factor(x = subgroup, levels = element_list_named)) %>%
-  plot_effect_size_overall(data = ., 
-                           subgroup = 'subgroup', 
-                           facet_bygroup = facet_decide, 
-                           add_gradient_bg = F,
-                           show_legend = F) + 
-  theme(legend.position = c(0.8, 0.1)) +
-  # It's recommended to use a named vector
-  scale_colour_manual(values = colored_group)
-# p2
-
-
-
-##' create a legend that includes elements from both figures -----------------------------
-set.seed(1) # for reproducibility
-ls_element <- unique(c(element_list1, element_list2))
-ls <- unique(c(colors_group1, colors_group2))
-n  <- length(ls); n
-
-# generate 5 random points
-tbl <- tibble(x = runif(n),
-              y = runif(n),
-              Groups = ls_element, 
-              class = factor( LETTERS[1:n] ))
-
-# print if x > 0.5
-legend_plot <- 
-  ggplot(data = tbl,
-         aes(x = x, y = y, color = Groups)) +
-  geom_point(size = 2) +
-  # scale_colour_discrete(drop = FALSE) +
-  scale_colour_manual(values = colored_group) +
-  theme_bw() +
-  theme(legend.spacing.y = unit(0, 'cm'),
-        legend.spacing.x = unit(0, 'cm'),
-        legend.key.size = unit(0.05, 'cm'),
-        legend.title=element_text(size=7.5, face = 'bold'),
-        legend.text=element_text(size=7),
-            ) +
-  guides(color = guide_legend(reverse=TRUE))
-# legend_plot  
-legend_made <- get_legend(legend_plot)
-
-
-
-##' combine plots ------------------------------------------------------------------------ 
-p_comb <- 
-  ggarrange(p1 + rremove("x.title"), 
-            p2 + theme(legend.position = 'none'), 
-            labels = c("A", "B"), ncol = 1, nrow = 2,
-            heights = c(0.4, 1), 
-            common.legend = F, 
-            align = "v")
-p_comb
-fname <- paste0(dir.fig, 'es_combined_tool', length(mh_tool_list), postfix_group, '_', today, vv, '.png'); fname
-# func_ggsave(fname, w = 6, h = 5.5+1, save_png = T)
-
-
-##' add legend 
-library(grid)
-library(gridExtra)
-
-fname <- gsub('.png', '_legend.png', fname); fname
-png(filename = fname, width = 6, height = 5.5+1, units = 'in', res = 300)
-
-grid.draw(p_comb)
-sample_vp <- viewport(x = 1/3, y = 0, 
-                      width = 1/3+0.2, height = 0.3,
-                      just = c("left", "bottom")
-                      )
-pushViewport(sample_vp)
-# grid.draw(roundrectGrob())
-grid.draw(legend_made)
-popViewport()
-
-dev.off()
 
 
 ### the other way to combine plots -------------------------------------------------------
@@ -277,8 +296,8 @@ p_all <- ma_result_all %>%
 
 p_all
 
-fname <- paste0(dir.fig, 'es_combined_tool', length(mh_tool_list), postfix_group, '_', today, vv, '_.png'); fname
-func_ggsave(fname, w = 6, h = 5.5+1, save_png = T)
+fname <- paste0(dir.fig, 'es_comb', postfix_group, '_', today, vv, '_.png'); fname
+# func_ggsave(fname, w = 6, h = 5.5+1, save_png = T)
 ```
 
 **refs**
