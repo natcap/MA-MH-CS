@@ -107,7 +107,14 @@ duration_group_color <- c(
 names(duration_group_color) <- duration_group_list
 
 
+## region --------------------------------------------------------------------------------
+region_list <- c(
+  'Africa', "Asia", "Europe", "North America", "South America", "Oceania"
+)
 
+region_color <- brewer.pal(n = length(region_list), "Set1")
+names(region_color) <- region_list
+  
 
 ## Function ==============================================================================
 func_color_bygroup <- function(df, column_name, color_pal = NULL) {

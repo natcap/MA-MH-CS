@@ -10,6 +10,7 @@ output:
 # Load data
 
 ```{r}
+source('./code/func_clean_geo.R')
 
 ## all data from Covidence
 f <- paste0('./data/dt.rds')
@@ -74,15 +75,19 @@ f <- paste0(dir.fig, 'pub_byYear.png'); f
 
 ```{r - region - bar}
 
-reg_ <- dt %>%
+reg_id <- dt %>%
   dplyr::select(1, Country) %>%
   dplyr::filter(!is.na(Country)) %>%
-  dplyr::filter(!Country %in% c('m', 'NA', 'Global', 'Europe', 'all over the world')) %>%
+  dplyr::mutate(Country = case_when(
+    Country %in% c('m', 'NA', 'Global', 'Europe', 'all over the world') ~ 'TBD',
+    TRUE ~ Country)) 
+
+reg_count <- reg_id %>%
   group_by(Country) %>%
   tally() %>%
   as.data.frame()
 
-region <- reg_ %>%
+region_iso3c_id <- reg_id %>%
   expand_col_to_long(data = ., target_col = "Country") %>%
   dplyr::mutate(Country = ifelse(
       nchar(Country) > 3,
@@ -90,86 +95,38 @@ region <- reg_ %>%
       Country
     )) %>%
   func_clean_country(data = ., column_name = "Country") %>%
-  group_by(Country) %>%
-  dplyr::summarise_at('n', sum, na.rm = TRUE) %>%
+  func_add_region(.) %>%
+  dplyr::select(id, everything()) %>%
+  arrange(id) %>%
   as.data.frame()
 
 
-library(SDGdetector)
-packageVersion('SDGdetector')
 
-# library(countrycode)
-# # names(codelist)
-# nation.list <- codelist %>%
-#   select(country.name.en, iso.name.en, un.name.en, cldr.name.en, iso2c, iso3c)
+## get region for each paper id for matching ---------------------------------------------
+region_id <- region_iso3c_id %>%
+  dplyr::distinct(id, .keep_all = T)
 
-library(dplyr)
-library(stringr)
-library(ggplot2)
-library(cowplot)
+f <- paste0('./data/0301-MA-input/id_region_match.rds'); f
+saveRDS(region_id, file = f)
 
-## World region data 1
-codelist.supp <- data.frame(
-  country.name.en = c('USA'),
-  iso3c = c('USA'),
-  region = c('North America')
-)
-codelist <- SDGdetector::codelist_panel %>%
-  dplyr::distinct(country.name.en, iso3c, region) %>%
-  rbind(., codelist.supp) %>%
-  dplyr::mutate(
-    country.name.en = case_when(
-      str_detect(string = iso3c, pattern = 'HKG') ~ 'Hong Kong',
-      T ~ country.name.en)
-  ) %>%
-  dplyr::distinct(country.name.en, iso3c, region)
 
-## World region data 2
-region_owid <- readr::read_csv('./data/continents-according-to-our-world-in-data.csv', show_col_types = FALSE) %>%
-  dplyr::select(-Year) %>%
-  dplyr::mutate(Code = gsub('OWID_', '', Code)) %>%
-  dplyr::rename('name_owid' = 'Entity',
-                'ISO3' = 'Code') %>%
-  as.data.frame()
+## data check 
+region_id_count <- region_iso3c_id %>%
+  group_by(id, Region) %>%
+  tally()
+### note: #747 include 15 countries
 
-## World region data combined 
-countryCode_region <- countryRegions %>%
-  dplyr::mutate(REGION = ifelse(REGION=='Australia', 'Oceania', REGION)) %>%
-  left_join(., region_owid, by = 'ISO3') %>%
-  dplyr::select(1:REGION, Continent, continent, everything())
-  
-  
-func_add_region <- function(data) {
-  d <- data %>%
-    merge(x = ., 
-          y = codelist, 
-          by.x = 'Country', 
-          by.y = 'country.name.en', all.x = T) %>%
-    ## add more detailed region name info
-    merge(x = ., 
-          y = countryCode_region %>%
-            dplyr::select(ISO3, REGION, continent), 
-          by.x = 'iso3c', 
-          by.y = 'ISO3', all.x = T) %>%
-    ## remove `region`, and rename `REGION` to `Region`
-    dplyr::select(-region) %>%
-    dplyr::rename('Region' = 'REGION') %>%
-    arrange(!is.na(iso3c))
-  
-  return(d)
-}
 
-region_match <- region %>%
-  func_add_region(.)
- 
 
-region_count <- region_match %>%
+## count by region for viz ---------------------------------------------------------------
+region_count <- region_iso3c_id %>%
   group_by(
            # Country, 
            Region,
            iso3c
            ) %>%
-  dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
+  # dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
+  tally() %>%
   arrange(n, Region, iso3c) %>%
   as.data.frame()
 

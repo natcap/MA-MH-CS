@@ -920,7 +920,7 @@ tab_comb <- full_join(tab_o1, tab_o2,
   dplyr::select(id, model_id, everything())
 
 
-exp_sub_long <- tab_comb %>%
+exp_sub_comb <- tab_comb %>%
   func_clean_indicatorsPro(data = ., column_name = 'Indicator') %>%
   func_clean_indicatorsPro(data = ., column_name = 'MH_indicator_o1') %>%
   func_clean_indicatorsPro(data = ., column_name = 'MH_indicator_o2') %>%
@@ -941,9 +941,22 @@ exp_sub_long <- tab_comb %>%
 
 
 
+```{r - add geodata}
+f <- paste0('./data/0301-MA-input/id_region_match.rds'); f
+id_region <- readRDS(f) %>%
+  dplyr::select(id, Region) %>%
+  dplyr::mutate(id = as.character(id))
+
+exp_sub_comb_update <- exp_sub_comb %>%
+  left_join(., id_region, by = 'id') %>%
+  dplyr::select(id, Region, everything())
+```
+
+
+
 ```{r - clean numeric values}
 ### clean up the negative sign "-" in data
-test <- exp_sub_long %>%
+test <- exp_sub_comb_update %>%
   dplyr::filter(id %in% c(387)) ## take the character from this paper
 
 m <- gsub(' ', '', test$Mean)
@@ -988,10 +1001,10 @@ func_clean_number <- function(data, column_name){
 }
 
 ### test code
-# exp_sub_long_clean1 <- exp_sub_long %>%
+# exp_sub_comb_clean1 <- exp_sub_comb_update %>%
 #   func_clean_number(column_name = 'Mean')
 
-exp_sub_long_clean <- exp_sub_long %>%
+exp_sub_comb_clean <- exp_sub_comb_update %>%
   dplyr::filter(!is.na(Mean) | !is.na(Treatment_Mean) | !is.na(Treatment_Mean)) %>%
   
   ##' clean the special character "-" in text
@@ -1069,7 +1082,7 @@ exp_sub_long_clean <- exp_sub_long %>%
   func_fill_c2_from_c1(data = ., to_column = 'exposure_o1', from_column = "exposure_type") %>%
   func_fill_c2_from_c1(data = ., to_column = 'exposure_o2', from_column = "exposure_type") %>%
   
-  dplyr::select(id, model_id, study_label, 
+  dplyr::select(id, model_id, study_label, Region,
                 all_of(cols_keep), 
                 effect_size_indices:Mean, mean, 
                 # CI_95_lower, ci95lower, 
@@ -1078,18 +1091,18 @@ exp_sub_long_clean <- exp_sub_long %>%
   as.data.frame()
 
 
-# names(exp_sub_long_clean)
-unique(exp_sub_long_clean$MH_tool_o1) %>% cat('\nUnique MH_tool_o1: ', ., '\n')
-unique(exp_sub_long_clean$MH_tool_o2) %>% cat('\nUnique MH_tool_o2: ', ., '\n')
+# names(exp_sub_comb_clean)
+unique(exp_sub_comb_clean$MH_tool_o1) %>% cat('\nUnique MH_tool_o1: ', ., '\n')
+unique(exp_sub_comb_clean$MH_tool_o2) %>% cat('\nUnique MH_tool_o2: ', ., '\n')
 
-unique(exp_sub_long_clean$id) %>% length() %>% cat('\n', ., 'unique papers for', mh_tool, '\n')
+unique(exp_sub_comb_clean$id) %>% length() %>% cat('\n', ., 'unique papers for', mh_tool, '\n')
 ```
 
 
 
 
 ```{r - unify outcome direction}
-unique(exp_sub_long_clean$effect_size_indices)
+unique(exp_sub_comb_clean$effect_size_indices)
 
 
 ##' Unify the direction of MH outcomes, mainly apply to the following tools --------------
@@ -1097,7 +1110,7 @@ unique(exp_sub_long_clean$effect_size_indices)
 ##'   - SF
 ##'   - WHO-5
 ##'   - WEMWBS
-exp_sub_mods <- exp_sub_long_clean %>%
+exp_sub_mods <- exp_sub_comb_clean %>%
   dplyr::mutate(
     MH_direction_o1 = as.numeric(MH_direction_o1),
     MH_direction_o2 = as.numeric(MH_direction_o2),
@@ -1136,8 +1149,8 @@ exp_sub_mods <- exp_sub_long_clean %>%
 source('./code/func_clean_indicatorsPro.R')
 
 cat('\n\n')
-unique(exp_sub_long_clean$MH_tool_o1) %>% cat('unique MH_tool_o1:', ., '\n')
-unique(exp_sub_long_clean$MH_tool_o2) %>% cat('unique MH_tool_o2:', ., '\n')
+unique(exp_sub_comb_clean$MH_tool_o1) %>% cat('unique MH_tool_o1:', ., '\n')
+unique(exp_sub_comb_clean$MH_tool_o2) %>% cat('unique MH_tool_o2:', ., '\n')
 
 if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5')) ) {
   exp_sub_mods_coef <- exp_sub_mods %>%

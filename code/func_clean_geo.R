@@ -8,6 +8,8 @@
 #' @param column_name   The target column for cleaning, in a string format
 #' 
 
+library(dplyr)
+
 func_clean_country <- function(data, column_name = "Country") {
   d <- data %>%
     dplyr::mutate(
@@ -45,5 +47,68 @@ func_clean_city <- function(data, column_name = "City") {
       !!column_name := str_squish(!!sym(column_name)),
       !!column_name := trimws(!!sym(column_name))) %>%
     as.data.frame()
+  return(d)
+}
+
+
+
+## add region ----------------------------------------------------------------------------
+library(SDGdetector)
+packageVersion('SDGdetector')
+
+# library(countrycode)
+# # names(codelist)
+# nation.list <- codelist %>%
+#   select(country.name.en, iso.name.en, un.name.en, cldr.name.en, iso2c, iso3c)
+
+
+## World region data 1
+codelist.supp <- data.frame(
+  country.name.en = c('USA'),
+  iso3c = c('USA'),
+  region = c('North America')
+)
+codelist <- SDGdetector::codelist_panel %>%
+  dplyr::distinct(country.name.en, iso3c, region) %>%
+  rbind(., codelist.supp) %>%
+  dplyr::mutate(
+    country.name.en = case_when(
+      str_detect(string = iso3c, pattern = 'HKG') ~ 'Hong Kong',
+      T ~ country.name.en)
+  ) %>%
+  dplyr::distinct(country.name.en, iso3c, region)
+
+## World region data 2
+region_owid <- readr::read_csv('./data/continents-according-to-our-world-in-data.csv', show_col_types = FALSE) %>%
+  dplyr::select(-Year) %>%
+  dplyr::mutate(Code = gsub('OWID_', '', Code)) %>%
+  dplyr::rename('name_owid' = 'Entity',
+                'ISO3' = 'Code') %>%
+  as.data.frame()
+
+## World region data combined 
+countryCode_region <- countryRegions %>%
+  dplyr::mutate(REGION = ifelse(REGION=='Australia', 'Oceania', REGION)) %>%
+  left_join(., region_owid, by = 'ISO3') %>%
+  dplyr::select(1:REGION, Continent, continent, everything())
+
+
+func_add_region <- function(data) {
+  d <- data %>%
+    merge(x = ., 
+          y = codelist, 
+          by.x = 'Country', 
+          by.y = 'country.name.en', all.x = T) %>%
+    ## add more detailed region name info
+    merge(x = ., 
+          y = countryCode_region %>%
+            dplyr::select(ISO3, REGION, continent), 
+          by.x = 'iso3c', 
+          by.y = 'ISO3', all.x = T) %>%
+    ## remove `region`, and rename `REGION` to `Region`
+    dplyr::select(-region) %>%
+    dplyr::rename('Region' = 'REGION') %>%
+    arrange(!is.na(iso3c))
+  
   return(d)
 }
