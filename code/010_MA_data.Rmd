@@ -1010,7 +1010,6 @@ exp_sub_long_clean <- exp_sub_long %>%
   
   dplyr::mutate(
     study_label = paste(id, model_id, sep = '_'), # `Study ID`, 
-    ci95lower = ifelse(`Health outcome direction` == "Higher is better", -ci95lower, ci95lower),
     ) %>%
   dplyr::select(study_label, everything()) %>%
   
@@ -1084,9 +1083,9 @@ unique(exp_sub_long_clean$id) %>% length() %>% cat('\n', ., 'unique papers for',
 ```
 
 
-### subset `effect_size_indice`
 
-```{r}
+
+```{r - unify outcome direction}
 unique(exp_sub_long_clean$effect_size_indices)
 
 
@@ -1117,12 +1116,17 @@ exp_sub_mods <- exp_sub_long_clean %>%
         MH_direction_o1 == -1 ~ -mean,
       effect_size_indices == 'or' &
         MH_direction_o1 == -1 ~ 1-(mean-1),
-      TRUE ~ mean)
+      TRUE ~ mean),
+    
+    ci95lower = ifelse(MH_direction_o1 == 1, -ci95lower, ci95lower),
     ) %>%
   # dplyr::select(1:`Health outcome direction`, MH_direction_o1, everything()) %>%
   as.data.frame()
 ```
 
+
+
+### subset `effect_size_indice`
 
 ```{r}
 ##' further filter data based on MH tools ------------------------------------------------
