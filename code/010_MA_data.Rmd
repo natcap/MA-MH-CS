@@ -171,7 +171,7 @@ df <- df_1 %>%
     duration_group = factor(duration_group, levels = c('<= 15', '16-45', '>45'))
     
     ) %>%
-  dplyr::select(1:duration_unit, duration_mins, everything()) %>% 
+  dplyr::select(1:duration_unit, duration_mins, duration_group, everything()) %>% 
   
   
   ## clean average age, and % of male
@@ -1121,8 +1121,10 @@ exp_sub_mods <- exp_sub_long_clean %>%
     ) %>%
   # dplyr::select(1:`Health outcome direction`, MH_direction_o1, everything()) %>%
   as.data.frame()
+```
 
 
+```{r}
 ##' further filter data based on MH tools ------------------------------------------------
 source('./code/func_clean_indicatorsPro.R')
 

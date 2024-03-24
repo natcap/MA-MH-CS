@@ -17,7 +17,7 @@ plot_effect_size_overall <- function(
     add_gradient_bg = T,
     show_legend = F) {
   
-  x_limit_max <- max(abs(data$es.lower), abs(data$es.upper)) * 1.1
+  # x_limit_max <- max(abs(data$es.lower), abs(data$es.upper)) * 1.1
   
   gradient_bg <- make_gradient_bg(deg = 180, n = 500, cols = brewer.pal(9, "RdBu"))
   
@@ -79,9 +79,8 @@ plot_effect_size_overall <- function(
     geom_vline(xintercept =  0.5, linewidth = 0.4, linetype = "dotted", color = "grey70") +
     geom_vline(xintercept =  0.8, linewidth = 0.4, linetype = "dotted", color = "grey70") +
     
-    scale_x_continuous(#n.breaks = 10, 
-                       # breaks = c(-0.8, -0.5, -0.2, 0, 0.2,  0.5,  0.8), 
-                       limits = c(-x_limit_max, x_limit_max)) + 
+    ## 
+    # scale_x_continuous(limits = c(-x_limit_max, x_limit_max)) + 
   
     geom_point(aes(x = es.mean), size = 2, position = position_dodge(dodge_value), show.legend = show_legend) +
     geom_errorbarh(aes(xmin = es.lower, xmax = es.upper), height = 0.2, position=position_dodge(width = dodge_value), show.legend = F) +

@@ -93,7 +93,7 @@ subgroup_select <- 'subgroup_design' ## ?? [] need to fix NAs in the column -> r
 subgroup_select <- 'nature_type_o2'
 # subgroup_select <- 'age_group' ## age group
 # subgroup_select <- 'gender_group' ## age group
-# subgroup_select <- 'duration_group' ## exposure  
+subgroup_select <- 'duration_group' ## exposure
 
 n_group <- unique(exp_sub_mods_md2[subgroup_select]) %>% nrow()
 
