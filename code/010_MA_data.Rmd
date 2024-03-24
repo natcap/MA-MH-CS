@@ -724,7 +724,10 @@ mh_tool <- c('ROS')
 ##' It is likely this does not cover all the list in papers
 unique(df_exp_l$exposure_type)
 exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
-# effect_size_ind_i <- c('coefficient')
+effect_size_ind_i <- c(
+  "D",
+  "d",
+  "Mean_pre_post")
   
 
 ## test 

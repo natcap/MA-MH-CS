@@ -28,7 +28,8 @@ vv <- "v4"
 source('./code/func_plot_ma.R')
 
 mh_tool_list <- c('PANAS', 'POMS') 
-# mh_tool_list <- c('GHQ-12', 'PANAS', 'POMS', 'PSS', 'ROS', 'SF', 'WEMWBS') 
+mh_tool_list <- c('PANAS', 'POMS', 'PSS', 'ROS') 
+# mh_tool_list <- c('GHQ-12', 'PANAS', 'POMS', 'PSS', 'ROS', 'SF', 'WEMWBS')
 
 fs <- list.files(path = "./data/0302-MA-output/", 
                  # pattern = paste('^ma_result.*_*', sep = ''), ## if opt to include all 
@@ -94,6 +95,10 @@ ma_result.subgroup_psubgroup <- ma_result_all %>%
 source('./code/func_plot_ma.R')
 source('./code/func_color_bygroup.R')
 
+mh_tools <- c('PANAS', 'POMS'); vv <- 'v1'
+# mh_tools <- c('PSS', 'ROS') ; vv <- 'v2'
+
+
 
 ##' Pick one for viz ---------------------------------------------------------------------
 
@@ -141,7 +146,7 @@ for (subgroup_select in subgroups) {
     # data.table::as.data.table() %>%
     dplyr::filter(subgroup != 'Overall', 
                   group_name == subgroup_select,
-                  tool == 'PANAS'); 
+                  tool == mh_tools[1]); 
   
   
   ##' the number of categories of a subgroup
@@ -170,7 +175,7 @@ for (subgroup_select in subgroups) {
   p2_tool <- ma_result_all %>%
     dplyr::filter(subgroup != 'Overall', 
                   group_name == subgroup_select,
-                  tool == 'POMS') 
+                  tool == mh_tools[2]) 
   
   len <- length(unique(p2_tool$subgroup)); len
   facet_decide <- ifelse(len >2, T, F)
