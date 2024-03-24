@@ -2,6 +2,10 @@
 ##' Define the colors of nature types
 ##'   add named colors to each category to keep the color consistent 
 
+
+
+## nature_type ---------------------------------------------------------------------------
+
 ##' color from https://developers.google.com/earth-engine/datasets/catalog/USGS_NLCD_RELEASES_2021_REL_NLCD#bands
 nature_type_list <- c("Greenspace",               # '#68ab5f'	(Deciduous Forest)
                       "Greenspace - Forest/Tree", # '#1c5f2c'	
@@ -21,7 +25,7 @@ nature_type_list <- c("Greenspace",               # '#68ab5f'	(Deciduous Forest)
                       "Overall",                     # '#000000'
                       "Other"                        # '#000000'	
 )
-colors_nature_type <- c(
+nature_type_color <- c(
   '#68ab5f', # "Greenspace"
   '#1c5f2c', # "Greenspace - Forest/Tree"
   '#ccb879', # "Greenspace - Shrub/scrub"
@@ -41,14 +45,88 @@ colors_nature_type <- c(
   '#000000'  # "Other"
 )
 
-names(colors_nature_type) <- nature_type_list
+names(nature_type_color) <- nature_type_list
 
-func_color_nature_type <- function(df, column_name) {
-  df <- as.data.frame(df)
+
+
+## exposure_group ------------------------------------------------------------------------
+exposure_group <- c("L4 - physical activity in nature", 
+                    "L4 - stay static in nature")
+exposure_group_color <- NULL
+
+## age_group -----------------------------------------------------------------------------
+
+age_group_list <- c(
+  'Adolescents', 'Young Adults', 'Adults', 'Older adults'
+  )
+
+age_group_color <- rev(c(
+  # '#009E73',
+  # '#0072B2', 
+  # '#D55E00', 
+  # '#CC79A7'
+  '#d35f27',
+  '#e69f25',
+  '#0773b2',
+  '#5cb4e4'
+))
+
+# age_group_color <- c(
+#   '#003f5c',
+#   '#7a5195',
+#   '#ef5675',
+#   '#ffa600'
+# )
+names(age_group_color) <- age_group_list
+
+
+
+## gender_group  -------------------------------------------------------------------------
+gender_group_list <- c(
+  "Female > 60%", 
+  'Gender Balance', 
+  "Male > 60%")
+
+
+gender_group_color <- c(
+  '#d73027',
+  'gray60',
+  '#4575b4'
+)
+
+names(gender_group_color) <- gender_group_list
+
+## duration_group  -----------------------------------------------------------------------
+
+duration_group_list <- c('<= 15', '16-45', '>45')
+duration_group_color <- c(
+  '#c2e699',
+  '#78c679',
+  '#238443'
+)
+names(duration_group_color) <- duration_group_list
+
+
+
+
+## Function ==============================================================================
+func_color_bygroup <- function(df, column_name, color_pal = NULL) {
+  df <- as.data.frame(df) %>%
+    # dplyr::mutate(!!column_name := factor(!!sym(column_name)), levels = age_group_list) %>%
+    as.data.frame()
+  
   element_list <- unique(df[,column_name]); element_list
-  colors_nature_type_viz<- colors_nature_type[element_list]; 
+  
+  if (is.null(color_pal)) {
+    color_bygroup <- brewer.pal(n = length(element_list1), "Set1")
+  } else {
+    color_bygroup <- color_pal[element_list]; 
+  }
+  
+  
+  
   
   ## return the nature types with assigned colors
-  return(colors_nature_type_viz)
+  return(color_bygroup)
   
 }
