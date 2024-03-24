@@ -93,6 +93,7 @@ subgroups <- c(
   'subgroup_design', ## ?? [] need to fix NAs in the column -> revise `subgroup_selected`
   'exposure_o2',
   'nature_type_o2', 
+  'Region',
   'age_group', 'gender_group', 'duration_group')
 
 

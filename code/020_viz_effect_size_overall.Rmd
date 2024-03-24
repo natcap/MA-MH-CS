@@ -28,7 +28,7 @@ vv <- "v4"
 source('./code/func_plot_ma.R')
 
 mh_tool_list <- c('PANAS', 'POMS') 
-mh_tool_list <- c('PANAS', 'POMS', 'PSS', 'ROS') 
+# mh_tool_list <- c('PANAS', 'POMS', 'PSS', 'ROS') 
 # mh_tool_list <- c('GHQ-12', 'PANAS', 'POMS', 'PSS', 'ROS', 'SF', 'WEMWBS')
 
 fs <- list.files(path = "./data/0302-MA-output/", 
@@ -113,6 +113,7 @@ mh_tools <- c('PANAS', 'POMS'); vv <- 'v1'
 subgroups <- c(
   # 'subgroup_design', 'exposure_o2', 
   'nature_type_o2', 
+  'Region',
   'age_group', 'gender_group', 'duration_group')
 
 
@@ -129,8 +130,11 @@ for (subgroup_select in subgroups) {
   } else if(subgroup_select == 'duration_group'){
     color_bygroup = duration_group_color; 
     group_list = duration_group_list
+  } else if(subgroup_select == 'Region'){
+    color_bygroup = region_color; 
+    group_list = region_list
   } else {
-    break
+    next
   }
   
   
@@ -152,7 +156,7 @@ for (subgroup_select in subgroups) {
   ##' the number of categories of a subgroup
   ##' use this to decide whether to facet a plot 
   len <- length(unique(p1_tool$subgroup)); len
-  facet_decide <- ifelse(len >2, T, F)
+  facet_decide <- ifelse(len >1, T, F)
   
   ##' add named colors to each category to keep the color consistent 
   element_list1 <- unique(p1_tool$subgroup); element_list1
@@ -178,7 +182,7 @@ for (subgroup_select in subgroups) {
                   tool == mh_tools[2]) 
   
   len <- length(unique(p2_tool$subgroup)); len
-  facet_decide <- ifelse(len >2, T, F)
+  facet_decide <- ifelse(len >1, T, F)
   
   ## add named colors
   element_list2 <- unique(p2_tool$subgroup); 
@@ -226,9 +230,9 @@ for (subgroup_select in subgroups) {
           legend.title=element_text(size=7.5, face = 'bold'),
           legend.text=element_text(size=7),
               ) +
-    guides(color = guide_legend(reverse=TRUE))
+    guides(color = guide_legend(reverse=F))
   # legend_plot  
-  legend_made <- get_legend(legend_plot)
+  legend_made <- cowplot::get_legend(legend_plot)
   
   
   
@@ -241,7 +245,9 @@ for (subgroup_select in subgroups) {
               common.legend = F, 
               align = "v")
   p_comb
-  fname <- paste0(dir.fig, 'es_comb', postfix_group, '_', today, vv, '.png'); fname
+  
+  fname <- paste0(dir.fig, 'es_comb', postfix_group, '_', today, vv, '.png'); 
+  print(fname)
   # func_ggsave(fname, w = 6, h = 5.5+1, save_png = T)
   
   
