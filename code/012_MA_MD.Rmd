@@ -88,221 +88,226 @@ library(grid)
 show_raw_data_in_forest <- F
 
 add_subgroup_analysis   <- T
-subgroup_select <- 'subgroup_design' ## ?? [] need to fix NAs in the column -> revise `subgroup_selected`
-# subgroup_select <- 'exposure_o2'
-subgroup_select <- 'nature_type_o2'
-# subgroup_select <- 'age_group' ## age group
-# subgroup_select <- 'gender_group' ## age group
-subgroup_select <- 'duration_group' ## exposure
 
-n_group <- unique(exp_sub_mods_md2[subgroup_select]) %>% nrow()
+subgroups <- c(
+  'subgroup_design', ## ?? [] need to fix NAs in the column -> revise `subgroup_selected`
+  'exposure_o2',
+  'nature_type_o2', 
+  'age_group', 'gender_group', 'duration_group')
 
-ma_result.overall <- data.frame()
-ma_result.subgroup <- data.frame()
 
-for (sub_ind_i in sub_indicator_selected) {
-  
-  exp_sub_mods_md2i <- exp_sub_mods_md2 %>%
-    dplyr::filter(MH_indicator_o2 == sub_ind_i) 
-  
-  if (add_subgroup_analysis == T) {
-    exp_sub_mods_md2i <- exp_sub_mods_md2i %>%
-      dplyr::mutate(subgroup_selected = !!sym(subgroup_select)) %>%
-      dplyr::filter(!is.na(subgroup_selected)) %>%
-      as.data.frame()
-  } else {
-    exp_sub_mods_md2i <- exp_sub_mods_md2i %>%
-      dplyr::mutate(subgroup_selected = 'NULL') %>%
-      as.data.frame()
-  }
-  
+for (subgroup_select in subgroups) {
 
-  height_cm <- nrow(exp_sub_mods_md2i)
+  n_group <- unique(exp_sub_mods_md2[subgroup_select]) %>% nrow()
   
-  ma_smd <- meta::metacont(
-    data = exp_sub_mods_md2i,
-    n.e = e_n,
-    n.c = c_n,
-    mean.e = e_mean,
-    mean.c = c_mean,
-    sd.e = e_sd_r,
-    sd.c = c_sd_r,
-    studlab = paste0(`Study ID`, ' - ', model_id), #study_label,
+  ma_result.overall <- data.frame()
+  ma_result.subgroup <- data.frame()
+  
+  for (sub_ind_i in sub_indicator_selected) {
     
-    sm = "SMD", 
-    method.smd = "Hedges",
-    fixed = FALSE,
-    random = TRUE,
-    method.tau = "REML",
-    hakn = TRUE, 
-    subgroup = NULL,  ## Grouping results by a variable, default = NULL
-    title = paste(mh_tool, collapse = '; '))
-  ma_smd
+    exp_sub_mods_md2i <- exp_sub_mods_md2 %>%
+      dplyr::filter(MH_indicator_o2 == sub_ind_i) 
+    
+    if (add_subgroup_analysis == T) {
+      exp_sub_mods_md2i <- exp_sub_mods_md2i %>%
+        dplyr::mutate(subgroup_selected = !!sym(subgroup_select)) %>%
+        dplyr::filter(!is.na(subgroup_selected)) %>%
+        as.data.frame()
+    } else {
+      exp_sub_mods_md2i <- exp_sub_mods_md2i %>%
+        dplyr::mutate(subgroup_selected = 'NULL') %>%
+        as.data.frame()
+    }
+    
   
-  ## update the MA by adding subgroup analysis
-  if (add_subgroup_analysis == T) {
-    ma_smd <- update(ma_smd, subgroup = subgroup_selected)
-  }
-  
-  
-  
-  ## extract the overall effect size data to a dataframe =================================
-  ### 1. overall model data
-  ma_smd.df <- data.frame(
-    tool = mh_tool, 
-    ind_sub = sub_ind_i,
-    group_name = '',
-    subgroup = 'Overall',
-    es.mean = ma_smd$TE.random,
-    es.lower= ma_smd$lower.random,
-    es.upper= ma_smd$upper.random,
-    pval    = ma_smd$pval.random %>% round(., digits = 10),
-    I2      = as.numeric(ma_smd$I2) %>% round(., digits = 2),
-    p_subgroup = NA,
-    ## Number of studies
-    n_study = ma_smd$k.all,
-    ## Number of observations
-    n_obs   = ma_smd$n.e.pooled + ma_smd$n.c.pooled
-  ) %>%
-    dplyr::mutate(
-      p.star  = case_when(
-        pval < 0.001 ~ '***',
-        pval < 0.01 ~ '**',
-        pval < 0.05 ~ '*',
-        T ~ ''),
-    )
-  ma_result.overall <- rbind(ma_result.overall, ma_smd.df)
-  
-  ### 2. subgroup model data
-  if (add_subgroup_analysis == T) {
-    ma_smd.df.subgroup <- data.frame(
-      tool = paste(mh_tool, collapse = '; '), 
-      ind_sub = sub_ind_i, 
-      group_name = subgroup_select,
-      subgroup = names(ma_smd$TE.common.w),
-      es.mean = as.numeric(ma_smd$TE.random.w),
-      es.lower= as.numeric(ma_smd$lower.random.w),
-      es.upper= as.numeric(ma_smd$upper.random.w),
-      pval    = as.numeric(ma_smd$pval.random.w) %>% round(., digits = 10),
-      I2      = as.numeric(ma_smd$I2.w) %>% round(., digits = 2),
-      p_subgroup = as.numeric(ma_smd$pval.Q.b.random) %>% round(., digits = 10),
+    height_cm <- nrow(exp_sub_mods_md2i)
+    
+    ma_smd <- meta::metacont(
+      data = exp_sub_mods_md2i,
+      n.e = e_n,
+      n.c = c_n,
+      mean.e = e_mean,
+      mean.c = c_mean,
+      sd.e = e_sd_r,
+      sd.c = c_sd_r,
+      studlab = paste0(`Study ID`, ' - ', model_id), #study_label,
+      
+      sm = "SMD", 
+      method.smd = "Hedges",
+      fixed = FALSE,
+      random = TRUE,
+      method.tau = "REML",
+      hakn = TRUE, 
+      subgroup = NULL,  ## Grouping results by a variable, default = NULL
+      title = paste(mh_tool, collapse = '; '))
+    ma_smd
+    
+    ## update the MA by adding subgroup analysis
+    if (add_subgroup_analysis == T) {
+      ma_smd <- update(ma_smd, subgroup = subgroup_selected)
+    }
+    
+    
+    
+    ## extract the overall effect size data to a dataframe =================================
+    ### 1. overall model data
+    ma_smd.df <- data.frame(
+      tool = mh_tool, 
+      ind_sub = sub_ind_i,
+      group_name = '',
+      subgroup = 'Overall',
+      es.mean = ma_smd$TE.random,
+      es.lower= ma_smd$lower.random,
+      es.upper= ma_smd$upper.random,
+      pval    = ma_smd$pval.random %>% round(., digits = 10),
+      I2      = as.numeric(ma_smd$I2) %>% round(., digits = 2),
+      p_subgroup = NA,
       ## Number of studies
-      n_study = as.numeric(ma_smd$k.all.w),
+      n_study = ma_smd$k.all,
       ## Number of observations
-      n_obs   = NA
+      n_obs   = ma_smd$n.e.pooled + ma_smd$n.c.pooled
     ) %>%
       dplyr::mutate(
         p.star  = case_when(
           pval < 0.001 ~ '***',
-          pval < 0.01  ~ '**',
-          pval < 0.05  ~ '*',
+          pval < 0.01 ~ '**',
+          pval < 0.05 ~ '*',
           T ~ ''),
       )
-    ma_result.subgroup <- rbind(ma_result.subgroup, ma_smd.df.subgroup)
-  }
-
-
+    ma_result.overall <- rbind(ma_result.overall, ma_smd.df)
+    
+    ### 2. subgroup model data
+    if (add_subgroup_analysis == T) {
+      ma_smd.df.subgroup <- data.frame(
+        tool = paste(mh_tool, collapse = '; '), 
+        ind_sub = sub_ind_i, 
+        group_name = subgroup_select,
+        subgroup = names(ma_smd$TE.common.w),
+        es.mean = as.numeric(ma_smd$TE.random.w),
+        es.lower= as.numeric(ma_smd$lower.random.w),
+        es.upper= as.numeric(ma_smd$upper.random.w),
+        pval    = as.numeric(ma_smd$pval.random.w) %>% round(., digits = 10),
+        I2      = as.numeric(ma_smd$I2.w) %>% round(., digits = 2),
+        p_subgroup = as.numeric(ma_smd$pval.Q.b.random) %>% round(., digits = 10),
+        ## Number of studies
+        n_study = as.numeric(ma_smd$k.all.w),
+        ## Number of observations
+        n_obs   = NA
+      ) %>%
+        dplyr::mutate(
+          p.star  = case_when(
+            pval < 0.001 ~ '***',
+            pval < 0.01  ~ '**',
+            pval < 0.05  ~ '*',
+            T ~ ''),
+        )
+      ma_result.subgroup <- rbind(ma_result.subgroup, ma_smd.df.subgroup)
+    }
   
-  ##' forest plot ========================================================================
-  ##'     https://insidethenumbers.netlify.app/post/meta-analysis/
-  ##'     https://www.rdocumentation.org/packages/meta/versions/6.5-0/topics/forest.meta
-  if(show_raw_data_in_forest == T){
-    leftcols_show = c("studlab", "n.e", "mean.e", "sd.e", "n.c", "mean.c", "sd.c")
-    add_print.tau2 = T
-    width_forestPlot = 27.5
-    postfix_simplify = ''
-  } else {
-    leftcols_show = c("studlab")
-    add_print.tau2 = F ## limited space causes text overlap
-    width_forestPlot = 18.5
-    postfix_simplify = 'simplified'
+  
+    
+    ##' forest plot ========================================================================
+    ##'     https://insidethenumbers.netlify.app/post/meta-analysis/
+    ##'     https://www.rdocumentation.org/packages/meta/versions/6.5-0/topics/forest.meta
+    if(show_raw_data_in_forest == T){
+      leftcols_show = c("studlab", "n.e", "mean.e", "sd.e", "n.c", "mean.c", "sd.c")
+      add_print.tau2 = T
+      width_forestPlot = 27.5
+      postfix_simplify = ''
+    } else {
+      leftcols_show = c("studlab")
+      add_print.tau2 = F ## limited space causes text overlap
+      width_forestPlot = 18.5
+      postfix_simplify = 'simplified'
+    }
+    
+    
+    if (add_subgroup_analysis == T) {
+      test.effect.subgroup.random_para = TRUE
+      postfix_subgroup <- paste0("_subgroup_", subgroup_select)
+      height_cm <- height_cm + 10 + n_group
+    } else {
+      test.effect.subgroup.random_para = F
+      postfix_subgroup <- ""
+    }
+    
+    
+    f <- paste0('./figures/', 'forest_', mh_tool, '/', sub_ind_i, '_', 
+                postfix_simplify, 
+                postfix_subgroup, '_', today, 
+                '.png'); f
+    png(filename = f, 
+        # width = 3000, height = 3000, units = "px", pointsize = 22,
+        width = width_forestPlot, height = height_cm/1.5, units = "cm", res = 100)
+    
+    
+    meta::forest(ma_smd,
+           # layout = "RevMan5",
+           # sortvar = TE,
+           prediction = F, ## prediction interval for the treatment effect in a future study
+           col.predict="gray",
+           addpred=TRUE, 
+           print.tau2 = T,
+           
+           ##' specify which variables should be displayed on the left side of the forest plot. 
+           leftcols = leftcols_show, 
+           # leftlabs = c(),
+           # lab.e = "Post-intervention",
+           # lab.c = "Pre-intervention",
+           
+           # xlim = 's', # “s” to produce symmetric forest plots
+           
+           # print.byvar = FALSE, ## whether the name of the grouping variable should be printed in front of the group labels.
+           # label.left = "loss",
+           # label.right = "gain",
+           digits=2,
+           digits.sd = 2,
+           digits.tau2 = 2,
+           colgap = "0.2cm",
+           # colgap.forest = "1cm",
+           colgap.forest.left = '1.8cm',
+           col.by = "black",
+           col.square = "black",
+           col.inside = "black",
+           col.square.lines = "black",
+           shade=TRUE,
+           test.effect.subgroup.random = test.effect.subgroup.random_para,
+           pooled.totals=T,
+           overall = T,
+           overall.hetstat = T)
+    
+    # forest(ma_smd, 
+    #        addpred=TRUE, 
+    #        header=TRUE, 
+    #        # xlim=c(-1,1), 
+    #        # slab = study_label, 
+    #        digits.sd = 2,
+    #        digits.tau2 = 2,
+    #        shade=TRUE)
+    
+    # Add a title to the entire plot
+    grid::grid.text(label = sub_ind_i, x = 0, y = .98, just = 'left', gp=gpar(cex=1, fontface='bold'))
+    
+    dev.off()
+    
   }
   
+  
+  
+  ## save MA result 
+  cat('\n')
+  fname <- paste0('./data/0302-MA-output/', 
+                  paste('ma_result.overall', paste(mh_tool, collapse = "_"), '.rds', sep = '_')); 
+  print(fname)
+  saveRDS(ma_result.overall, file = fname)
   
   if (add_subgroup_analysis == T) {
-    test.effect.subgroup.random_para = TRUE
-    postfix_subgroup <- paste0("_subgroup_", subgroup_select)
-    height_cm <- height_cm + 10 + n_group
-  } else {
-    test.effect.subgroup.random_para = F
-    postfix_subgroup <- ""
+    fname <- paste0('./data/0302-MA-output/', 
+                    paste('ma_result.subgroup', paste(mh_tool, collapse = "_"), subgroup_select, '.rds', sep = '_')); 
+    print(fname)
+    saveRDS(ma_result.subgroup, file = fname)
   }
   
-  
-  f <- paste0('./figures/', 'forest_', mh_tool, '/', sub_ind_i, '_', 
-              postfix_simplify, 
-              postfix_subgroup, '_', today, 
-              '.png'); f
-  png(filename = f, 
-      # width = 3000, height = 3000, units = "px", pointsize = 22,
-      width = width_forestPlot, height = height_cm/1.5, units = "cm", res = 100)
-  
-  
-  meta::forest(ma_smd,
-         # layout = "RevMan5",
-         # sortvar = TE,
-         prediction = F, ## prediction interval for the treatment effect in a future study
-         col.predict="gray",
-         addpred=TRUE, 
-         print.tau2 = T,
-         
-         ##' specify which variables should be displayed on the left side of the forest plot. 
-         leftcols = leftcols_show, 
-         # leftlabs = c(),
-         # lab.e = "Post-intervention",
-         # lab.c = "Pre-intervention",
-         
-         # xlim = 's', # “s” to produce symmetric forest plots
-         
-         # print.byvar = FALSE, ## whether the name of the grouping variable should be printed in front of the group labels.
-         # label.left = "loss",
-         # label.right = "gain",
-         digits=2,
-         digits.sd = 2,
-         digits.tau2 = 2,
-         colgap = "0.2cm",
-         # colgap.forest = "1cm",
-         colgap.forest.left = '1.8cm',
-         col.by = "black",
-         col.square = "black",
-         col.inside = "black",
-         col.square.lines = "black",
-         shade=TRUE,
-         test.effect.subgroup.random = test.effect.subgroup.random_para,
-         pooled.totals=T,
-         overall = T,
-         overall.hetstat = T)
-  
-  # forest(ma_smd, 
-  #        addpred=TRUE, 
-  #        header=TRUE, 
-  #        # xlim=c(-1,1), 
-  #        # slab = study_label, 
-  #        digits.sd = 2,
-  #        digits.tau2 = 2,
-  #        shade=TRUE)
-  
-  # Add a title to the entire plot
-  grid::grid.text(label = sub_ind_i, x = 0, y = .98, just = 'left', gp=gpar(cex=1, fontface='bold'))
-  
-  dev.off()
-  
-}
-
-
-
-## save MA result 
-cat('\n')
-fname <- paste0('./data/0302-MA-output/', 
-                paste('ma_result.overall', paste(mh_tool, collapse = "_"), '.rds', sep = '_')); 
-print(fname)
-saveRDS(ma_result.overall, file = fname)
-
-if (add_subgroup_analysis == T) {
-  fname <- paste0('./data/0302-MA-output/', 
-                  paste('ma_result.subgroup', paste(mh_tool, collapse = "_"), subgroup_select, '.rds', sep = '_')); 
-  print(fname)
-  saveRDS(ma_result.subgroup, file = fname)
 }
 ```
 
