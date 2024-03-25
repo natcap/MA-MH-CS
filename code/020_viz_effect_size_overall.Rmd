@@ -13,11 +13,12 @@ output: html_document
 
 library(meta)
 packageVersion("meta")
+source('./code/_pkgs_dirs.R')
 
 
 ##' an extra post fix for figure's version control
 vv <- ""
-vv <- "v4"
+vv <- "v"
 ```
 
 
@@ -28,7 +29,7 @@ vv <- "v4"
 source('./code/func_plot_ma.R')
 
 mh_tool_list <- c('PANAS', 'POMS') 
-# mh_tool_list <- c('PANAS', 'POMS', 'PSS', 'ROS') 
+mh_tool_list <- c('PANAS', 'POMS', 'PSS', 'ROS')
 # mh_tool_list <- c('GHQ-12', 'PANAS', 'POMS', 'PSS', 'ROS', 'SF', 'WEMWBS')
 
 fs <- list.files(path = "./data/0302-MA-output/", 
@@ -66,13 +67,19 @@ for (f in fs) {
 
 
 ## pool all data together 
-ma_result_all %>%
+data <- ma_result_all %>%
+  dplyr::filter(subgroup == 'Overall') 
+x_limit_max <- max(abs(data$es.lower), abs(data$es.upper), na.rm = T) * 1.1
+x_limit_max
+
+data %>%
   dplyr::filter(subgroup == 'Overall') %>%
   plot_effect_size_overall(data = ., 
                            color_var = 'tool', 
                            show_legend = T) +
-  theme(legend.position = c(0.85, 0.75),
-        plot.margin = margin(0, 0, 0, 0, "pt")) +
+  scale_x_continuous(limits = c(-x_limit_max, x_limit_max)) +
+  theme(legend.position = c(0.85, 0.8),
+        plot.margin = margin(t=0, r=0, b=0, l=0, "pt")) +
   guides(color = guide_legend(title="MH Tools"))
 
 
@@ -143,14 +150,16 @@ for (subgroup_select in subgroups) {
   postfix_group <- paste0("_subgroup_", subgroup_select); postfix_group
 
 
-
+  ma_result_all_sub <- ma_result_all %>%
+    dplyr::filter(subgroup != 'Overall', 
+                  group_name == subgroup_select)
+  
+    
 
   ##' plot tool - 1 ------------------------------------------------------------------------
-  p1_tool <- ma_result_all %>%
+  p1_tool <- ma_result_all_sub %>%
     # data.table::as.data.table() %>%
-    dplyr::filter(subgroup != 'Overall', 
-                  group_name == subgroup_select,
-                  tool == mh_tools[1]); 
+    dplyr::filter(tool == mh_tools[1]); 
   
   
   ##' the number of categories of a subgroup
@@ -176,7 +185,7 @@ for (subgroup_select in subgroups) {
   
   ##' plot tool - 2 ------------------------------------------------------------------------
   
-  p2_tool <- ma_result_all %>%
+  p2_tool <- ma_result_all_sub %>%
     dplyr::filter(subgroup != 'Overall', 
                   group_name == subgroup_select,
                   tool == mh_tools[2]) 
@@ -204,8 +213,14 @@ for (subgroup_select in subgroups) {
   
   ##' create a legend that includes elements from both figures -----------------------------
   set.seed(1) # for reproducibility
+  ### - if choose to include available categories
   ls_element <- unique(c(element_list1, element_list2))
   ls <- unique(c(colors_group1, colors_group2))
+  ### - if choose to include all categories 
+  ls_element <- unique(ma_result_all_sub$subgroup)
+  colors_group <- func_color_bygroup(df = ma_result_all_sub, column_name = "subgroup", color_pal = color_bygroup)
+  ls <- unique(colors_group)
+  
   n  <- length(ls); n
   
   # generate 5 random points
@@ -256,7 +271,7 @@ for (subgroup_select in subgroups) {
   library(gridExtra)
   
   fname <- gsub('.png', '_legend.png', fname); fname
-  png(filename = fname, width = 6, height = 5.5+1, units = 'in', res = 300)
+  png(filename = fname, width = 6, height = 5.5+1, units = 'in', res = 600)
   
   grid.draw(p_comb)
   sample_vp <- viewport(x = 2/3, y = 0, # legend position 
@@ -294,21 +309,32 @@ for (subgroup_select in subgroups) {
 
 
 ```{r - p_all}
-p_all <- ma_result_all %>%
-  dplyr::filter(subgroup != 'Overall',
-                group_name == subgroup_select) %>%
+
+subgroup_select <- 'nature_type_o2';  color_bygroup = nature_type_color; group_list = nature_type_list
+
+ind_sub_levels <- c("TMD", "Anxiety", "Fatigue", "Confusion", "Anger", "Depression",  
+                    "Stress", "Negative Affect", 
+                    "Positive Affect", "Restorative Effect", "Vigor")
+
+p_all <- ma_result_all_sub %>%
   dplyr::group_by(tool, ind_sub) %>%
+  dplyr::mutate(ind_sub = factor(ind_sub, levels = ind_sub_levels))
+
+colors_group <- func_color_bygroup(df = p_all, column_name = "subgroup", color_pal = color_bygroup)
+colored_group <- colors_group
+
+p_all %>%
   plot_effect_size_overall(data = .,
                            subgroup = 'subgroup', 
                            facet_bygroup = facet_decide, 
                            add_gradient_bg = F,
-                           show_legend = T) +
+                           show_legend = F) +
   scale_colour_manual(values = colored_group)
 
 p_all
 
-fname <- paste0(dir.fig, 'es_comb', postfix_group, '_', today, vv, '_.png'); fname
-# func_ggsave(fname, w = 6, h = 5.5+1, save_png = T)
+fname <- paste0(dir.fig, 'es_comb_subgroup_', subgroup_select, '_', today, vv, '_ppt.png'); fname
+func_ggsave(fname, w = 16/2, h = 9/2, save_png = T)
 ```
 
 **refs**
