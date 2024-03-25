@@ -16,16 +16,6 @@ source('./code/func_clean_geo.R')
 f <- paste0('./data/dt.rds')
 dt <- readRDS(f)
 
-
-## geocoded city data
-f <- paste0('./data/dt_city_geocoded.rds')
-dt_city <- readRDS(f) 
-
-dt_city_count <- dt_city %>%
-  dplyr::group_by(across(c(-id))) %>%
-  dplyr::summarize(count = n())
-
-hist(dt_city_count$count)
 ```
 
 
@@ -158,6 +148,20 @@ func_ggsave(fname = fname, w = 7, h = 4, save_png = T)
 ```{r - City - clean data}
 
 # refer to `001a_city_geocoding_map.Rmd`
+
+## geocoded city data
+f <- paste0('./data/dt_city_geocoded.rds')
+dt_city <- readRDS(f) 
+
+dt_city_count <- dt_city %>%
+  dplyr::group_by(across(c(-id))) %>%
+  dplyr::summarize(count = n())
+
+hist(dt_city_count$count)
+
+
+## add city population data
+
 ```
 
 

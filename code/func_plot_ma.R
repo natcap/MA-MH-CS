@@ -17,7 +17,7 @@ plot_effect_size_overall <- function(
     add_gradient_bg = T,
     show_legend = F) {
   
-  # x_limit_max <- max(abs(data$es.lower), abs(data$es.upper)) * 1.1
+  # x_limit_max <- max(abs(data$es.lower), abs(data$es.upper), na.rm = T) * 1.1
   
   gradient_bg <- make_gradient_bg(deg = 180, n = 500, cols = brewer.pal(9, "RdBu"))
   
@@ -70,7 +70,7 @@ plot_effect_size_overall <- function(
   }
   
   p <- p + 
-    geom_vline(xintercept = 0, linewidth = 0.4, color = vline_0_color, alpha = 0.8) + # linetype = "dashed", 
+    geom_vline(xintercept = 0, linewidth = 0.4, color = vline_0_color, alpha = 0.7) + # linetype = "dashed", 
     ### SMD effect threshold values: small - moderate - large
     geom_vline(xintercept = -0.2, linewidth = 0.4, linetype = "dotted", color = "grey70") + ## , linewidth = 0.5
     geom_vline(xintercept = -0.5, linewidth = 0.4, linetype = "dotted", color = "grey70") +
@@ -120,8 +120,13 @@ plot_effect_size_overall <- function(
   if (facet_bygroup == T) {
     p <- p +
       facet_wrap(~ind_sub, scales = 'free') +
+      theme_bw() +
       theme(axis.title.y = element_blank(),
             axis.text.y = element_blank(),
+            axis.ticks.y = element_blank(),
+            panel.grid.major.y = element_blank(),
+            panel.grid.minor.x = element_blank(),
+            panel.grid.minor.y = element_blank(),
             legend.spacing.y = unit(0, 'cm'),
             legend.spacing.x = unit(0, 'cm'),
             legend.key.size = unit(0.15, 'cm'),
