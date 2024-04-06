@@ -18,12 +18,25 @@ source('./code/_pkgs_dirs.R')
 
 ##' an extra post fix for figure's version control
 vv <- ""
-vv <- "v"
+vv <- "vIALE"
 ```
 
 
 
 ### show overall effect
+
+```{r}
+## select a few easy-to-understand indicator for IALE presentation 
+ind_for_iale <- c("Anxiety", "Depression", 
+                  # "Stress", 
+                  "Restorative Effect", "Vigor")
+nature_type_iale_remove <- 
+  c("Greenspace",
+    "Greenspace - Garden",
+    "Greenspace - Green alley/Roadside green", 
+    "Greenspace - Green roof/wall")
+```
+
 
 ```{r - overall}
 source('./code/func_plot_ma.R')
@@ -31,6 +44,7 @@ source('./code/func_plot_ma.R')
 mh_tool_list <- c('PANAS', 'POMS') 
 mh_tool_list <- c('PANAS', 'POMS', 'PSS', 'ROS')
 # mh_tool_list <- c('GHQ-12', 'PANAS', 'POMS', 'PSS', 'ROS', 'SF', 'WEMWBS')
+
 
 fs <- list.files(path = "./data/0302-MA-output/", 
                  # pattern = paste('^ma_result.*_*', sep = ''), ## if opt to include all 
@@ -69,23 +83,27 @@ for (f in fs) {
 ## pool all data together 
 data <- ma_result_all %>%
   dplyr::filter(subgroup == 'Overall') 
-x_limit_max <- max(abs(data$es.lower), abs(data$es.upper), na.rm = T) * 1.1
+x_limit_max <- max(abs(data$es.lower), abs(data$es.upper), na.rm = T) * 1.2
 x_limit_max
 
 data %>%
   dplyr::filter(subgroup == 'Overall') %>%
+  dplyr::filter(ind_sub %in% ind_for_iale) %>%
   plot_effect_size_overall(data = ., 
                            color_var = 'tool', 
                            show_legend = T) +
   scale_x_continuous(limits = c(-x_limit_max, x_limit_max)) +
-  theme(legend.position = c(0.85, 0.8),
+  theme(legend.position = c(0.85, 0.85),
+        # legend.spacing.y = unit(0, 'cm'),
+        legend.spacing.x = unit(0.2, 'cm'),
+        legend.key.size = unit(0.2, 'cm'),
         plot.margin = margin(t=0, r=0, b=0, l=0, "pt")) +
   guides(color = guide_legend(title="MH Tools"))
 
 
 
-fname <- paste0(dir.fig, 'es_comb_', today, vv, '.png'); fname
-func_ggsave(fname, w = 6, h = 5.5, save_png = T)
+fname <- paste0(dir.fig, 'es_comb_', today, vv, '5.png'); fname
+func_ggsave(fname, w = 6, h = 5.5/2, save_png = T)
 ```
 
 ### by group
@@ -312,29 +330,41 @@ for (subgroup_select in subgroups) {
 
 subgroup_select <- 'nature_type_o2';  color_bygroup = nature_type_color; group_list = nature_type_list
 
-ind_sub_levels <- c("TMD", "Anxiety", "Fatigue", "Confusion", "Anger", "Depression",  
+ind_sub_levels <- c("TMD", "Anxiety", "Fatigue", "Confusion", "Anger", 
+                    # "Depression",  ## for IALE
                     "Stress", "Negative Affect", 
-                    "Positive Affect", "Restorative Effect", "Vigor")
+                    "Positive Affect", 
+                    "Restorative Effect", 
+                    "Depression", 
+                    "Vigor")
 
-p_all <- ma_result_all_sub %>%
+p_all <- ma_result_all %>%
+  dplyr::filter(group_name == subgroup_select) %>%
   dplyr::group_by(tool, ind_sub) %>%
-  dplyr::mutate(ind_sub = factor(ind_sub, levels = ind_sub_levels))
+  dplyr::mutate(ind_sub = factor(ind_sub, levels = ind_sub_levels)) %>%
+  dplyr::filter(ind_sub %in% ind_for_iale) %>%
+  dplyr::filter(!subgroup %in% nature_type_iale_remove) %>%
+  as.data.frame()
+p_all$subgroup <- factor(p_all$subgroup, levels = (nature_type_list))
 
 colors_group <- func_color_bygroup(df = p_all, column_name = "subgroup", color_pal = color_bygroup)
 colored_group <- colors_group
+
 
 p_all %>%
   plot_effect_size_overall(data = .,
                            subgroup = 'subgroup', 
                            facet_bygroup = facet_decide, 
+                           facet_scales = 'free_y',
+                           text_size = 20,
                            add_gradient_bg = F,
                            show_legend = F) +
   scale_colour_manual(values = colored_group)
 
-p_all
+# p_all
 
-fname <- paste0(dir.fig, 'es_comb_subgroup_', subgroup_select, '_', today, vv, '_ppt.png'); fname
-func_ggsave(fname, w = 16/2, h = 9/2, save_png = T)
+fname <- paste0(dir.fig, 'es_comb_subgroup_', subgroup_select, '_', today, vv, '_iale.png'); fname
+func_ggsave(fname, w = 16/3, h = 9/2, save_png = T)
 ```
 
 **refs**
