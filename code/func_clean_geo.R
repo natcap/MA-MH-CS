@@ -9,6 +9,7 @@
 #' 
 
 library(dplyr)
+library(stringr)
 
 func_clean_country <- function(data, column_name = "Country") {
   d <- data %>%
@@ -56,7 +57,9 @@ func_clean_city <- function(data, column_name = "City") {
 library(SDGdetector)
 packageVersion('SDGdetector')
 
-# library(countrycode)
+data(countryRegions,envir=environment(),package="rworldmap")
+
+# library(countrycode) 
 # # names(codelist)
 # nation.list <- codelist %>%
 #   select(country.name.en, iso.name.en, un.name.en, cldr.name.en, iso2c, iso3c)

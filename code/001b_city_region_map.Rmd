@@ -10,7 +10,12 @@ output:
 # Load data
 
 ```{r}
+Sys.setenv(LANG = "en")
+
+## Load common packages
+source("./code/_pkgs_dirs.R")
 source('./code/func_clean_geo.R')
+
 
 ## all data from Covidence
 f <- paste0('./data/dt.rds')
@@ -139,7 +144,7 @@ region_count %>%
         strip.text = element_blank()
   )
 
-f <- paste0('mini-review_paper_count_bar_', today, '.png'); f
+f <- paste0('geo_paper_count_by_region_', today, '.png'); f
 fname <- paste0(dir.fig, f); fname
 func_ggsave(fname = fname, w = 7, h = 4, save_png = T)
 ```
@@ -189,7 +194,7 @@ pub_byregion_map <- region_count_sf %>%
   geom_point(data = dt_city_count, 
              aes(x = lon, y = lat, 
                  # color = count, 
-                 size = count), color = 'red', shape = 16, alpha = 0.35) +
+                 size = count), color = 'red', shape = 1, alpha = 0.35) +
   scale_size_continuous(name = '', range = c(0.8, 3), breaks = c(1, 2, 4, 6, 8)) +
   # scale_color_gradient(low = "blue", high = "red") +
 
