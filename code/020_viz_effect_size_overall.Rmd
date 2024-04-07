@@ -18,7 +18,6 @@ source('./code/_pkgs_dirs.R')
 
 ##' an extra post fix for figure's version control
 vv <- ""
-vv <- "vIALE"
 ```
 
 
@@ -27,10 +26,10 @@ vv <- "vIALE"
 
 ```{r}
 ## select a few easy-to-understand indicator for IALE presentation 
-ind_for_iale <- c("Anxiety", "Depression", 
+ind_for_presentation <- c("Anxiety", "Depression", 
                   # "Stress", 
                   "Restorative Effect", "Vigor")
-nature_type_iale_remove <- 
+nature_type_remove_for_presentation <- 
   c("Greenspace",
     "Greenspace - Garden",
     "Greenspace - Green alley/Roadside green", 
@@ -82,28 +81,27 @@ for (f in fs) {
 
 ## pool all data together 
 data <- ma_result_all %>%
+  # dplyr::filter(ind_sub %in% ind_for_presentation) %>%
   dplyr::filter(subgroup == 'Overall') 
 x_limit_max <- max(abs(data$es.lower), abs(data$es.upper), na.rm = T) * 1.2
 x_limit_max
 
 data %>%
-  dplyr::filter(subgroup == 'Overall') %>%
-  dplyr::filter(ind_sub %in% ind_for_iale) %>%
   plot_effect_size_overall(data = ., 
                            color_var = 'tool', 
                            show_legend = T) +
   scale_x_continuous(limits = c(-x_limit_max, x_limit_max)) +
-  theme(legend.position = c(0.85, 0.85),
+  theme(legend.position = c(0.85, 0.9),
         # legend.spacing.y = unit(0, 'cm'),
         legend.spacing.x = unit(0.2, 'cm'),
         legend.key.size = unit(0.2, 'cm'),
         plot.margin = margin(t=0, r=0, b=0, l=0, "pt")) +
   guides(color = guide_legend(title="MH Tools"))
 
+n_ind <- length(unique(data$ind_sub)); 
 
-
-fname <- paste0(dir.fig, 'es_comb_', today, vv, '5.png'); fname
-func_ggsave(fname, w = 6, h = 5.5/2, save_png = T)
+fname <- paste0(dir.fig, 'es_comb_', today, vv, '.png'); fname
+func_ggsave(fname, w = 6, h = 5.5/2/5*n_ind, dpi = 300, save_png = T)
 ```
 
 ### by group
@@ -120,8 +118,8 @@ ma_result.subgroup_psubgroup <- ma_result_all %>%
 source('./code/func_plot_ma.R')
 source('./code/func_color_bygroup.R')
 
-mh_tools <- c('PANAS', 'POMS'); vv <- 'v1'
-# mh_tools <- c('PSS', 'ROS') ; vv <- 'v2'
+mh_tools <- c('PANAS', 'POMS'); 
+# mh_tools <- c('PSS', 'ROS') ; 
 
 
 
@@ -342,8 +340,8 @@ p_all <- ma_result_all %>%
   dplyr::filter(group_name == subgroup_select) %>%
   dplyr::group_by(tool, ind_sub) %>%
   dplyr::mutate(ind_sub = factor(ind_sub, levels = ind_sub_levels)) %>%
-  dplyr::filter(ind_sub %in% ind_for_iale) %>%
-  dplyr::filter(!subgroup %in% nature_type_iale_remove) %>%
+  # dplyr::filter(ind_sub %in% ind_for_presentation) %>%
+  # dplyr::filter(!subgroup %in% nature_type_remove_for_presentation) %>%
   as.data.frame()
 p_all$subgroup <- factor(p_all$subgroup, levels = (nature_type_list))
 
@@ -363,7 +361,7 @@ p_all %>%
 
 # p_all
 
-fname <- paste0(dir.fig, 'es_comb_subgroup_', subgroup_select, '_', today, vv, '_iale.png'); fname
+fname <- paste0(dir.fig, 'es_comb_subgroup_', subgroup_select, '_', today, vv, '.png'); fname
 func_ggsave(fname, w = 16/3, h = 9/2, save_png = T)
 ```
 

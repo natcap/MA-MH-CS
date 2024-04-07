@@ -34,19 +34,20 @@ plot_effect_size_overall <- function(
                   # I2_lab= paste0("I^{2} ==", I2*100, '~', "\"%\""),
                   I2_lab=  sprintf("italic(I)^2 == %.2f", I2), 
                   # I2_lab= paste0("I^{2} == ", I2)
+                  ind_sub = as.factor(ind_sub)
                   )
   
   
-  ## if to include subgroup analysis
+  ## 1. if to include subgroup analysis --------------------------------------------------
   if (is.null(subgroup)) { 
     
     if (!is.null(color_var)) {
       p <- data %>%
         ggplot(., 
                aes(x = es.mean, 
-                   y = ind_sub, 
+                   # y = ind_sub, 
                    # y = reorder(ind_sub, desc(abs(es.mean))), # the largest effect on the top
-                   # y = reorder(ind_sub, desc(es.mean)),      # the largest effect on the top 
+                   y = reorder(ind_sub, desc(es.mean)),      # the largest effect on the top
                    group = .data[[color_var]],
                    color = .data[[color_var]]
                    ))
@@ -54,8 +55,9 @@ plot_effect_size_overall <- function(
       p <- data %>%
         ggplot(., 
                aes(x = es.mean, 
-                   y = ind_sub, 
+                   # y = ind_sub, 
                    # y = reorder(ind_sub, desc(abs(es.mean))),
+                   y = reorder(ind_sub, desc(es.mean)),
                ))
     }
     
@@ -69,18 +71,25 @@ plot_effect_size_overall <- function(
                  )) 
   }
   
-  ## if to add gradient background color
+  
+  
+  ## 2. if to add gradient background color ----------------------------------------------
   if(add_gradient_bg == T){
     p <- p + 
       annotation_custom(grob = gradient_bg, xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf)
-    vline_0_color = "white"
+    vline_0_color = "gray70"
+    vline_width = 0.6
   } else {
     p <- p
     vline_0_color = "grey50"
+    vline_width = 0.4
   }
   
+
+  
+  
   p <- p + 
-    geom_vline(xintercept = 0, linewidth = 0.4, color = vline_0_color, alpha = 0.7) + # linetype = "dashed", 
+    geom_vline(xintercept = 0, linewidth = vline_width, color = vline_0_color, alpha = 0.5) + # linetype = "dashed", 
     ### SMD effect threshold values: small - moderate - large
     geom_vline(xintercept = -0.2, linewidth = 0.4, linetype = "dotted", color = "grey70") + ## , linewidth = 0.5
     geom_vline(xintercept = -0.5, linewidth = 0.4, linetype = "dotted", color = "grey70") +
@@ -92,8 +101,7 @@ plot_effect_size_overall <- function(
     ## 
     # scale_x_continuous(limits = c(-x_limit_max, x_limit_max)) + 
   
-    geom_point(aes(x = es.mean), size = 2, 
-               position = position_dodge(dodge_value), show.legend = show_legend) +
+    geom_point(aes(x = es.mean), size = 2, position = position_dodge(dodge_value), show.legend = show_legend) +
     geom_errorbarh(aes(xmin = es.lower, xmax = es.upper), 
                    height = 0.15, position=position_dodge(width = dodge_value), show.legend = F) +
     # geom_text(aes(x = es.mean, label = paste0(round(es.mean, digits = 2), ' ', p.star)), 
@@ -101,13 +109,23 @@ plot_effect_size_overall <- function(
     
     ## p value label
     geom_text(aes(x = es.mean, label = p.star), 
-              vjust = 0.2, size = text_size/4, position=position_dodge(dodge_value), show.legend = F) +
+              vjust = 0.21, size = text_size/4, position=position_dodge(dodge_value), show.legend = F) +
     labs(title = "", x = xlab_name, y = "") +
     guides(color = guide_legend(reverse=F)) 
   
   
+  ## add annotated arrows and text
+  p <- 
+    p + 
+    annotate("segment", x = 0, xend =  1.5, y = 0, yend = 0, colour = "#175E54", linewidth = .8, arrow = arrow(length = unit(0.1, "inches"), type = "closed")) +
+    annotate("segment", x = 0, xend = -1.5, y = 0, yend = 0, colour = "#8C1515", linewidth = .8, arrow = arrow(length = unit(0.1, "inches"), type = "closed")) +
+    annotate("text", x = 1,  y = 0, label = "Increase positive", colour = "#175E54", angle = 0, vjust = -1) +
+    annotate("text", x = -1, y = 0, label = "Reduce negative",   colour = "#8C1515", angle = 0, vjust = -1) +
+    #' Adjust the limits and aspect of the plot as needed
+    #' clip off can ensure the full arrows can be shown on the axis
+    coord_cartesian(clip = "off", ylim = c(NA, NA))
   
-  ## for non-subgroup analysis
+  ## 3. for non-subgroup analysis --------------------------------------------------------
   if (is.null(subgroup)) { 
     p <- p +
       ## effect size label
@@ -159,6 +177,7 @@ plot_effect_size_overall <- function(
             panel.grid.major.y = element_blank(),
             panel.grid.minor.x = element_blank(),
             panel.grid.minor.y = element_blank(),
+            # plot.margin = margin(t = 5, r = 5, b = 5, l = 5, "points"),
             legend.spacing.y = unit(0, 'cm'),
             legend.spacing.x = unit(0, 'cm'),
             legend.key.size = unit(0.15, 'cm'),
