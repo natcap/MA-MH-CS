@@ -90,13 +90,6 @@ plot_effect_size_overall <- function(
   
   p <- p + 
     geom_vline(xintercept = 0, linewidth = vline_width, color = vline_0_color, alpha = 0.5) + # linetype = "dashed", 
-    ### SMD effect threshold values: small - moderate - large
-    geom_vline(xintercept = -0.2, linewidth = 0.4, linetype = "dotted", color = "grey70") + ## , linewidth = 0.5
-    geom_vline(xintercept = -0.5, linewidth = 0.4, linetype = "dotted", color = "grey70") +
-    geom_vline(xintercept = -0.8, linewidth = 0.4, linetype = "dotted", color = "grey70") +
-    geom_vline(xintercept =  0.2, linewidth = 0.4, linetype = "dotted", color = "grey70") +
-    geom_vline(xintercept =  0.5, linewidth = 0.4, linetype = "dotted", color = "grey70") +
-    geom_vline(xintercept =  0.8, linewidth = 0.4, linetype = "dotted", color = "grey70") +
     
     ## 
     # scale_x_continuous(limits = c(-x_limit_max, x_limit_max)) + 
@@ -108,49 +101,87 @@ plot_effect_size_overall <- function(
     #           vjust = 1.7, size = 2.5, position=position_dodge(dodge_value), show.legend = F) +
     
     ## p value label
-    geom_text(aes(x = es.mean, label = p.star), 
-              vjust = 0.21, size = text_size/4, position=position_dodge(dodge_value), show.legend = F) +
+    geom_text(aes(x = es.mean, label = p.star), vjust = 0.1, size = text_size/4, position=position_dodge(dodge_value), show.legend = F) +
     labs(title = "", x = xlab_name, y = "") +
     guides(color = guide_legend(reverse=F)) 
   
   
-  ## add annotated arrows and text
-  p <- 
-    p + 
-    annotate("segment", x = 0, xend =  1.5, y = 0, yend = 0, colour = "#175E54", linewidth = .8, arrow = arrow(length = unit(0.1, "inches"), type = "closed")) +
-    annotate("segment", x = 0, xend = -1.5, y = 0, yend = 0, colour = "#8C1515", linewidth = .8, arrow = arrow(length = unit(0.1, "inches"), type = "closed")) +
-    annotate("text", x = 1,  y = 0, label = "Increase positive", colour = "#175E54", angle = 0, vjust = -1) +
-    annotate("text", x = -1, y = 0, label = "Reduce negative",   colour = "#8C1515", angle = 0, vjust = -1) +
-    #' Adjust the limits and aspect of the plot as needed
-    #' clip off can ensure the full arrows can be shown on the axis
-    coord_cartesian(clip = "off", ylim = c(NA, NA))
+  
   
   ## 3. for non-subgroup analysis --------------------------------------------------------
   if (is.null(subgroup)) { 
     p <- p +
-      ## effect size label
+      ### SMD effect threshold values: small - moderate - large
+      geom_vline(xintercept = -0.2, linewidth = 0.4, linetype = "dotted", color = "grey70") + ## , linewidth = 0.5
+      geom_vline(xintercept = -0.5, linewidth = 0.4, linetype = "dotted", color = "grey70") +
+      geom_vline(xintercept = -0.8, linewidth = 0.4, linetype = "dotted", color = "grey70") +
+      geom_vline(xintercept =  0.2, linewidth = 0.4, linetype = "dotted", color = "grey70") +
+      geom_vline(xintercept =  0.5, linewidth = 0.4, linetype = "dotted", color = "grey70") +
+      geom_vline(xintercept =  0.8, linewidth = 0.4, linetype = "dotted", color = "grey70") +
+      
+      ### effect size label
       geom_text(aes(x = es.mean, label = round(es.mean, digits = 2)), 
                 vjust = 1.7, size = text_size/4, 
                 position=position_dodge(dodge_value), show.legend = F) +
       geom_text(aes(x = es.upper, label = n_lab), 
                 vjust = 0,  hjust = -0.2, 
-                size = text_size/4, color='gray40', fontface = "italic",
+                size = text_size/4, color='gray30', fontface = "italic",
                 position=position_dodge(dodge_value), show.legend = F) +
       geom_text(aes(x = es.upper, label = I2_lab), 
                 vjust = 1, hjust = -0.15, 
-                size = text_size/4, color='gray40', fontface = "italic",
+                size = text_size/4, color='gray30', fontface = "italic",
                 position=position_dodge(dodge_value), show.legend = F, parse = T)
+    
+    
+    ## add annotated arrows and text
+    p <- 
+      p + 
+      annotate("segment", x = 0, xend =  1.5, y = 0, yend = 0, colour = "#175E54", linewidth = .8, arrow = arrow(length = unit(0.1, "inches"), type = "closed")) +
+      annotate("segment", x = 0, xend = -1.5, y = 0, yend = 0, colour = "#8C1515", linewidth = .8, arrow = arrow(length = unit(0.1, "inches"), type = "closed")) +
+      annotate("text", x = 1,  y = 0, label = "Increase positive", colour = "#175E54", angle = 0, vjust = -1) +
+      annotate("text", x = -1, y = 0, label = "Reduce negative",   colour = "#8C1515", angle = 0, vjust = -1) +
+      #' Adjust the limits and aspect of the plot as needed
+      #' clip off can ensure the full arrows can be shown on the axis
+      coord_cartesian(clip = "off", ylim = c(NA, NA))
+    
+    
+    
     ## remove sample size for subgroups
   } else {
     p <- p +
+      
       ## effect size label
-      geom_text(aes(#x = es.mean/abs(es.mean)*(-2), 
-                    # x = es.mean*1.1,
-                    x = es.mean,
-                    vjust = 1.7, 
-                    label = round(es.mean, digits = 1)), 
-                size = text_size/5, 
-                position=position_dodge(dodge_value), show.legend = F) 
+      # geom_text(aes(#x = es.mean/abs(es.mean)*(-2),
+      #               # x = es.mean*1.1,
+      #               x = es.mean,
+      #               label = round(es.mean, digits = 1)),
+      #           vjust = 1.7,
+      #           size = text_size/5,
+      #           position=position_dodge(dodge_value), show.legend = F) +
+
+      geom_text(aes(x = ifelse(es.mean<0, 
+                               es.lower,
+                               es.upper
+                               # ifelse((es.upper-es.lower)>3, 2.5*es.mean/abs(es.mean), es.lower), 
+                               # ifelse((es.upper-es.lower)>3, 2.5*es.mean/abs(es.mean), es.upper)
+                               ), 
+                    hjust = ifelse((es.upper-es.lower)>2, 
+                                   ifelse(es.mean<0, -(es.mean+es.lower)/20, -(es.mean)/30), 
+                                   ifelse(abs(es.lower-es.mean)<0.5, -0.8*es.mean/abs(es.mean), -0.3*es.mean/abs(es.mean))),
+                    label = n_lab),  
+                vjust = -0.5, size = text_size/6, position=position_dodge(dodge_value), show.legend = F) +
+      geom_text(aes(x = ifelse(es.mean<0, 
+                               es.lower,
+                               es.upper
+                               # ifelse((es.upper-es.lower)>3, 2.5*es.mean/abs(es.mean), es.lower), 
+                               # ifelse(es.upper>3, 2.5*es.mean/abs(es.mean), es.upper)
+                               ), 
+                    hjust = ifelse((es.upper-es.lower)>2, 
+                                   ifelse(es.mean<0, -(es.mean+es.lower)/20, -(es.mean)/30), 
+                                   ifelse(abs(es.lower-es.mean)<0.5, -0.8*es.mean/abs(es.mean), -0.3*es.mean/abs(es.mean))),
+                    label = ifelse(n_study>1, I2_lab, NA)), 
+                vjust = 1, size = text_size/6, position=position_dodge(dodge_value), show.legend = F, parse = T) +
+      scale_x_continuous(expand = expansion(mult = c(0.2, 0.25))) 
   }
   
   
@@ -169,7 +200,7 @@ plot_effect_size_overall <- function(
   ## when the number of subgroup is too large, it is better to facet the plot
   if (facet_bygroup == T) {
     p <- p +
-      facet_wrap(~ind_sub, scales = facet_scales) +
+      facet_wrap(~ind_sub, scales = facet_scales, ncol = 4) +
       theme_bw() +
       theme(axis.title.y = element_blank(),
             axis.text.y = element_blank(),
@@ -180,7 +211,7 @@ plot_effect_size_overall <- function(
             # plot.margin = margin(t = 5, r = 5, b = 5, l = 5, "points"),
             legend.spacing.y = unit(0, 'cm'),
             legend.spacing.x = unit(0, 'cm'),
-            legend.key.size = unit(0.15, 'cm'),
+            legend.key.size = unit(0.1, 'cm'),
             )
   }
   
