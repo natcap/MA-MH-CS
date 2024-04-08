@@ -125,7 +125,7 @@ func_color_bygroup <- function(df, column_name, color_pal = NULL) {
   element_list <- unique(df[,column_name]); element_list
   
   if (is.null(color_pal)) {
-    color_bygroup <- brewer.pal(n = length(element_list1), "Set1")
+    color_bygroup <- brewer.pal(n = length(element_list), "Set1")
   } else {
     color_bygroup <- color_pal[element_list]; 
   }
@@ -137,3 +137,4 @@ func_color_bygroup <- function(df, column_name, color_pal = NULL) {
   return(color_bygroup)
   
 }
+
