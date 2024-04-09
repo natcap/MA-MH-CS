@@ -63,10 +63,32 @@ plot_effect_size_overall <- function(
     
     
   } else {
+    
+    ##' To keep the order of each Category unchanged in the legend while sorting the y-axis values within each facet based on x values, 
+    ##' you can use a separate factor for the sorting within the facets and maintain the original factor levels for the legend. 
+    ##' This approach involves creating two different variables:
+    ##'     Original Category Variable: Used for the legend and keeps the original order of categories.
+    ##'     Sorted Category Variable: Used for plotting within the facets, where the order is determined based on the x values within each facet.
+    ##'     
+    # Original order for the legend
+    data$subgroup_original <- factor(data$subgroup, levels = unique(data$subgroup))
+    
+    # Step 1: Determine ordering within each facet based on mean Value
+    ordering_info <- data %>%
+      group_by(ind_sub) %>%
+      arrange(es.mean) %>%
+      dplyr::mutate(subgroup_sorted = factor(subgroup, levels = unique(subgroup)))
+    
+    # Step 2: Merge sorted category information back into original data frame
+    data <- data %>%
+      left_join(ordering_info %>% select(ind_sub, subgroup, subgroup_sorted), by = c("ind_sub", "subgroup"))
+    
     p <- data %>%
+      ##' plot
       ggplot(., 
              aes(x = es.mean, 
-                 y = reorder(ind_sub, desc(es.mean)), # the largest effect on the top 
+                 # y = reorder(ind_sub, desc(es.mean)), # the largest effect on the top 
+                 y = subgroup_sorted, # the largest effect on the top
                  color = !!sym(subgroup),
                  )) 
   }
