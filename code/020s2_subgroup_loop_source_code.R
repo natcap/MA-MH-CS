@@ -20,7 +20,7 @@ p_all$subgroup <- factor(p_all$subgroup, levels = group_list)
 p_all %>%
   plot_effect_size_overall(data = .,
                            subgroup = 'subgroup', 
-                           facet_bygroup = facet_decide, 
+                           facet_bygroup = T, 
                            facet_scales = 'free',
                            text_size = 11,
                            add_gradient_bg = F,
@@ -41,8 +41,8 @@ p_all %>%
         # panel.background = element_rect(colour = "gray50", linewidth=0.1, fill=NA), 
         panel.border = element_rect(linewidth=0.2), 
         strip.background = element_rect(linewidth=0.2), 
-        legend.title=element_text(size=7, face = 'bold'),
-        legend.text=element_text(size=6),
+        legend.title=element_text(size=7.5, face = 'bold'),
+        legend.text=element_text(size=7),
         panel.grid = element_blank(),
   ) +
   guides(color = guide_legend(title=group_title))
