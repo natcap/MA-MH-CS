@@ -556,6 +556,9 @@ sub_ghq <- exp_sub_df
 ## save for later use
 f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData'); f
 save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
+
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.rds'); f
+saveRDS(exp_sub_df, file = f)
 ```
 
 
@@ -658,6 +661,9 @@ sub_panas <- exp_sub_df
 ## save for later use
 f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData')
 save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
+
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.rds'); f
+saveRDS(exp_sub_df, file = f)
 ```
 
 
@@ -683,6 +689,9 @@ sub_poms <- exp_sub_df
 ## save for later use
 f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData')
 save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
+
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.rds'); f
+saveRDS(exp_sub_df, file = f)
 ```
 
 
@@ -757,6 +766,21 @@ We need to put all data on models in rows.
 # f <- paste0('./data/0301-MA-input/', 'sub_poms.RData')
 # 
 # load(file = f)
+
+fs <- list.files(path = './data/0301-MA-input/', pattern = '^sub_.*.rds', full.names = T)
+fs
+
+for (f in fs) {
+  
+  print(basename(f))
+  exp_sub_df <- readRDS(f)
+  
+  ## 
+  source('./code/010s1_loop_format_data.R')
+}
+
+
+
 ```
 
 
