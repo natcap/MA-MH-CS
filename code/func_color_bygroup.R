@@ -14,7 +14,7 @@ nature_type_list <- c("Greenspace",               # '#68ab5f'	(Deciduous Forest)
                       "Greenspace - Farmland",    # '#ab6c28'
                       "Greenspace - Park",        # 
                       "Greenspace - Garden",      # '#aaff00'
-                      "Greenspace - Green alley/Roadside green", 
+                      "Greenspace - Corridors", 
                       "Greenspace - Green roof/wall",# '#79ffd2'              (Shrub-Forest)
                       
                       "Bluespace - Open water",      # '#466b9f'
@@ -33,7 +33,7 @@ nature_type_color <- c(
   '#ab6c28', # "Greenspace - Farmland"
   '#fb9a99', # "Greenspace - Park"
   '#aaff00', # "Greenspace - Garden" (forest disturbed before/at 2006)
-  '#beaed4', # "Greenspace - Green alley/Roadside green"
+  '#beaed4', # "Greenspace - Corridors"
   '#79ffd2', # "Greenspace - Green roof/wall"
   
   '#466b9f', # "Bluespace - Open water"
@@ -45,6 +45,25 @@ nature_type_color <- c(
   '#000000'  # "Other"
 )
 
+nature_type_shape <- c(
+  19, # "Greenspace"
+  19, # "Greenspace - Forest/Tree"
+  19, # "Greenspace - Shrub/scrub"
+  19, # "Greenspace - Grassland"
+  19, # "Greenspace - Farmland"
+  10, # "Greenspace - Park"       # shape = 10, circle plus
+  19, # "Greenspace - Garden"
+  19, # "Greenspace - Corridors"
+  19, # "Greenspace - Green roof/wall"
+  
+  19, # "Bluespace - Open water"
+  19, # "Bluespace - Wetland"
+  19, # "Bluespace - Sea"
+  19, # "Bluespace - Beach/coastline"
+  19, # "Bluespace"
+  19, # "Overall"
+  19  # "Other"
+)
 names(nature_type_color) <- nature_type_list
 
 

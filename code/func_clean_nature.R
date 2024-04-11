@@ -34,6 +34,7 @@ func_clean_nature_type <-  function(data, column_name, aggregate = F) {
                                                    'garden',
                                                    'Greenspace-Garden',
                                                    "Community private green space")) ~ "Greenspace - Garden", 
+        tolower(!!sym(column_name)) %in% tolower(c("Greenspace - Green alley/Roadside green")) ~ "Greenspace - Corridors", 
         tolower(!!sym(column_name)) %in% tolower(c("Green view", 
                                                    'greenspace', 
                                                    'Greenspace use',
@@ -55,7 +56,7 @@ func_clean_nature_type <-  function(data, column_name, aggregate = F) {
   } else {
     d <- d %>%
       dplyr::mutate(
-        !!column_name := gsub("\\- Farmland|\\- Forest\\/Tree|\\- Garden|\\- Grassland|\\- Park|\\- Green alley/Roadside green", "", !!sym(column_name)), 
+        !!column_name := gsub("\\- Farmland|\\- Forest\\/Tree|\\- Garden|\\- Grassland|\\- Park|\\- Green alley/Roadside green|\\- Corridors", "", !!sym(column_name)), 
         !!column_name := gsub("\\- Green roof/wall|\\- Shrub\\/scrub", "", !!sym(column_name)),
         !!column_name := gsub("\\- Open water|\\- Beach\\/coastline|\\- Wetland", "", !!sym(column_name)),
         
