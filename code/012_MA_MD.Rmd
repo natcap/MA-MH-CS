@@ -8,6 +8,10 @@ output: html_document
 
 
 ```{r include=FALSE}
+
+## Load common packages
+source("./code/_pkgs_dirs.R")
+
 # install.packages("remotes")
 # remotes::install_github("guido-s/meta", ref = "develop", build_vignettes = TRUE, force = TRUE)
 
@@ -29,12 +33,12 @@ vv <- ""
 # unique(exp_sub_mods_md$Tools)
 
 ## data extracted in Table option 1 ----
-exp_sub_mods_md1 <- exp_sub_mods_md %>%
+exp_sub_mods_md_o1 <- exp_sub_mods_md %>%
   dplyr::select(1:Notes_o1)
 
 
 ## data extracted in Table option 2 ----
-exp_sub_mods_md2 <- exp_sub_mods_md %>%
+exp_sub_mods_md_o2 <- exp_sub_mods_md %>%
   dplyr::select(1:buffers_unit, Other_covariates_o2:Notes_o2) %>%
   
   ## within group vs. between group 
@@ -50,8 +54,8 @@ exp_sub_mods_md2 <- exp_sub_mods_md %>%
 
 ##' to see the number of studies by sub_indicators
 ##' we might need to remove the ones with fewer case studies
-unique(exp_sub_mods_md2$MH_indicator_o2) %>% sort()
-stats_count_by_ind <- exp_sub_mods_md2 %>% count(MH_indicator_o2) 
+unique(exp_sub_mods_md_o2$MH_indicator_o2) %>% sort()
+stats_count_by_ind <- exp_sub_mods_md_o2 %>% count(MH_indicator_o2) 
 stats_count_by_ind
 
 stats_count_by_ind_selected <- stats_count_by_ind %>% dplyr::filter(n>8)
@@ -64,11 +68,11 @@ sub_indicator_selected
 
 
 ### remove irrelevant columns 
-exp_sub_mods_md2fewCol <- exp_sub_mods_md2 %>%
+exp_sub_mods_md_o2fewCol <- exp_sub_mods_md_o2 %>%
   dplyr::select(-dplyr::starts_with("Control_"), 
                 -dplyr::starts_with('Treatment_'),
                 -c('c_sd'))
-names(exp_sub_mods_md2fewCol)
+names(exp_sub_mods_md_o2fewCol)
 ```
 
 
@@ -99,32 +103,32 @@ subgroups <- c(
 
 for (subgroup_select in subgroups) {
 
-  n_group <- unique(exp_sub_mods_md2[subgroup_select]) %>% nrow()
+  n_group <- unique(exp_sub_mods_md_o2[subgroup_select]) %>% nrow()
   
   ma_result.overall <- data.frame()
   ma_result.subgroup <- data.frame()
   
   for (sub_ind_i in sub_indicator_selected) {
     
-    exp_sub_mods_md2i <- exp_sub_mods_md2 %>%
+    exp_sub_mods_md_o2i <- exp_sub_mods_md_o2 %>%
       dplyr::filter(MH_indicator_o2 == sub_ind_i) 
     
     if (add_subgroup_analysis == T) {
-      exp_sub_mods_md2i <- exp_sub_mods_md2i %>%
+      exp_sub_mods_md_o2i <- exp_sub_mods_md_o2i %>%
         dplyr::mutate(subgroup_selected = !!sym(subgroup_select)) %>%
         dplyr::filter(!is.na(subgroup_selected)) %>%
         as.data.frame()
     } else {
-      exp_sub_mods_md2i <- exp_sub_mods_md2i %>%
+      exp_sub_mods_md_o2i <- exp_sub_mods_md_o2i %>%
         dplyr::mutate(subgroup_selected = 'NULL') %>%
         as.data.frame()
     }
     
   
-    height_cm <- nrow(exp_sub_mods_md2i)
+    height_cm <- nrow(exp_sub_mods_md_o2i)
     
     ma_smd <- meta::metacont(
-      data = exp_sub_mods_md2i,
+      data = exp_sub_mods_md_o2i,
       n.e = e_n,
       n.c = c_n,
       mean.e = e_mean,
@@ -321,11 +325,11 @@ library(metafor)
 
 for (sub_ind_i in sub_indicator_selected) {
   
-  exp_sub_mods_md2i <- exp_sub_mods_md2 %>%
+  exp_sub_mods_md_o2i <- exp_sub_mods_md_o2 %>%
     dplyr::filter(MH_indicator_o2 == sub_ind_i)
   
   dat1 <- metafor::escalc(
-    data=exp_sub_mods_md2i,
+    data=exp_sub_mods_md_o2i,
     measure="SMD", 
     m1i=c_mean, sd1i=c_sd_r, n1i=c_n,
     m2i=e_mean, sd2i=e_sd_r, n2i=e_n)

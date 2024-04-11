@@ -8,6 +8,10 @@ output: html_document
 
 
 ```{r include=FALSE}
+
+### To clear your environment
+# remove(list = ls())
+
 # install.packages("remotes")
 # remotes::install_github("guido-s/meta", ref = "develop", build_vignettes = TRUE, force = TRUE)
 
@@ -105,12 +109,14 @@ fname <- paste0(dir.fig, 'es_comb_', today, vv, '.png'); fname
 func_ggsave(fname, w = 6, h = 5.5/2/5*n_ind, dpi = 300, save_png = T)
 ```
 
+
+
 ### by group
 
 ```{r - table & numbers}
-ma_result.subgroup_psubgroup <- ma_result_all %>%
+ma_result.subgroup_only <- ma_result_all %>%
   dplyr::filter(subgroup != 'Overall') %>%
-  dplyr::distinct(tool, ind_sub, .keep_all = T)
+  dplyr::distinct(tool, ind_sub, group_name, subgroup, .keep_all = T)
 ```
 
 
@@ -139,6 +145,15 @@ subgroups <- c(
   'nature_type_o2', 
   'Region',
   'age_group', 'gender_group', 'duration_group')
+
+
+ind_sub_levels <- c("TMD", "Anxiety", "Fatigue", "Confusion", "Anger", 
+                    "Depression",  ## for IALE
+                    "Stress", "Negative Affect", 
+                    "Positive Affect", 
+                    "Restorative Effect", 
+                    # "Depression", 
+                    "Vigor")
 
 
 for (subgroup_select in subgroups) {
@@ -195,19 +210,14 @@ for (subgroup_select in subgroups) {
 
 
 ```{r - p_all, eval=FALSE, include=FALSE}
+
+##' This chunk was used as an example or test code for the source code
+##' 
 source('./code/func_plot_ma.R')
 
 subgroup_select <- 'nature_type_o2';  color_bygroup = nature_type_color; group_list = nature_type_list; group_title = 'Nature type'
 
 unique(ma_result_all$ind_sub)
-
-ind_sub_levels <- c("TMD", "Anxiety", "Fatigue", "Confusion", "Anger", 
-                    "Depression",  ## for IALE
-                    "Stress", "Negative Affect", 
-                    "Positive Affect", 
-                    "Restorative Effect", 
-                    # "Depression", 
-                    "Vigor")
 
 ## run this sourced code 
 source('./code/020s2_subgroup_loop_source_code.R')
