@@ -76,7 +76,7 @@ exposure_group_color <- NULL
 ## age_group -----------------------------------------------------------------------------
 
 age_group_list <- c(
-  'Adolescents', 'Young Adults', 'Adults', 'Older adults'
+  'Adolescents', 'Young adults', 'Adults', 'Older adults'
   )
 
 age_group_color <- rev(c(

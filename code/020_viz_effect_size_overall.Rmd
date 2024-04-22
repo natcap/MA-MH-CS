@@ -45,8 +45,10 @@ nature_type_remove_for_presentation <-
 source('./code/func_plot_ma.R')
 
 mh_tool_list <- c('PANAS', 'POMS') 
-mh_tool_list <- c('PANAS', 'POMS', 'PSS', 'ROS')
-# mh_tool_list <- c('GHQ-12', 'PANAS', 'POMS', 'PSS', 'ROS', 'SF', 'WEMWBS')
+mh_tool_list <- c('PANAS', 'POMS', 'PSS', 'ROS'); design <- 'exp'
+mh_tool_list <- c('GHQ-12', 
+                  'PANAS', 'POMS', 'PSS', 'ROS',
+                  "SF-12", "SF-36", 'WEMWBS', 'WHO-5'); design <- 'obs'
 
 
 fs <- list.files(path = "./data/0302-MA-output/", 
@@ -58,6 +60,7 @@ print(fs)
 
 ma_result_all <- data.frame()
 for (f in fs) {
+  print(f)
   d <- readRDS(file = f) 
   ma_result_all <- rbind(ma_result_all, d)
 }
@@ -105,7 +108,7 @@ data %>%
 
 n_ind <- length(unique(data$ind_sub)); 
 
-fname <- paste0(dir.fig, 'es_comb_', today, vv, '.png'); fname
+fname <- paste0(dir.fig, 'es_comb_', design, '_', today, vv, '.png'); fname
 func_ggsave(fname, w = 6, h = 5.5/2/5*n_ind, dpi = 300, save_png = T)
 ```
 
@@ -116,7 +119,7 @@ func_ggsave(fname, w = 6, h = 5.5/2/5*n_ind, dpi = 300, save_png = T)
 ```{r - table & numbers}
 ma_result.subgroup_only <- ma_result_all %>%
   dplyr::filter(subgroup != 'Overall') %>%
-  dplyr::distinct(tool, ind_sub, group_name, subgroup, .keep_all = T)
+  dplyr::distinct(tool, ind_sub, subgroup, .keep_all = T)
 ```
 
 

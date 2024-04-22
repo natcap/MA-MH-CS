@@ -194,7 +194,7 @@ df <- df_1 %>%
       average_age_mean <= 25 ~ 'Young Adults',
       average_age_mean < 65 ~ 'Adults',
       TRUE ~ 'Older adults'),
-    age_group = factor(age_group, levels = c('Adolescents', 'Young Adults', 'Adults', 'Older adults'))
+    age_group = factor(age_group, levels = c('Adolescents', 'Young adults', 'Adults', 'Older adults'))
     ) %>%
   
   as.data.frame()
@@ -489,7 +489,7 @@ df %>%
 
 ## Prepare data for MA
 
-### * Coefficient-focused outcomes ---
+### * Coefficient-based outcomes ---
 
 ```{r}
 tool_selected
@@ -632,7 +632,7 @@ df_test <- df %>%
   as.data.frame()
 
 exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
-sub_ww <- exp_sub_df
+sub_who5 <- exp_sub_df
 
 ## save for later use
 f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.rds'); f
