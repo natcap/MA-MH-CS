@@ -1,41 +1,52 @@
 
 
-func_clean_effectsize <- function(data) {
+func_clean_effectsize <- function(
+    data, 
+    column_name = 'effect_size_indices') {
+  
+  column_name_raw = paste(column_name, 'raw', sep = '_')
+  
   d <- data %>%
     dplyr::mutate(
-      effect_size_indices = gsub("Other: ", "", effect_size_indices),
-      effect_size_indices = gsub("\\s*\\([^\\)]+\\)", "", effect_size_indices), # remove text within parenthesis 
+      
+      ## keep a copy of the original value
+      !!column_name_raw := !!sym(column_name),
+      
+      ## clean the column
+      !!column_name := gsub("Other: ", "", !!sym(column_name)),
+      !!column_name := gsub("\\s*\\([^\\)]+\\)", "", !!sym(column_name)), # remove text within parenthesis 
       
       ## text cleaning 
-      # effect_size_indices = gsub("=.*", "", effect_size_indices), ## remove everything after "="
-      effect_size_indices = gsub(" = correlation using linear regression", "", effect_size_indices),
+      # !!column_name := gsub("=.*", "", !!sym(column_name)), ## remove everything after "="
+      !!column_name := gsub(" = correlation using linear regression", "", !!sym(column_name)),
       
-      effect_size_indices = gsub(" = odds ratio = \\(group1 odds of outcome\\)", "", effect_size_indices),
-      effect_size_indices = gsub("\\/\\(group2 odds of outcome\\)", "", effect_size_indices),
-      effect_size_indices = gsub(" = odds ratio =\\/", "", effect_size_indices),
+      !!column_name := gsub(" = odds ratio = \\(group1 odds of outcome\\)", "", !!sym(column_name)),
+      !!column_name := gsub("\\/\\(group2 odds of outcome\\)", "", !!sym(column_name)),
+      !!column_name := gsub(" = odds ratio =\\/", "", !!sym(column_name)),
       
-      effect_size_indices = gsub(" = Pearson's r correlation \\(range\\: -1 to 1\\)", "", effect_size_indices),
-      effect_size_indices = gsub(" = Pearson's r correlation", "", effect_size_indices),
-      
-      
-      effect_size_indices = gsub(" = Cohen\\’s d = \\(mean1 - mean2\\)\\/sd", "", effect_size_indices),
-      effect_size_indices = gsub(" = Cohen’s d =\\/sd", "", effect_size_indices),
-      
-      effect_size_indices = gsub("Measure values before and after intervention", "Mean_pre_post", effect_size_indices),
-      effect_size_indices = gsub("raw values|raw value|raw scores|raw score", "Raw values", effect_size_indices, ignore.case = T),
-      effect_size_indices = gsub("Incidence Rate Ratios|Incidence Rate Ratio", "IRR", effect_size_indices, ignore.case = T),
+      !!column_name := gsub(" = Pearson's r correlation \\(range\\: -1 to 1\\)", "", !!sym(column_name)),
+      !!column_name := gsub(" = Pearson's r correlation", "", !!sym(column_name)),
       
       
-      effect_size_indices = gsub(" = correlation using logistic regression", "", effect_size_indices),
-      effect_size_indices = gsub("corr_linear|corr_logi|regression coefficient|Regression coefficient", "coefficient", effect_size_indices),
+      !!column_name := gsub(" = Cohen\\’s d = \\(mean1 - mean2\\)\\/sd", "", !!sym(column_name)),
+      !!column_name := gsub(" = Cohen’s d =\\/sd", "", !!sym(column_name)),
+      
+      !!column_name := gsub("Measure values before and after intervention", "Mean_pre_post", !!sym(column_name)),
+      !!column_name := gsub("raw values|raw value|raw scores|raw score", "Raw values", !!sym(column_name), ignore.case = T),
+      !!column_name := gsub("Incidence Rate Ratios|Incidence Rate Ratio", "IRR", !!sym(column_name), ignore.case = T),
+      
+      
+      !!column_name := gsub(" = correlation using logistic regression", "", !!sym(column_name)),
+      !!column_name := gsub("corr_linear|corr_logi|regression coefficient|Regression coefficient", "coefficient", !!sym(column_name)),
       
 
       ## final formatting 
-      effect_size_indices = gsub(",+", ",", effect_size_indices), ## Removing repeated punctuation character from a string
-      effect_size_indices = gsub(";+", ";", effect_size_indices), ## Removing repeated punctuation character from a string
-      effect_size_indices = trimws(effect_size_indices),
-      effect_size_indices = str_squish(effect_size_indices)) %>%
-    dplyr::filter(effect_size_indices != 'NA') %>%
+      !!column_name := gsub(",+", ",", !!sym(column_name)), ## Removing repeated punctuation character from a string
+      !!column_name := gsub(";+", ";", !!sym(column_name)), ## Removing repeated punctuation character from a string
+      !!column_name := trimws(!!sym(column_name)),
+      !!column_name := str_squish(!!sym(column_name))) %>%
+    dplyr::filter(!!sym(column_name) != 'NA') %>%
+    dplyr::select(1:!!sym(column_name), !!sym(column_name_raw), everything()) %>%
     as.data.frame()
   
   return(d)
