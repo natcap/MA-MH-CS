@@ -5,10 +5,6 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
-# Setup 
-```{r, include=FALSE}
-
-```
 
 # Meta-analysis
 
@@ -17,63 +13,58 @@ output: html_document
   Correlations are restricted in their range, and it can introduce bias when we estimate the standard error for studies with a small sample size (Alexander, Scozzaro, and Borodkin 1989).
   
   The (Pearson or product-moment) correlation coefficient quantifies the direction and strength of the (linear) relationship between two quantitative variables and is therefore frequently used as the outcome measure for meta-analyses. Two alternative measures are a bias-corrected version of the correlation coefficient and Fisher's r-to-z transformed correlation coefficient.
+  
+**Convert to standard correlation coefficient**
+  Double-check and make sure all the coefficients have been converted to Pearson correlation coefficient, which range between [-1, 1]. If a paper use a different coefficient, we'll need to use functions in `func_convert_to_r.R` to do the conversion first before using the data for MA. It can be tricky when dealing with regression coefficients, but here is a best practice: 
+  First, we need to clarify what regression models are used. 
+    - Simple Linear Regression (SLR)   -- with only one predictor, or one independent variable.
+    - Multiple Linear Regression (MLR) -- with two or more predictors. 
+  Then, 
+  * if a paper report standardized regression coefficients, the coefficients can be used directly, regardless of SLR or MLR; 
+  * if a paper report non-standardized regression coefficients,
+    - for SLR, we can use either `func_regression_R2_to_r()` or `func_regression_t_to_r()`;
+    - for MLR, given that R2 is not for one particular predictor, but for all the predictors, it might not be accurate to use `func_regression_R2_to_r()`. However, if they report the `t-value` for each predictor, it would be better we use `func_regression_t_to_r()` to estimate `r`
 
 
 
-### metafor 
-  * ri, the vector with the raw correlation coefficients
-  * ni, the corresponding sample sizes. 
 
-The options for the measure argument are then:
-  * "COR" for the raw correlation coefficient,
-  * "UCOR" for the raw correlation coefficient corrected for its slight negative bias (based on equation 2.3 in Olkin & Pratt, 1958),
-  * "ZCOR" for Fisher's r-to-z transformed correlation coefficient (Fisher, 1921).
+
+## Load data & coefficient conversion
+
+ - [] need to fix data that are out of range later (search "???")
+ - []
 
 ```{r}
-# load the metafor package
-library(metafor)
-
-## [] need to fix data that are out of range later ................................... 
+## 
 exp_sub_mods_cor <- exp_sub_mods_coef %>%
   dplyr::filter(!is.na(mean)) %>%
-  dplyr::filter(mean <=1 & mean >=-0.6)
-  
+  dplyr::filter(mean <=1 & mean >=-0.6) %>% ## ???
+  as.data.frame()
 
-dat <- escalc(data=exp_sub_mods_cor, measure="ZCOR", ri=mean, ni=n)
-study_label <- paste(dat$id, dat$model_id, sep = '_')
 MH_tool_o1_list <- unique(exp_sub_mods_cor$MH_tool_o1); MH_tool_o1_list
-
-res <- metafor::rma(yi, vi, data=dat, slab = study_label)
-res
-predict(res, transf=transf.ztor) ## ztor: z to r
-
-# outlier/influence diagnostics
-par(mar=c(5,6,4,2))
-plot(influence(res), cex=0.8, las=1)
-```
-
-
-```{r - auto-report, eval=FALSE, include=FALSE}
-### reporter() function
-dir.report <- paste0('./figures/'); dir.report
-metafor::reporter(res, dir = dir.report)
-
-# reporter(res, format="pdf", 
-#          dir = paste0(dir.root, '/figures/'), 
-#          filename = 'report_metafor.PDF')
-#          
-# reporter(res, format="word")
-
-### add an outlier
-# dat$yi[6] <- 2.5
-# res <- rma(yi, vi, data=dat)
-# reporter(res)
 ```
 
 
 
-### meta
-```{r}
+
+## MA
+
+**R packages for MA**
+  
+  There are two packages that can be used for MA. 
+  1. *meta*
+  
+  2. *metafor*
+    - ri, the vector with the raw correlation coefficients
+    - ni, the corresponding sample sizes. 
+
+    The options for the measure argument are then:
+      * "COR" for the raw correlation coefficient,
+      * "UCOR" for the raw correlation coefficient corrected for its slight negative bias (based on equation 2.3 in Olkin & Pratt, 1958),
+      * "ZCOR" for Fisher's r-to-z transformed correlation coefficient (Fisher, 1921).
+      
+      
+```{r - use `meta`}
 m.cor <- meta::metacor(
   data = exp_sub_mods_cor,
   cor = mean, 
@@ -85,6 +76,26 @@ m.cor <- meta::metacor(
   hakn = TRUE,
   title = "Health and Wellbeing")
 summary(m.cor)
+
+
+```
+
+
+```{r - use `metafor`}
+# load the metafor package
+library(metafor)
+
+dat <- metafor::escalc(data=exp_sub_mods_cor, measure="ZCOR", ri=mean, ni=n)
+study_label <- paste(dat$id, dat$model_id, sep = '_')
+
+
+res <- metafor::rma(yi, vi, data=dat, slab = study_label)
+res
+predict(res, transf=transf.ztor) ## ztor: z to r
+
+### outlier/influence diagnostics
+# par(mar=c(5,6,4,2))
+# plot(influence(res), cex=0.8, las=1)
 ```
 
 
@@ -93,7 +104,7 @@ summary(m.cor)
   If the confidence interval around τ^2 does not contain zero, it indicates that some between-study heterogeneity exists in our data. 
   The value of τ is x, meaning that the true effect sizes have an estimated standard deviation of SD=x, expressed on the scale of the effect size metric.
   
-  A look at the second line reveals that I^2= 63% and that H (the square root of H2) is 1.64. This means that more than half of the variation in our data is estimated to stem from true effect size differences. Using Higgins and Thompson’s “rule of thumb”, we can characterize this amount of heterogeneity as moderate to large.
+  A look at the second line reveals that I^2= 63% and that H (the square root of H2) is 1.64. This means that more than half of the variation in our data is estimated to stem from true effect size differences. Using Higgins and Thompson's "rule of thumb", we can characterize this amount of heterogeneity as moderate to large.
   
   Here is how we could report the amount of heterogeneity we found in our example:
 
@@ -101,8 +112,48 @@ summary(m.cor)
 
 
 ### Forest plot
+
+
+
+```{r - forest - meta}
+width_forestPlot = 40
+height_cm <- nrow(exp_sub_mods_cor)/1.1
+
+f <- paste0('./figures/', 'forest_cor/', paste(MH_tool_o1_list, collapse = "_"), '_all_', today, '_meta.png'); f
+png(filename = f, 
+    # width = 3000, height = 3000, units = "px", pointsize = 22,
+    width = width_forestPlot, height = height_cm, units = "cm", res = 100);
+  
+  
+p_forest <- meta::forest(
+  m.cor, 
+  # sortvar = TE,
+  # prediction = TRUE, 
+  # print.tau2 = T,
+  addpred=TRUE, 
+  header=TRUE, 
+  digits=2, 
+  print.I2 = T,
+  pooled.totals=T,
+  overall = T,
+  overall.hetstat = T,
+  
+  col.by = "black",
+  col.square = "black",
+  col.inside = "black",
+  col.square.lines = "black",
+  shade=TRUE,
+  layout = "RevMan5",
+  slab = study_label, shade=TRUE,
+  leftlabs = c("Study ID", "g", "SE"))
+# p_forest
+
+dev.off()
+```
+
+
   https://wviechtb.github.io/metafor/reference/forest.rma.html
-```{r - forest, warning=FALSE}
+```{r - forest - metafore, warning=FALSE}
 ### forest plot --------------------------------------------------------------------------
 # forest(res)
 # forest(res, addpred=TRUE, header=TRUE)
@@ -119,7 +170,7 @@ meta::forest(res,
              addpred=TRUE, header=TRUE, 
              digits=2, 
              print.I2 = T,
-             layout = "RevMan5",
+             layout = "RevMan5", 
              xlim=xlim_custmize, slab = study_label, shade=TRUE)
 dev.off() 
 
@@ -130,6 +181,8 @@ dev.off()
 # #' optional argument to specify a function to transform the x-axis labels and annotations (e.g., atransf=exp)
 # forest(res, addpred=TRUE, header=TRUE, xlim=xlim_custmize, atransf=exp, at=log(c(.6, .8, 1, 1.2, 1.4)))
 ```
+
+
 
 
 * NOT in use
@@ -201,144 +254,95 @@ text(x = -16, y = -1.8, pos=4, cex=0.90, bquote(paste("Test for Subgroup Differe
 
 
 
-```{r - forest - meta - plot}
-width_forestPlot = 40
-height_cm <- nrow(exp_sub_mods_cor)/1.1
-
-f <- paste0('./figures/', 'forest_cor/', paste(MH_tool_o1_list, collapse = "_"), '_all_', today, '_meta.png'); f
-png(filename = f, 
-    # width = 3000, height = 3000, units = "px", pointsize = 22,
-    width = width_forestPlot, height = height_cm, units = "cm", res = 100);
-  
-  
-p_forest <- meta::forest(
-  m.cor, 
-  # sortvar = TE,
-  # prediction = TRUE, 
-  # print.tau2 = T,
-  addpred=TRUE, 
-  header=TRUE, 
-  digits=2, 
-  print.I2 = T,
-  pooled.totals=T,
-  overall = T,
-  overall.hetstat = T,
-  
-  col.by = "black",
-  col.square = "black",
-  col.inside = "black",
-  col.square.lines = "black",
-  shade=TRUE,
-  layout = "RevMan5",
-  slab = study_label, shade=TRUE,
-  leftlabs = c("Study ID", "g", "SE"))
-p_forest
-
-dev.off()
-```
-
-
-```{r - forest - meta - subgroup data}
+```{r - subgroup data}
 add_subgroup_analysis <- T
 
 subgroup_select <- 'exposure_o1'
 subgroup_select <- 'nature_type_o1'; subgroup_label = 'Nature type'
 
-ma_cor_data <- exp_sub_mods_cor %>%
-  dplyr::mutate(
-    ##' further clean the nature types ---- ??? need to double-check original paper to
-    ##'   correct these classes 
-    nature_type_o1 = case_when(
-      str_to_sentence(nature_type_o1) %in% c(
-        "Other natural space/element", 
-        "Public natural spaces") ~ "Greenspace",
-      T ~ nature_type_o1
-                )) %>%
-  dplyr::filter(!is.na(exposure_o1)) %>%
-  dplyr::mutate(subgroup_selected = !!sym(subgroup_select)) 
-
-unique(ma_cor_data$exposure_o1)
-unique(ma_cor_data$nature_type_o1)
-
-ma_cor <- meta::metacor(
-  data = ma_cor_data,
-  cor = mean, 
-  n = n,
-  studlab = study_label,
-  fixed = FALSE,
-  random = TRUE,
-  method.tau = "REML",
-  tau.common = TRUE,
-  hakn = TRUE,
-  title = "Health and Wellbeing")
-
-
-h_just <- nrow(ma_cor_data)/50
-h_just <- if_else(h_just>1, h_just, 2)
-
-## update the MA by adding subgroup analysis ---------------------------------------------
-if (add_subgroup_analysis == T) {
-  ma_cor <- ma_cor %>%
-    # dplyr::mutate(subgroup_selected = !!sym(subgroup_select)) %>%
-    # dplyr::filter(!is.na(subgroup_selected)) %>%
-    update(., subgroup = subgroup_selected)
-  
-  test.effect.subgroup.random_para = TRUE
-  postfix_subgroup <- paste0("subgroup_", subgroup_select)
-  height_cm <- height_cm
-    
-  } else {
-    test.effect.subgroup.random_para = F
-    postfix_subgroup <- ""
-  }
-
-
-
-## extract the overall effect size data to a dataframe ===================================
-
-ma_result.overall <- data.frame()
-ma_result.subgroup <- data.frame()
-
-### 1. overall model data ----------------------------------------------------------------
-ma_cor.df <- data.frame(
-  tool = paste(MH_tool_o1_list, collapse = ";"), 
-  ind_sub = paste(MH_tool_o1_list, collapse = ";"),
-  subgroup = 'Overall',
-  es.mean = ma_cor$TE.random,
-  es.lower= ma_cor$lower.random,
-  es.upper= ma_cor$upper.random,
-  pval    = ma_cor$pval.random %>% round(., digits = 10),
-  I2      = as.numeric(ma_cor$I2) %>% round(., digits = 2),
-  p_subgroup = NA,
-  ## Number of studies
-  n_study = ma_cor$k.all,
-  ## Number of observations
-  n_obs   = sum(ma_cor$n, na.rm = T)
-) %>%
-  dplyr::mutate(
-    p.star  = case_when(pval < 0.001 ~ '***',
-                      pval < 0.01 ~ '**',
-                      pval < 0.05 ~ '*',
-                      T ~ ''),
+subgroups <- c(
+  # 'subgroup_design', ## ?? [] need to fix NAs in the column -> revise `subgroup_selected`
+  'exposure_o1',
+  'nature_type_o1', 
+  'Region'
+  # 'age_group', 'gender_group', 'duration_group'
   )
-ma_result.overall <- rbind(ma_result.overall, ma_cor.df)
 
-### 2. subgroup model data ---------------------------------------------------------------
-if (add_subgroup_analysis == T) {
-  ma_cor.df.subgroup <- data.frame(
+for (subgroup_select in subgroups) {
+  
+  print(subgroup_select)
+  
+  ma_cor_data <- exp_sub_mods_cor %>%
+    dplyr::mutate(
+      ##' further clean the nature types ---- ??? need to double-check original paper to
+      ##'   correct these classes 
+      nature_type_o1 = case_when(
+        str_to_sentence(nature_type_o1) %in% c(
+          "Other natural space/element", 
+          "Public natural spaces") ~ "Greenspace",
+        T ~ nature_type_o1
+                  )) %>%
+    dplyr::filter(!is.na(exposure_o1)) %>%
+    dplyr::mutate(subgroup_selected = !!sym(subgroup_select)) 
+  
+  unique(ma_cor_data$exposure_o1)
+  unique(ma_cor_data$nature_type_o1)
+  
+  ma_cor <- meta::metacor(
+    data = ma_cor_data,
+    cor = mean, 
+    n = n,
+    studlab = study_label,
+    fixed = FALSE,
+    random = TRUE,
+    method.tau = "REML",
+    tau.common = TRUE,
+    hakn = TRUE,
+    title = "Health and Wellbeing")
+  
+  
+  h_just <- nrow(ma_cor_data)/50
+  h_just <- if_else(h_just>1, h_just, 2)
+  
+  ## update the MA by adding subgroup analysis ---------------------------------------------
+  if (add_subgroup_analysis == T) {
+    ma_cor <- ma_cor %>%
+      # dplyr::mutate(subgroup_selected = !!sym(subgroup_select)) %>%
+      # dplyr::filter(!is.na(subgroup_selected)) %>%
+      update(., subgroup = subgroup_selected)
+    
+    test.effect.subgroup.random_para = TRUE
+    postfix_subgroup <- paste0("subgroup_", subgroup_select)
+    height_cm <- height_cm
+      
+    } else {
+      test.effect.subgroup.random_para = F
+      postfix_subgroup <- ""
+    }
+  
+  
+  
+  ## extract the overall effect size data to a dataframe ===================================
+  
+  ma_result.overall <- data.frame()
+  ma_result.subgroup <- data.frame()
+  
+  ### 1. overall model data ----------------------------------------------------------------
+  ma_cor.df <- data.frame(
     tool = paste(MH_tool_o1_list, collapse = ";"), 
-    ind_sub = paste(MH_tool_o1_list, collapse = ";"), 
-    subgroup = names(ma_cor$TE.common.w),
-    es.mean = as.numeric(ma_cor$TE.random.w),
-    es.lower= as.numeric(ma_cor$lower.random.w),
-    es.upper= as.numeric(ma_cor$upper.random.w),
-    pval    = as.numeric(ma_cor$pval.random.w) %>% round(., digits = 10),
-    I2      = as.numeric(ma_cor$I2.w) %>% round(., digits = 2),
-    p_subgroup = as.numeric(ma_cor$pval.Q.b.random) %>% round(., digits = 10),
+    ind_sub = paste(MH_tool_o1_list, collapse = ";"),
+    group_name = '',
+    subgroup = 'Overall',
+    es.mean = ma_cor$TE.random,
+    es.lower= ma_cor$lower.random,
+    es.upper= ma_cor$upper.random,
+    pval    = ma_cor$pval.random %>% round(., digits = 10),
+    I2      = as.numeric(ma_cor$I2) %>% round(., digits = 2),
+    p_subgroup = NA,
     ## Number of studies
-    n_study = as.numeric(ma_cor$k.all.w),
+    n_study = ma_cor$k.all,
     ## Number of observations
-    n_obs   = NA
+    n_obs   = sum(ma_cor$n, na.rm = T)
   ) %>%
     dplyr::mutate(
       p.star  = case_when(pval < 0.001 ~ '***',
@@ -346,28 +350,54 @@ if (add_subgroup_analysis == T) {
                         pval < 0.05 ~ '*',
                         T ~ ''),
     )
-  ma_result.subgroup <- rbind(ma_result.subgroup, ma_cor.df.subgroup)
-}
-
-
-## save MA result 
-cat('\n')
-fname <- paste0('./data/0302-MA-output/', 
-                paste('ma_result.overall_', paste(MH_tool_o1_list, collapse = "_"), '.rds', sep = '')); fname
-saveRDS(ma_result.overall, file = fname)
-
-if (add_subgroup_analysis == T) {
+  ma_result.overall <- rbind(ma_result.overall, ma_cor.df)
+  
+  ### 2. subgroup model data ---------------------------------------------------------------
+  if (add_subgroup_analysis == T) {
+    ma_cor.df.subgroup <- data.frame(
+      tool = paste(MH_tool_o1_list, collapse = ";"), 
+      ind_sub = paste(MH_tool_o1_list, collapse = ";"), 
+      group_name = subgroup_select,
+      subgroup = names(ma_cor$TE.common.w),
+      es.mean = as.numeric(ma_cor$TE.random.w),
+      es.lower= as.numeric(ma_cor$lower.random.w),
+      es.upper= as.numeric(ma_cor$upper.random.w),
+      pval    = as.numeric(ma_cor$pval.random.w) %>% round(., digits = 10),
+      I2      = as.numeric(ma_cor$I2.w) %>% round(., digits = 2),
+      p_subgroup = as.numeric(ma_cor$pval.Q.b.random) %>% round(., digits = 10),
+      ## Number of studies
+      n_study = as.numeric(ma_cor$k.all.w),
+      ## Number of observations
+      n_obs   = NA
+    ) %>%
+      dplyr::mutate(
+        p.star  = case_when(pval < 0.001 ~ '***',
+                          pval < 0.01 ~ '**',
+                          pval < 0.05 ~ '*',
+                          T ~ ''),
+      )
+    ma_result.subgroup <- rbind(ma_result.subgroup, ma_cor.df.subgroup)
+  }
+  
+  
+  ## save MA result 
+  cat('\n')
   fname <- paste0('./data/0302-MA-output/', 
-                  paste('ma_result.subgroup', paste(MH_tool_o1_list, collapse = "_"), subgroup_select, '.rds', sep = '_')); fname
-  saveRDS(ma_result.subgroup, file = fname)
+                  paste('ma_result.overall_', paste(MH_tool_o1_list, collapse = "_"), '.rds', sep = '')); fname
+  saveRDS(ma_result.overall, file = fname)
+  
+  if (add_subgroup_analysis == T) {
+    fname <- paste0('./data/0302-MA-output/', 
+                    paste('ma_result.subgroup', paste(MH_tool_o1_list, collapse = "_"), subgroup_select, '.rds', sep = '_')); fname
+    saveRDS(ma_result.subgroup, file = fname)
+  }
+  
 }
 ```
 
 
 
-### Plot by subgroup 
-
-```{r - forest - subgroup plot - detail}
+```{r - subgroup plot - detail}
 ## forest plot ---------------------------------------------------------------------------
 
 f <- paste0('./figures/', 'forest_cor/', paste(MH_tool_o1_list, collapse = "_"), '_', postfix_subgroup, '_',  today, '_meta.png'); f
@@ -396,7 +426,7 @@ p_forest <- meta::forest(
   layout = "RevMan5",
   slab = study_label, shade=TRUE,
   leftlabs = c("Study ID", "g", "SE"))
-p_forest
+# p_forest
 
 dev.off()
 ```
@@ -405,12 +435,15 @@ dev.off()
 
 
 
-```{r - forest - subgroup plot - overall}
+```{r - subgroup plot - overall}
 source('./code/func_plot_ma.R')
-source('./code/func_color_nature_type.R')
+source('./code/func_color_bygroup.R')
+
+mh_tool_ls <- c('GHQ-12')
+mh_tool_ls <- c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5')
 
 fs <- list.files(path = "./data/0302-MA-output/", 
-                 pattern = paste('^ma_result.*_', mh_tool, collapse = '|', sep = ''), 
+                 pattern = paste('^ma_result.*_', mh_tool_ls, collapse = '|', sep = ''), 
                  full.names = T);
 cat('\n This', length(fs), 'files will be included:\n')
 print(fs)
@@ -422,20 +455,20 @@ for (f in fs) {
 }
 
 
-func_color_nature_type(df = ma_result_all, column_name = 'subgroup')
+func_color_bygroup(df = ma_result_all, column_name = 'subgroup')
 v_just <- length(unique(ma_result_all$subgroup))/5*0.05
 
 ## pool all data together 
 ma_result_all %>%
   # dplyr::filter(subgroup == 'Overall') %>%
   plot_effect_size_overall(data = ., 
-                           color_var = 'subgroup', 
+                           color_var = 'subgroup', subgroup = '',
                            show_legend = T) +
   theme(legend.position = c(0, 0.1+v_just),
         legend.justification = "left",
         plot.margin = margin(0, 0, 0, 0, "pt"), 
         ) +
-  scale_colour_manual(values = colors_nature_type) +
+  scale_colour_manual(values = nature_type_color) +
   guides(color = guide_legend(title=subgroup_label))
 
 
@@ -519,6 +552,25 @@ dev.off()
 
 
 
+
+
+
+```{r - auto-report, eval=FALSE, include=FALSE}
+### reporter() function
+dir.report <- paste0('./figures/'); dir.report
+metafor::reporter(res, dir = dir.report)
+
+# reporter(res, format="pdf", 
+#          dir = paste0(dir.root, '/figures/'), 
+#          filename = 'report_metafor.PDF')
+#          
+# reporter(res, format="word")
+
+### add an outlier
+# dat$yi[6] <- 2.5
+# res <- rma(yi, vi, data=dat)
+# reporter(res)
+```
 
 
 
