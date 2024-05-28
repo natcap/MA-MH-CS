@@ -13,18 +13,32 @@ output:
 
 # Data cleaning 
 
-
-## Indicator
-
-```{r - indicator, include=FALSE}
-
+```{r - load data, include=FALSE}
 ## load data
 fs <- list.files(path = "./data/0301-MA-input/", pattern = '^df_covidenceFull', full.names = T); 
 ##' select the up-to-date data, which is the second to the last
 f <- fs[(length(fs)-2)]; f;
 df <- readRDS(file = f)
+```
 
 
+
+```{r - data summary}
+df_n <- df %>% 
+  dplyr::rename(n = `Total number of participants`) %>%
+  dplyr::select(1:5, n) %>%
+  dplyr::mutate(n = as.numeric(n)) %>%
+  arrange(n)
+
+summary(df_n$n)
+
+sum(df_n$n, na.rm = T) - 397900
+```
+
+
+## Indicator
+
+```{r - indicator, include=FALSE}
 ## keep columns of interest, and clean data
 dt <- df %>%
   dplyr::rename('City' = "City and state/province  in which the study conducted") %>%

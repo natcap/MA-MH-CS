@@ -136,7 +136,7 @@ df <- df_1 %>%
     study_design = trimws(study_design)) %>%
   
   ## clean messy text in `effect_size_indices`
-  func_clean_effectsize(data = .) %>%
+  func_clean_effectsize(data = ., column_name = 'effect_size_indices') %>%
   dplyr::mutate(
     effect_size_indices = gsub("Other: |Other:", "", effect_size_indices),
     # effect_size_indices = gsub("=.*", "", effect_size_indices), ## remove everything after "="
@@ -557,7 +557,7 @@ sub_ghq <- exp_sub_df
 f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData'); f
 save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
 
-f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.rds'); f
+f <- gsub('RData', 'rds', f); f
 saveRDS(exp_sub_df, file = f)
 ```
 
@@ -583,8 +583,14 @@ df_test <- df %>%
 exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
 sub_sf <- exp_sub_df
 
+
+
 ## save for later use
-f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.rds')
+## save for later use
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData'); f
+save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
+
+f <- gsub('RData', 'rds', f); f
 saveRDS(exp_sub_df, file = f)
 ```
 
@@ -610,7 +616,10 @@ exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_too
 sub_WEMWBS <- exp_sub_df
 
 ## save for later use
-f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.rds'); f
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData'); f
+save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
+
+f <- gsub('RData', 'rds', f); f
 saveRDS(exp_sub_df, file = f)
 ```
 
@@ -635,7 +644,10 @@ exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_too
 sub_who5 <- exp_sub_df
 
 ## save for later use
-f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.rds'); f
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData'); f
+save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
+
+f <- gsub('RData', 'rds', f); f
 saveRDS(exp_sub_df, file = f)
 ```
 
@@ -659,10 +671,10 @@ exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_too
 sub_panas <- exp_sub_df
 
 ## save for later use
-f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData')
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData'); f
 save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
 
-f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.rds'); f
+f <- gsub('RData', 'rds', f); f
 saveRDS(exp_sub_df, file = f)
 ```
 
@@ -687,10 +699,10 @@ exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_too
 sub_poms <- exp_sub_df
 
 ## save for later use
-f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData')
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData'); f
 save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
 
-f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.rds'); f
+f <- gsub('RData', 'rds', f); f
 saveRDS(exp_sub_df, file = f)
 ```
 
@@ -720,7 +732,10 @@ exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_too
 sub_pss <- exp_sub_df
 
 ## save for later use
-f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.rds'); f
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData'); f
+save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
+
+f <- gsub('RData', 'rds', f); f
 saveRDS(exp_sub_df, file = f)
 ```
 
@@ -749,7 +764,10 @@ exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_too
 sub_ros <- exp_sub_df
 
 ## save for later use
-f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.rds'); f
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData'); f
+save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
+
+f <- gsub('RData', 'rds', f); f
 saveRDS(exp_sub_df, file = f)
 ```
 
@@ -767,16 +785,22 @@ We need to put all data on models in rows.
 # 
 # load(file = f)
 
-fs <- list.files(path = './data/0301-MA-input/', pattern = '^sub_.*.rds', full.names = T)
+fs <- list.files(path = './data/0301-MA-input/', pattern = '^sub_.*.RData', full.names = T)
 fs
 
 for (f in fs) {
   
   print(basename(f))
+  
+  f.c <- gsub('.rds', '_cleaned.csv', f); f.c
+  
   exp_sub_df <- readRDS(f)
   
   ## 
   source('./code/010s1_loop_format_data.R')
+  
+  
+  readr::write_csv(x = exp_sub_mods_print, file = f.c)
 }
 
 
@@ -804,7 +828,8 @@ for (i in 1:20) {
   exp_sub_dfi <- exp_sub_df %>%
     dplyr::select(id, `Study ID`,
                   all_of(cols_keep),
-                  effect_size_indices, `Health outcome direction`, 
+                  contains("effect_size_indices"), 
+                  `Health outcome direction`, 
                   n_participants, buffers, buffers_unit,
                   ##' loop a model by selecting the column names 
                   ##' but need to exclude data from table 3 (with column names that contain key word 'measurement')

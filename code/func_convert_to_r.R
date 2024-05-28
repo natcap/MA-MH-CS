@@ -8,7 +8,6 @@
 ##'
 
 ## Spearman's rank correlation coefficient (ρ) -------------------------------------------
-
 func_spearman_to_r <- function(x) {
   rho = x
   r = 2*sin(pi*rho/6)

@@ -41,7 +41,7 @@ nature_type_remove_for_presentation <-
 ```
 
 
-```{r - overall}
+```{r - data}
 source('./code/func_plot_ma.R')
 
 mh_tool_list <- c('PANAS', 'POMS') 
@@ -70,7 +70,12 @@ for (f in fs) {
 # ma_result.subgroup_poms  <- readRDS("./data/0302-MA-output/ma_result.subgroup_POMS_.rds") 
 
 
+## Save as xlsx
+writexl::write_xlsx(x = ma_result_all, path = './data/0302-MA-output/ma_result_all.xlsx')
+```
 
+
+```{r - overall}
 # p1 <- ma_result_all %>%
 #   dplyr::filter(subgroup == 'Overall', tool == 'PANAS') %>%
 #   plot_effect_size_overall(data = ., subgroup = NULL)

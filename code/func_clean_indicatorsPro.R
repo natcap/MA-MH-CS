@@ -72,12 +72,13 @@ func_clean_indicator_level2 <-  function(data, column_name, upper_case = T) {
       ## for ROS
       !!column_name := gsub("Restorative Effects Outcome|ROS", "Restorative effect", !!sym(column_name), ignore.case = T),
       
-      ## for SF
+      ## for SF and WHO-5
       !!column_name := gsub(" in general", "", !!sym(column_name), ignore.case = T),
       !!column_name := case_when(
-        tolower(!!sym(column_name)) %in% tolower(c("Wellbeing", "Well-Being")) ~ "Mental Wellbeing", 
+        tolower(!!sym(column_name)) %in% tolower(c("Wellbeing", "Well-Being", "Positive Well-Being")) ~ "Mental Wellbeing", 
         TRUE ~ !!sym(column_name)),
-      !!column_name := gsub("mental health|mental well\\-being|Mental Wellbeing|Psychological wellbeing|Psychological Well-Being", "Mental health", !!sym(column_name), ignore.case = T),
+      !!column_name := gsub("mental health|mental well\\-being|Mental Wellbeing|Psychological wellbeing|Psychological Well-Being", 
+                            "Mental health", !!sym(column_name), ignore.case = T),
       
       !!column_name := ifelse(!!sym(column_name) == "C", "Confusion", !!sym(column_name)),
       !!column_name := ifelse(!!sym(column_name) == "D", "Depression", !!sym(column_name)),
