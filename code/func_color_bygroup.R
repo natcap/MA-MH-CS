@@ -8,7 +8,7 @@
 
 ##' color from https://developers.google.com/earth-engine/datasets/catalog/USGS_NLCD_RELEASES_2021_REL_NLCD#bands
 nature_type_list <- c("Greenspace",               # '#68ab5f'	(Deciduous Forest)
-                      "Greenspace - Forest/Tree", # '#1c5f2c'	
+                      "Greenspace - Forest", # '#1c5f2c'	
                       "Greenspace - Shrub/scrub", # '#ccb879'	
                       "Greenspace - Grassland",   # '#dfdfc2'
                       "Greenspace - Farmland",    # '#ab6c28'
@@ -27,7 +27,7 @@ nature_type_list <- c("Greenspace",               # '#68ab5f'	(Deciduous Forest)
 )
 nature_type_color <- c(
   '#68ab5f', # "Greenspace"
-  '#1c5f2c', # "Greenspace - Forest/Tree"
+  '#1c5f2c', # "Greenspace - Forest"
   '#ccb879', # "Greenspace - Shrub/scrub"
   '#b2df8a', # "Greenspace - Grassland"
   '#ab6c28', # "Greenspace - Farmland"
@@ -47,7 +47,7 @@ nature_type_color <- c(
 
 nature_type_shape <- c(
   19, # "Greenspace"
-  19, # "Greenspace - Forest/Tree"
+  19, # "Greenspace - Forest"
   19, # "Greenspace - Shrub/scrub"
   19, # "Greenspace - Grassland"
   19, # "Greenspace - Farmland"
