@@ -38,9 +38,9 @@ nature_type_color <- c(
   
   '#466b9f', # "Bluespace - Open water"
   '#b8d9eb', # "Bluespace - Wetland"
-  '#0000ff', # "Bluespace - Sea"
-  '#0000ff', # "Bluespace - Beach/coastline"
-  '#08306b', # "Bluespace"
+  '#4169E1', # "Bluespace - Sea"
+  '#0096FF', # "Bluespace - Beach/coastline"
+  '#6495ED', # "Bluespace"
   '#000000', # "Overall"
   '#000000'  # "Other"
 )
