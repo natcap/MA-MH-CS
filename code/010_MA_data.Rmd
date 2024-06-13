@@ -191,7 +191,7 @@ df <- df_1 %>%
     age_group = case_when(
       is.na(average_age_mean) ~ NA,
       average_age_mean < 19 ~ 'Adolescents', # or "teenager" is common in everyday language
-      average_age_mean <= 25 ~ 'Young Adults',
+      average_age_mean <= 25 ~ 'Young adults',
       average_age_mean < 65 ~ 'Adults',
       TRUE ~ 'Older adults'),
     age_group = factor(age_group, levels = c('Adolescents', 'Young adults', 'Adults', 'Older adults'))
@@ -537,7 +537,6 @@ mh_tool           <- "GHQ-12"
 
 # exposure_type_i   <- 'L1 - neighborhood/residential exposure'
 exposure_type_i   <- c('Residential')
-
 effect_size_ind_i <- c('coefficient')
   
 
@@ -603,7 +602,7 @@ mh_tool <- c('WEMWBS')
 ##' It is likely this does not cover all the list in papers
 unique(df_exp_l$exposure_type)
 exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
-# effect_size_ind_i <- c('coefficient')
+effect_size_ind_i <- c('coefficient')
   
 
 ## test 
@@ -631,7 +630,7 @@ mh_tool <- c('WHO-5')
 ##' It is likely this does not cover all the list in papers
 unique(df_exp_l$exposure_type)
 exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
-# effect_size_ind_i <- c('coefficient')
+effect_size_ind_i <- c('coefficient')
   
 
 ## test 
@@ -656,14 +655,17 @@ saveRDS(exp_sub_df, file = f)
 
 #### - PANAS
 ```{r}
-mh_tool           <- "PANAS"
+mh_tool <- "PANAS"
 
 # exposure_type_i   <- c('stay static in nature', 'physical activity in nature') 
 exposure_type_i   <- c('In nature - Static', 'In nature - PA')
  
 
 ## [] TBD - clean the data
-effect_size_ind_i <- c("Mean_pre_post")
+effect_size_ind_i <- c(
+  "D",
+  "d",
+  "Mean_pre_post")
   
 
 
@@ -777,6 +779,11 @@ saveRDS(exp_sub_df, file = f)
   Now, each paper can include data from multiple models, and they are presented in columns. 
 We need to put all data on models in rows. 
 
+```{r}
+source('./code/010s1_loop_format_data.R')
+```
+
+
 ```{r - ? choose one as input}
 
 # f <- paste0('./data/0301-MA-input/', 'sub_ghq.RData')   # `mh_tool`, `exposure_type_i`, `effect_size_ind_i`, `exp_sub_df`
@@ -791,10 +798,10 @@ fs
 for (f in fs) {
   
   print(basename(f))
+  f.c <- gsub('.rds|.RData', '_cleaned.csv', f); f.c
   
-  f.c <- gsub('.rds', '_cleaned.csv', f); f.c
-  
-  exp_sub_df <- readRDS(f)
+  # exp_sub_df <- readRDS(f)
+  load(f)
   
   ## 
   source('./code/010s1_loop_format_data.R')
@@ -863,7 +870,7 @@ rm(exp_sub_dfi)
 
 ## for data extracted in table option 1 --------------------------------------------------
 exp_sub_l_o1_cov <- exp_sub_l %>%
-  dplyr::select(id:Notes) %>%
+  dplyr::select(id:t_value) %>%
   as.data.frame()
 name1 <- names(exp_sub_l_o1_cov) %>%
   gsub('\\.1|\\.2', '', .) %>%
@@ -893,7 +900,7 @@ exp_sub_l_o1_gs_add <- exp_sub_l_o1_cov %>%
   ##'   Covidence-based data, which has also been subset based on specific MH tools
   dplyr::filter(id %in% unique(exp_sub_l_o1_gs$id)) %>%
   dplyr::distinct(id, .keep_all = T) %>%
-  dplyr::select(1:MH_ind_MinMax, -model_id) %>%
+  dplyr::select(1:exp_mean, -model_id) %>%
   
   ##' join the *Covidence data* to *gsheet-based table*
   right_join(., exp_sub_l_o1_gs, by = 'id') %>%
@@ -917,7 +924,7 @@ exp_sub_l_o1 <- rbind(exp_sub_l_o1_cov, exp_sub_l_o1_gs_add) %>%
 ## for data extracted in table option 2 --------------------------------------------------
 exp_sub_l_o2_cov <- exp_sub_l %>%
   dplyr::select(id, model_id, Notes:Notes.1) %>%
-  dplyr::select(-Notes)
+  dplyr::select(-c(Notes:t_value))
 name2 <- names(exp_sub_l_o2_cov) %>%
   gsub('\\.1|\\.2', '_o2', .) %>%
   gsub('Other covariates that are beyond the baseline', 'Other_covariates', .)
@@ -1113,9 +1120,6 @@ exp_sub_comb_clean <- exp_sub_comb_update %>%
   func_all_to_sd(data = ., table_option = 'o1') %>%
   func_all_to_sd(data = ., table_option = 'o2') %>%
   
-  ## clean text in nature-related columns 
-  func_clean_nature_type(data = ., column_name = 'nature_type_o1') %>%
-  func_clean_nature_type(data = ., column_name = 'nature_type_o2') %>%
   func_clean_nature_quant(data = ., column_name = 'nature_quantity_o1') %>%
   func_clean_nature_quant(data = ., column_name = 'nature_quantity_o2') %>%
   
@@ -1126,10 +1130,17 @@ exp_sub_comb_clean <- exp_sub_comb_update %>%
                 MH_tool_o2 = case_when(MH_tool_o2 == "GHQ" ~ "GHQ-12", TRUE ~ MH_tool_o2)) %>%
   
   ## `func_fill_c2_from_c1()` is adapted from `func_fill_tool` (deleted) but can replace the latter
-  func_fill_c2_from_c1(data = ., to_column = 'nature_type_o1', from_column = "nature_type") %>%
-  func_fill_c2_from_c1(data = ., to_column = 'nature_type_o2', from_column = "nature_type") %>%
   func_fill_c2_from_c1(data = ., to_column = 'exposure_o1', from_column = "exposure_type") %>%
   func_fill_c2_from_c1(data = ., to_column = 'exposure_o2', from_column = "exposure_type") %>%
+  func_fill_c2_from_c1(data = ., to_column = 'nature_type_o1', from_column = "nature_type") %>%
+  func_fill_c2_from_c1(data = ., to_column = 'nature_type_o2', from_column = "nature_type") %>%
+  
+  ## clean text in nature-related columns 
+  func_clean_nature_type(data = ., column_name = 'nature_type_o1', aggregate = F) %>%
+  func_clean_nature_type(data = ., column_name = 'nature_type_o2', aggregate = F) %>%
+  ## merge selected nature types
+  func_clean_nature_type_customize(data = ., column_name = 'nature_type_o1') %>%
+  func_clean_nature_type_customize(data = ., column_name = 'nature_type_o2') %>%
   
   dplyr::select(id, model_id, study_label, Region,
                 all_of(cols_keep), 

@@ -18,7 +18,8 @@ for (i in 1:20) {
   exp_sub_dfi <- exp_sub_df %>%
     dplyr::select(id, `Study ID`,
                   all_of(cols_keep),
-                  effect_size_indices, `Health outcome direction`, 
+                  contains("effect_size_indices"), 
+                  `Health outcome direction`, 
                   n_participants, buffers, buffers_unit,
                   ##' loop a model by selecting the column names 
                   ##' but need to exclude data from table 3 (with column names that contain key word 'measurement')
@@ -52,7 +53,7 @@ rm(exp_sub_dfi)
 
 ## for data extracted in table option 1 --------------------------------------------------
 exp_sub_l_o1_cov <- exp_sub_l %>%
-  dplyr::select(id:Notes) %>%
+  dplyr::select(id:t_value) %>%
   as.data.frame()
 name1 <- names(exp_sub_l_o1_cov) %>%
   gsub('\\.1|\\.2', '', .) %>%
@@ -82,7 +83,7 @@ exp_sub_l_o1_gs_add <- exp_sub_l_o1_cov %>%
   ##'   Covidence-based data, which has also been subset based on specific MH tools
   dplyr::filter(id %in% unique(exp_sub_l_o1_gs$id)) %>%
   dplyr::distinct(id, .keep_all = T) %>%
-  dplyr::select(1:MH_ind_MinMax, -model_id) %>%
+  dplyr::select(1:exp_mean, -model_id) %>%
   
   ##' join the *Covidence data* to *gsheet-based table*
   right_join(., exp_sub_l_o1_gs, by = 'id') %>%
@@ -106,7 +107,7 @@ exp_sub_l_o1 <- rbind(exp_sub_l_o1_cov, exp_sub_l_o1_gs_add) %>%
 ## for data extracted in table option 2 --------------------------------------------------
 exp_sub_l_o2_cov <- exp_sub_l %>%
   dplyr::select(id, model_id, Notes:Notes.1) %>%
-  dplyr::select(-Notes)
+  dplyr::select(-c(Notes:t_value))
 name2 <- names(exp_sub_l_o2_cov) %>%
   gsub('\\.1|\\.2', '_o2', .) %>%
   gsub('Other covariates that are beyond the baseline', 'Other_covariates', .)
@@ -268,16 +269,16 @@ exp_sub_comb_clean <- exp_sub_comb_update %>%
   dplyr::select(study_label, everything()) %>%
   
   ## check and tidy sample size (N) ------------------------------------------------------
-dplyr::mutate(
-  n_participants = str_squish(n_participants) %>% trimws(.) %>% as.numeric(.),
-  
-  ## for o1
-  N = str_squish(N) %>% trimws(.),
-  N = gsub(" ", "", N), 
-  ## use "n_participants" to fill data gaps of N in data extraction tables
-  n = ifelse(is.na(N) & !is.na(n_participants), n_participants, N),
-  n = as.numeric(n),
-) %>%
+  dplyr::mutate(
+    n_participants = str_squish(n_participants) %>% trimws(.) %>% as.numeric(.),
+    
+    ## for o1
+    N = str_squish(N) %>% trimws(.),
+    N = gsub(" ", "", N), 
+    ## use "n_participants" to fill data gaps of N in data extraction tables
+    n = ifelse(is.na(N) & !is.na(n_participants), n_participants, N),
+    n = as.numeric(n),
+  ) %>%
   dplyr::select(1:N, n, everything()) %>%
   
   dplyr::mutate(
@@ -299,12 +300,9 @@ dplyr::mutate(
   dplyr::select(1:Control_N, c_n, Treatment_N, e_n, study_label, everything()) %>%
   
   ## convert SE, and CI to `SD` ----------------------------------------------------------
-func_all_to_sd(data = ., table_option = 'o1') %>%
+  func_all_to_sd(data = ., table_option = 'o1') %>%
   func_all_to_sd(data = ., table_option = 'o2') %>%
   
-  ## clean text in nature-related columns 
-  func_clean_nature_type(data = ., column_name = 'nature_type_o1') %>%
-  func_clean_nature_type(data = ., column_name = 'nature_type_o2') %>%
   func_clean_nature_quant(data = ., column_name = 'nature_quantity_o1') %>%
   func_clean_nature_quant(data = ., column_name = 'nature_quantity_o2') %>%
   
@@ -315,10 +313,17 @@ func_all_to_sd(data = ., table_option = 'o1') %>%
                 MH_tool_o2 = case_when(MH_tool_o2 == "GHQ" ~ "GHQ-12", TRUE ~ MH_tool_o2)) %>%
   
   ## `func_fill_c2_from_c1()` is adapted from `func_fill_tool` (deleted) but can replace the latter
-  func_fill_c2_from_c1(data = ., to_column = 'nature_type_o1', from_column = "nature_type") %>%
-  func_fill_c2_from_c1(data = ., to_column = 'nature_type_o2', from_column = "nature_type") %>%
   func_fill_c2_from_c1(data = ., to_column = 'exposure_o1', from_column = "exposure_type") %>%
   func_fill_c2_from_c1(data = ., to_column = 'exposure_o2', from_column = "exposure_type") %>%
+  func_fill_c2_from_c1(data = ., to_column = 'nature_type_o1', from_column = "nature_type") %>%
+  func_fill_c2_from_c1(data = ., to_column = 'nature_type_o2', from_column = "nature_type") %>%
+  
+  ## clean text in nature-related columns 
+  func_clean_nature_type(data = ., column_name = 'nature_type_o1', aggregate = F) %>%
+  func_clean_nature_type(data = ., column_name = 'nature_type_o2', aggregate = F) %>%
+  ## merge selected nature types
+  func_clean_nature_type_customize(data = ., column_name = 'nature_type_o1') %>%
+  func_clean_nature_type_customize(data = ., column_name = 'nature_type_o2') %>%
   
   dplyr::select(id, model_id, study_label, Region,
                 all_of(cols_keep), 
@@ -414,7 +419,7 @@ if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5')) ) {
 
 
 
-## - print & check}
+## - print & check
 ### print and double-check results =======================================================
 if ( any(mh_tool %in% c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5')) ) {
   exp_sub_mods_print <- exp_sub_mods_coef

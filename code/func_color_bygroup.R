@@ -8,13 +8,13 @@
 
 ##' color from https://developers.google.com/earth-engine/datasets/catalog/USGS_NLCD_RELEASES_2021_REL_NLCD#bands
 nature_type_list <- c("Greenspace",               # '#68ab5f'	(Deciduous Forest)
-                      "Greenspace - Forest", # '#1c5f2c'	
+                      "Greenspace - Forest",      # '#1c5f2c'	
                       "Greenspace - Shrub/scrub", # '#ccb879'	
                       "Greenspace - Grassland",   # '#dfdfc2'
                       "Greenspace - Farmland",    # '#ab6c28'
                       "Greenspace - Park",        # 
                       "Greenspace - Garden",      # '#aaff00'
-                      "Greenspace - Corridors", 
+                      "Greenspace - Street trees",   # was named "Greenspace - Corridors"
                       "Greenspace - Green roof/wall",# '#79ffd2'              (Shrub-Forest)
                       
                       "Bluespace - Open water",      # '#466b9f'
@@ -33,7 +33,7 @@ nature_type_color <- c(
   '#ab6c28', # "Greenspace - Farmland"
   '#fb9a99', # "Greenspace - Park"
   '#aaff00', # "Greenspace - Garden" (forest disturbed before/at 2006)
-  '#beaed4', # "Greenspace - Corridors"
+  '#beaed4', # "Greenspace - Street trees"
   '#79ffd2', # "Greenspace - Green roof/wall"
   
   '#466b9f', # "Bluespace - Open water"

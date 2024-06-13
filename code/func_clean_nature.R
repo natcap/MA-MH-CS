@@ -9,6 +9,11 @@
 #' @param aggregate     Whether to aggregate the detailed nature landscapes; default is FALSE
 #' 
 
+
+library(dplyr)
+library(stringr)
+
+
 ## Function to remove duplicates within each cell
 remove_duplicates <- function(text) {
   unique_elements <- str_split(text, ";")[[1]]
@@ -41,6 +46,8 @@ func_clean_nature_type <-  function(data, column_name, aggregate = F) {
                                                    'Greenspace use',
                                                    'greenspace - general',
                                                    'Neighbourhood greenness',
+                                                   'Public natural spaces',
+                                                   'Other natural space/element',
                                                    'Views of nature')) ~ "Greenspace", 
         TRUE ~ !!sym(column_name)),
 
@@ -60,7 +67,7 @@ func_clean_nature_type <-  function(data, column_name, aggregate = F) {
         !!column_name := gsub("\\- Farmland|\\- Forest\\/Tree|\\- Garden|\\- Grassland|\\- Park|\\- Green alley/Roadside green|\\- Corridors|\\- Street trees", "", !!sym(column_name)), 
         !!column_name := gsub("\\- Forest", "", !!sym(column_name)),
         !!column_name := gsub("\\- Green roof/wall|\\- Shrub\\/scrub", "", !!sym(column_name)),
-        !!column_name := gsub("\\- Open water|\\- Beach\\/coastline|\\- Wetland", "", !!sym(column_name)),
+        !!column_name := gsub("\\- Open water|\\- Beach\\/coastline|\\- Wetland|\\- Sea", "", !!sym(column_name)),
         
         !!column_name := trimws(!!sym(column_name)),
         !!column_name := str_squish(!!sym(column_name)),
@@ -76,6 +83,44 @@ func_clean_nature_type <-  function(data, column_name, aggregate = F) {
 
 
 
+
+#'
+#' @description
+#' Customize nature type classification based on certain project needs.
+#'
+#' @details
+#' To merge nature categories with small sample size. 
+#'  Here, we merge all blue space-related into one category. 
+#'
+#' @param data   Dataframe as input 
+#' @param column_name The column denotes nature types, must be a string
+#'
+#' @return
+#'
+#' @importFrom magrittr %>%
+#' @importFrom dplyr mutate select
+#'
+#' @export
+#'
+#' @examples
+#' 
+func_clean_nature_type_customize <-  function(data, column_name) {
+  d <- data %>%
+    dplyr::mutate(
+      ## merge all types of blue spaces into one "Bluespace"
+      !!column_name := gsub("\\- Open water|\\- Beach\\/coastline|\\- Wetland|\\- Sea", "", !!sym(column_name)),
+      ## merge "Green roof/wall" into "Garden"
+      !!column_name := gsub("\\- Green roof/wall", "- Garden", !!sym(column_name)),
+      !!column_name := trimws(!!sym(column_name)),
+      !!column_name := str_squish(!!sym(column_name)),
+    ) %>%
+    as.data.frame()
+  return(d)
+}  
+  
+
+
+#' 
 func_clean_nature_quant <-  function(data, column_name = "nature_quantity") {
   d <- data %>%
     dplyr::mutate(
