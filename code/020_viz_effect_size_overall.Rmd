@@ -6,6 +6,10 @@ output: html_document
 ---
 
 
+Need to run the following scripts before running this one. 
+  * `011_MA_correlation.Rmd`
+  * `012_MA_MD.Rmd`
+
 
 ```{r include=FALSE}
 
@@ -33,6 +37,7 @@ vv <- ""
 ind_for_presentation <- c("Anxiety", "Depression", 
                   # "Stress", 
                   "Restorative Effect", "Vigor")
+
 nature_type_remove_for_presentation <- 
   c("Greenspace",
     "Greenspace - Garden",
@@ -104,7 +109,7 @@ data %>%
                            text_size = 11,
                            show_legend = T) +
   scale_x_continuous(limits = c(-x_limit_max, x_limit_max)) +
-  theme(legend.position = c(0.85, 0.9),
+  theme(legend.position.inside = c(0.85, 0.9),
         # legend.spacing.y = unit(0, 'cm'),
         legend.spacing.x = unit(0.2, 'cm'),
         legend.key.size = unit(0.2, 'cm'),

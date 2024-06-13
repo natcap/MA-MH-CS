@@ -388,7 +388,8 @@ for (subgroup_select in subgroups) {
   
   if (add_subgroup_analysis == T) {
     fname <- paste0('./data/0302-MA-output/', 
-                    paste('ma_result.subgroup', paste(MH_tool_o1_list, collapse = "_"), subgroup_select, '.rds', sep = '_')); fname
+                    paste('ma_result.subgroup', paste(MH_tool_o1_list, collapse = "_"), subgroup_select, '.rds', sep = '_')); 
+    print(basename(fname))
     saveRDS(ma_result.subgroup, file = fname)
   }
   
@@ -468,6 +469,7 @@ ma_result_all %>%
         legend.justification = "left",
         plot.margin = margin(0, 0, 0, 0, "pt"), 
         ) +
+  # facet_wrap(~group_name) +
   scale_colour_manual(values = nature_type_color) +
   guides(color = guide_legend(title=subgroup_label))
 
