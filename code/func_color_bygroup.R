@@ -2,6 +2,14 @@
 ##' Define the colors of nature types
 ##'   add named colors to each category to keep the color consistent 
 
+library(rcartocolor)
+# display_carto_all(colorblind_friendly = TRUE)
+
+
+
+## https://personal.sron.nl/~pault/
+color_bright <- c('#4477AA', '#EE6677', '#228833', '#CCBB44', '#66CCEE', '#AA3377', '#BBBBBB')
+## Figure 1: Bright qualitative colour scheme that is colour-blind safe. The main scheme for lines and their labels.
 
 
 ## nature_type ---------------------------------------------------------------------------
@@ -131,7 +139,9 @@ region_list <- c(
   'Africa', "Asia", "Europe", "North America", "South America", "Oceania"
 )
 
-region_color <- brewer.pal(n = length(region_list), "Set1")
+# region_color <- brewer.pal(n = length(region_list), "Set1")
+# region_color <- rcartocolor::carto_pal(n = length(region_list), name = "Safe")
+region_color <- color_bright[1:length(region_list)]
 names(region_color) <- region_list
   
 
@@ -144,7 +154,7 @@ func_color_bygroup <- function(df, column_name, color_pal = NULL) {
   element_list <- unique(df[,column_name]); element_list
   
   if (is.null(color_pal)) {
-    color_bygroup <- brewer.pal(n = length(element_list), "Set1")
+    color_bygroup <- brewer.pal(n = length(element_list), "Dark2")
   } else {
     color_bygroup <- color_pal[element_list]; 
   }

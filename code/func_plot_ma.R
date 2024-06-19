@@ -109,7 +109,7 @@ plot_effect_size_overall <- function(
   
 
   
-  
+  ## the main plot function 
   p <- p + 
     geom_vline(xintercept = 0, linewidth = vline_width, color = vline_0_color, alpha = 0.5) + # linetype = "dashed", 
     
@@ -125,6 +125,7 @@ plot_effect_size_overall <- function(
     ## p value label
     geom_text(aes(x = es.mean, label = p.star), vjust = 0.1, size = text_size/4, position=position_dodge(dodge_value), show.legend = F) +
     labs(title = "", x = xlab_name, y = "") +
+    scale_color_brewer(type = 'qual', palette = 'Dark2') +  ## Colorblind Friendly
     guides(color = guide_legend(reverse=F)) 
   
   
@@ -160,8 +161,8 @@ plot_effect_size_overall <- function(
       p + 
       annotate("segment", x = 0, xend =  1.5, y = 0, yend = 0, colour = "#175E54", linewidth = .8, arrow = arrow(length = unit(0.1, "inches"), type = "closed")) +
       annotate("segment", x = 0, xend = -1.5, y = 0, yend = 0, colour = "#8C1515", linewidth = .8, arrow = arrow(length = unit(0.1, "inches"), type = "closed")) +
-      annotate("text", x = 1,  y = 0, label = "Increase positive", colour = "#175E54", angle = 0, vjust = -1) +
-      annotate("text", x = -1, y = 0, label = "Reduce negative",   colour = "#8C1515", angle = 0, vjust = -1) +
+      annotate("text", x = 1.2,  y = 0, label = "Increase positive", colour = "#175E54", angle = 0, vjust = -1) +
+      annotate("text", x = -1.2, y = 0, label = "Reduce negative",   colour = "#8C1515", angle = 0, vjust = -1) +
       #' Adjust the limits and aspect of the plot as needed
       #' clip off can ensure the full arrows can be shown on the axis
       coord_cartesian(clip = "off", ylim = c(NA, NA))
@@ -208,7 +209,7 @@ plot_effect_size_overall <- function(
   
   
   if (!is.null(color_var)) {
-    p <- p + scale_color_brewer(palette = "Dark2", direction = -1) 
+    p <- p + scale_color_brewer(palette = "Dark2", direction = 1) ## Colorblind Friendly
   } else {
     p <- p
   }
