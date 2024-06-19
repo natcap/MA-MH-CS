@@ -275,7 +275,7 @@ df_exp_l <- df_exp %>%
 ```
 
 
-### stat on exposure
+### stats
 
 ```{r **To-do**}
 ```
@@ -286,7 +286,7 @@ df_exp_l <- df_exp %>%
   [] need to separate "single-group pretest-posttest design"(= 1ba) and "independent-groups pretest-posttest design" (= 2ba)
   
 
-```{r}
+```{r exposure}
 
 df_exp_l_stat <- df_exp_l %>% 
   group_by(exposure_type_t1, exposure_type) %>%
@@ -311,7 +311,6 @@ func_ggsave(fname = fname, w = 7, h = 4, save_png = T)
 ```
 
 
-### stats
 
 ```{r exposure-tool}
 df_exp_l_toolL <- df_exp_l %>%
@@ -484,6 +483,48 @@ df %>%
   geom_histogram(aes(x = duration_mins, fill = duration_group), binwidth = 10) +
   scale_x_continuous(breaks = c(15, 30, 45, 60)) +
   theme_bw()
+```
+
+
+
+```{r nature_quantity}
+
+df_q <- df_exp %>%
+  select(1:2, Indicator, Tools, nature_type, nature_quantity, 
+         # buffer, buffer_unit, 
+         exposure_type) %>%
+  filter(!nature_quantity %in% c('', NA, 'NA'))
+
+df_q_ndvi <- df_q %>%
+  filter(str_detect(nature_quantity, pattern = regex("NDVI|EVI|Percent", ignore_case = TRUE)))
+
+df_q_ndvi_ <- df_q_ndvi %>%
+  select(Tools, nature_quantity) %>%
+  expand_col_to_long(data = ., target_col = 'Tools') %>%
+  expand_col_to_long(data = ., target_col = 'nature_quantity') %>%
+  filter(str_detect(nature_quantity, pattern = regex("NDVI|EVI|Percent", ignore_case = TRUE))) %>%
+  group_by(Tools, nature_quantity) %>%
+  tally() %>%
+  as.data.frame() %>%  
+  pivot_longer(names_to  = 'dimension', 
+               values_to = 'layers', 
+               cols = c('Tools', 'nature_quantity')) %>%
+  group_by(dimension) %>%
+  dplyr::mutate(id_within_layers = row_number(dimension)) %>%
+  arrange(dimension) %>%
+  dplyr::rename(freq = n) %>%
+  group_by(layers) %>%
+  dplyr::mutate(total = sum(freq, na.rm = T)) %>%
+  as.data.frame()
+
+indicator_n_min <- 5 ## only map indicators with more than 5 times
+# Labeling small strata
+labele_small <- 3
+
+
+func_alluvial(data = df_q_ndvi_, indicator_n_min = 2, width_my = width_my, w_p = 7,
+              show_y_ticks = T, 
+              filename.prefix = '', filename.postfix = 'tool_quantity')
 ```
 
 
