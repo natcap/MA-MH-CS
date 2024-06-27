@@ -82,6 +82,7 @@ codelist <- SDGdetector::codelist_panel %>%
   dplyr::distinct(country.name.en, iso3c, region)
 
 ## World region data 2
+getwd()
 region_owid <- readr::read_csv('./data/continents-according-to-our-world-in-data.csv', show_col_types = FALSE) %>%
   dplyr::select(-Year) %>%
   dplyr::mutate(Code = gsub('OWID_', '', Code)) %>%

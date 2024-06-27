@@ -6,6 +6,7 @@
 
 p_all <- ma_result_all %>%
   dplyr::filter(group_name == subgroup_select) %>%
+  dplyr::filter(ind_sub %in% ind_sub_levels) %>%
   dplyr::group_by(tool, ind_sub) %>%
   dplyr::mutate(ind_sub = factor(ind_sub, levels = ind_sub_levels)) %>%
   # dplyr::filter(ind_sub %in% ind_for_presentation) %>%
