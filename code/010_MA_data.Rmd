@@ -123,6 +123,7 @@ df <- df_1 %>%
   func_clean_bufferunit(data = ., column_name = 'buffers_unit') %>%
   func_clean_tools(data = ., column_name = 'Tools') %>%
   func_clean_exposure(data = ., column_name = 'exposure_type') %>%
+  dplyr::mutate(exposure_type = gsub("；", ";", exposure_type)) %>%
   dplyr::mutate(exposure_type = gsub("Other: |Other:", "", exposure_type)) %>%
   dplyr::mutate(exposure_type = gsub("\\s*\\([^\\)]+\\)", "", exposure_type)) %>% # remove text within parenthesis
   
@@ -251,9 +252,10 @@ df_exp <- df %>%
 
 ## unify exposure names
 f <- 'https://docs.google.com/spreadsheets/d/11oUNNjsmzC4wvYwcE8Zm_qavww0D6Twxl8UoPve1WOE/edit?usp=sharing'
-exposure_tier <- googlesheets4::read_sheet(f, sheet = 'nature_exposure_channels') %>%
+exposure_tier <- googlesheets4::read_sheet(f, sheet = 'nature_exposure_channels', range = 'A:D') %>%
   dplyr::select(-exposure_type_t3) %>%
   as.data.frame()
+
 
 df_exp_l <- df_exp %>% 
   ## expand `exposure_type` if there are > 1 exposure types in a study
@@ -265,12 +267,14 @@ df_exp_l <- df_exp %>%
     exposure_type = ifelse(grepl(x = exposure_type, 'duration|Spending hour|Time spent', ignore.case = T), 
                            'Duration in nature', exposure_type),
     ) %>%
-  left_join(., y = exposure_tier,
-            by = 'exposure_type') %>%
+  as.data.frame() %>%
+  left_join(., y = exposure_tier, by = 'exposure_type') %>%
+  # merge(x=., y = exposure_tier, by = 'exposure_type', all.x = T) %>%
   dplyr::rename('exposure_type_t1' = 'exposure_type') %>%
   
   ## to decide which tier name for the next step analysis
   dplyr::rename('exposure_type'    = 'exposure_type_t2') %>%
+  dplyr::select(1:exposure_type_t1, exposure_type, everything())  %>%
   as.data.frame()
 ```
 
@@ -578,7 +582,7 @@ mh_tool           <- "GHQ-12"
 
 # exposure_type_i   <- 'L1 - neighborhood/residential exposure'
 exposure_type_i   <- c('Residential')
-effect_size_ind_i <- c('coefficient')
+effect_size_ind_i <- c('coef')
   
 
 ## test 
@@ -611,7 +615,7 @@ mh_tool <- c("SF-12", "SF-36")
 ##' It is likely this does not cover all the list in papers
 unique(df_exp_l$exposure_type)
 exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
-effect_size_ind_i <- c('coefficient')
+effect_size_ind_i <- c('coef')
   
 
 ## test 
@@ -643,7 +647,7 @@ mh_tool <- c('WEMWBS')
 ##' It is likely this does not cover all the list in papers
 unique(df_exp_l$exposure_type)
 exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
-effect_size_ind_i <- c('coefficient')
+effect_size_ind_i <- c('coef')
   
 
 ## test 
@@ -671,7 +675,7 @@ mh_tool <- c('WHO-5')
 ##' It is likely this does not cover all the list in papers
 unique(df_exp_l$exposure_type)
 exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
-effect_size_ind_i <- c('coefficient')
+effect_size_ind_i <- c('coef')
   
 
 ## test 
@@ -690,6 +694,40 @@ save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
 f <- gsub('RData', 'rds', f); f
 saveRDS(exp_sub_df, file = f)
 ```
+
+
+
+#### - PSS
+```{r}
+mh_tool <- c('PSS')
+
+##' filter exposure types based on this broader category
+##' It is likely this does not cover all the list in papers
+unique(df_exp_l$exposure_type)
+exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
+effect_size_ind_i <- c('coef')
+  
+
+## test 
+df_test <- df %>%
+  # dplyr::filter(id %in% exp_sub_id) %>%
+  dplyr::filter(stringr::str_detect(Tools, paste(mh_tool, collapse = "|"))) %>%
+  as.data.frame()
+
+exp_sub_df %>%
+  group_by(effect_size_indices) %>% count(effect_size_indices)
+
+exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
+sub_pss <- exp_sub_df
+
+## save for later use
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData'); f
+save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
+
+f <- gsub('RData', 'rds', f); f
+saveRDS(exp_sub_df, file = f)
+```
+
 
 
 ### * MD-focused outcomes ---
@@ -751,36 +789,6 @@ saveRDS(exp_sub_df, file = f)
 
 
 
-
-
-
-#### - PSS
-```{r}
-mh_tool <- c('PSS')
-
-##' filter exposure types based on this broader category
-##' It is likely this does not cover all the list in papers
-unique(df_exp_l$exposure_type)
-exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
-# effect_size_ind_i <- c('coefficient')
-  
-
-## test 
-df_test <- df %>%
-  # dplyr::filter(id %in% exp_sub_id) %>%
-  dplyr::filter(stringr::str_detect(Tools, paste(mh_tool, collapse = "|"))) %>%
-  as.data.frame()
-
-exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
-sub_pss <- exp_sub_df
-
-## save for later use
-f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData'); f
-save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
-
-f <- gsub('RData', 'rds', f); f
-saveRDS(exp_sub_df, file = f)
-```
 
 
 #### - ROS
@@ -1253,7 +1261,7 @@ cat('\n\n')
 unique(exp_sub_comb_clean$MH_tool_o1) %>% cat('unique MH_tool_o1:', ., '\n')
 unique(exp_sub_comb_clean$MH_tool_o2) %>% cat('unique MH_tool_o2:', ., '\n')
 
-if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5')) ) {
+if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5', 'PSS')) ) {
   exp_sub_mods_coef <- exp_sub_mods %>%
     dplyr::filter((str_detect(pattern = paste(effect_size_ind_i, collapse = "|"), string = effect_size_indices))) %>%
     dplyr::filter(MH_tool_o1 %in% mh_tool | MH_tool_o2 %in% mh_tool) %>%
@@ -1261,7 +1269,7 @@ if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5')) ) {
     func_clean_indicator_level2(data = ., column_name = 'MH_indicator_o2') %>%
     as.data.frame() 
   
-  } else if ( all(mh_tool %in% c('PANAS', 'POMS', 'ROS', 'PSS')) ) {
+  } else if ( all(mh_tool %in% c('PANAS', 'POMS', 'ROS')) ) {
     exp_sub_mods_md <- exp_sub_mods %>%
       dplyr::filter((str_detect(pattern = paste(effect_size_ind_i, collapse = "|"), string = effect_size_indices))) %>%
       dplyr::filter(MH_tool_o1 %in% mh_tool | MH_tool_o2 %in% mh_tool) %>%
@@ -1280,7 +1288,7 @@ if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5')) ) {
 
 ```{r - print & check}
 ### print and double-check results =======================================================
-if ( any(mh_tool %in% c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5')) ) {
+if ( any(mh_tool %in% c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5', 'PSS')) ) {
   exp_sub_mods_print <- exp_sub_mods_coef
 } else {
   exp_sub_mods_print <- exp_sub_mods_md
