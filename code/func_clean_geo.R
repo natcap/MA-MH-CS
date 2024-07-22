@@ -83,7 +83,10 @@ codelist <- SDGdetector::codelist_panel %>%
 
 ## World region data 2
 getwd()
-region_owid <- readr::read_csv('./data/continents-according-to-our-world-in-data.csv', show_col_types = FALSE) %>%
+
+f = list.files(path = paste0(here::here(), '/data/'), pattern = '*our_world_in_data.xlsx', full.names = T, include.dirs = T); f
+# region_owid <- read_csv(file = f) #%>%
+region_owid <- readxl::read_excel(path = f) %>%
   dplyr::select(-Year) %>%
   dplyr::mutate(Code = gsub('OWID_', '', Code)) %>%
   dplyr::rename('name_owid' = 'Entity',
