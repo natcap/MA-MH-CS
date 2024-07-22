@@ -86,7 +86,7 @@ csv <- "review_278532_20230616074045.csv"     # 2023-05-13, addressed 85 consens
 csv <- "review_278532_20230703085230.csv"
 csv <- "review_278532_20230920035224.csv"     # 2023-09-18, 30 consensus done for Extraction
 csv <- "review_278532_20240104172827.csv"     # 2023-12-11, 38 consensus done, add a new table to collect x, y info
-csv <- "review_278532_20240613160600.csv"
+csv <- "review_278532_20240723031844.csv"
 
 
 t <- basename(csv) %>% gsub('review_278532_', '', .) %>%
@@ -225,7 +225,10 @@ function_add_reviewer_id <- function(data) {
       Reviewer == 'Xin Lan'       ~ 4, 
       Reviewer == 'Anders Rydstrom' ~ 4.5,
       Reviewer == 'Renee Bertrand'  ~ 4.6,
-      Reviewer == 'Emily Brieant' ~ 5, 
+      Reviewer == 'Emily Brieant'   ~ 5, 
+      Reviewer == 'Carl Purisima' ~ 5.2,
+      Reviewer == 'Sehrish Gohar' ~ 5.3,
+      Reviewer == 'Bryan Diaz'    ~ 5.4,
       Reviewer == 'Katherine Wu'  ~ 6,
       Reviewer == 'test person'   ~ 7,
       Reviewer == 'Mary Lee'      ~ 8,
