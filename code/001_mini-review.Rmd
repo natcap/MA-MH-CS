@@ -40,12 +40,15 @@ sum(df_n$n, na.rm = T) - 397900
 
 ```{r - indicator, include=FALSE}
 ## keep columns of interest, and clean data
+source('./code/func_clean_design.R')
+
 dt <- df %>%
   dplyr::rename('City' = "City and state/province  in which the study conducted") %>%
-  dplyr::select(1:4, City, matches("Country|Mental health|Indicator|Tools")) %>%
+  dplyr::select(1:4, City, matches("Country|Mental health|Indicator|Tools|design")) %>%
   dplyr::select(!matches("duration", ignore.case = T)) %>%
   func_clean_indicatorsPro(data = ., column_name = 'Indicator') %>%
   func_clean_indicator_level2(data = ., column_name = 'Indicator', upper_case = F) %>%
+  func_clean_design(data = ., column_name = 'Study design', aggregate = T) %>%
   dplyr::arrange(!is.na(Indicator), Reviewer) %>%
   as.data.frame()
 
@@ -129,7 +132,7 @@ func_ggsave(fname = fname, w = w, h = h)
 
 dt.tool <- dt %>%
   ### -clean up the names of the tools
-  dplyr::select(1:5, Tools, -Title) %>%
+  dplyr::select(1:5, Tools, -Title, `Study design`) %>%
   dplyr::filter(str_detect(string = Tools, pattern = "exclude", negate = T)) %>%
   dplyr::mutate(Tool = gsub("Other: ", "", Tools)) %>%
   func_clean_tools(data = ., column_name = 'Tool') %>%
@@ -151,6 +154,18 @@ dt.tool.clean <- dt.tool.expand %>%
   ungroup() %>%
   arrange(Tool) %>%
   as.data.frame()
+
+
+dt.tool.design_clean <- dt.tool.expand %>%
+  group_by(Tool, `Study design`) %>%
+  # dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
+  tally() %>%
+  ungroup() %>%
+  arrange(Tool) %>%
+  group_by(Tool) %>% 
+  mutate(Tool_sum = sum(n, na.rm = T) ) %>%
+  as.data.frame()
+
 ```
 
 
@@ -187,8 +202,7 @@ dt.tool.expand.selected <- dt.tool.expand %>%
 dt.tool.clean %>%
   dplyr::slice_max(order_by = n, n = 20) %>%
   plot_freq(data = ., var = 'Tool') +
-  geom_text(
-    aes(label = n), vjust = 0.5, hjust = 1.1, color = 'white', size = 3) +
+  geom_text(aes(label = n), vjust = 0.5, hjust = 1.1, color = 'white', size = 3) +
   ggtitle("Top 20 MH measurement tools") +
   theme_bw() +
   theme(
@@ -204,6 +218,26 @@ func_ggsave(fname = fname, w = w, h = h)
 ###' save to a shared Drive
 fname <- paste0(dir_share, f); fname
 func_ggsave(fname = fname, w = w, h = h)
+
+
+
+dt.tool.design_clean %>%
+  dplyr::filter(Tool_sum > 5) %>%
+  # dplyr::slice_max(order_by = n, n = 20) %>%
+  ggplot(., aes(
+    x = reorder(eval(parse(text = 'Tool')), Tool_sum),
+    y = n,
+    fill = `Study design`)) + 
+    geom_bar(stat = "identity", show.legend = T) +
+  coord_flip() +
+  
+  geom_text(aes(label = n), 
+            # vjust = 0.5, hjust = 0, 
+            position=position_stack(vjust=0.5),
+            color = 'white', size = 3) +
+  xlab("") +
+  theme_bw()
+
 ```
 
 
