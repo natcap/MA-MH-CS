@@ -86,7 +86,7 @@ csv <- "review_278532_20230616074045.csv"     # 2023-05-13, addressed 85 consens
 csv <- "review_278532_20230703085230.csv"
 csv <- "review_278532_20230920035224.csv"     # 2023-09-18, 30 consensus done for Extraction
 csv <- "review_278532_20240104172827.csv"     # 2023-12-11, 38 consensus done, add a new table to collect x, y info
-csv <- "review_278532_20240723031844.csv"
+csv <- "review_278532_20240724021243.csv"
 
 
 t <- basename(csv) %>% gsub('review_278532_', '', .) %>%
@@ -105,7 +105,6 @@ dd <- readr::read_csv(file = paste0(dir.raw, csv), show_col_types = F) %>%
     "Tools" = "Mental health measurement tools",
     "meet_criteria" = "Does this study meet the criteria for data extraction?"
   ) %>%
-  dplyr::filter(!meet_criteria %in% c('No')) %>%
   dplyr::mutate(Tools   = gsub("Other\\: |Other\\:", "", Tools)) %>%
   dplyr::mutate(Country = gsub("Other\\: |Other\\:", "", Country)) %>%
   arrange(id, Reviewer) %>%
@@ -241,8 +240,11 @@ function_add_reviewer_id <- function(data) {
 
 
 df <- function_add_reviewer_id(data = dd) %>%
+  ## keep one reviewer's data based on priority setting
   arrange(id, Reviewer_id, desc(date)) %>%
   dplyr::distinct(id, .keep_all = T) %>%
+  ## then, we remove those papers that were labeled 'Not' meeting the criteria
+  dplyr::filter(!meet_criteria %in% c('No')) %>%
   as.data.frame()
 
 

@@ -180,6 +180,13 @@ shp <- SDGdetector::shp
 # mcbtfpq_proj4string <- "+proj=mbtfpq +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
 # shp <- sf::st_transform(shp, mcbtfpq_proj4string)
 
+## correct world map for China border 
+shp <- sf::st_read('G:/Shared drives/gdrive/_data/shp/WorldMap_ShiJieGuojia.shp') %>%
+  dplyr::rename('name' = 'NAME', 
+                'iso_a3' = 'SOC') %>%
+  dplyr::mutate(name = ifelse(name == 'ANTARCTICA', 'Antarctica', name)) %>%
+  dplyr::select(name, iso_a3)
+
 
 region_count_sf <- region_count %>%
   merge(x= shp, y = ., by.x = 'iso_a3', by.y  = 'iso3c', all.x = T) 
@@ -423,6 +430,13 @@ filename.postfix = paste(dimension_levels, collapse = "_") %>%
   str_to_lower()
 
 dtt  <- dt.ind.tool.region  %>%  
+  ## count indicator by region 
+  group_by(Region, Indicator, Tool) %>%
+  dplyr::mutate(n_ind_byregion = sum(n, na.rm = T)) %>%
+  ungroup() %>%
+  ## remove small samples
+  dplyr::filter(n_ind_byregion > 2) %>%
+  ##
   pivot_longer(names_to = 'dimension', 
                values_to = 'layers', 
                cols = c('Indicator', 'Tool', 'Region')) %>%
@@ -436,10 +450,13 @@ dtt  <- dt.ind.tool.region  %>%
     ) %>%
   group_by(layers) %>%
   dplyr::mutate(total = sum(freq, na.rm = T)) %>%
+  ungroup() %>%
   as.data.frame()
 
 
-func_alluvial(data = dtt, indicator_n_min = 3, labele_small = 20, w_p = 10, filename.postfix = filename.postfix)
+func_alluvial(data = dtt, indicator_n_min = 3, labele_small = 20, 
+              add_flow_label = T, 
+              w_p = 10, filename.postfix = filename.postfix)
 
 # f <- paste0('mini-review_mh_indicator_tool_pairs_min', indicator_n_min, '_ctr', n_ctr, '_', today, '.png')
 # fname <- paste0(dir.fig, f); fname
