@@ -10,6 +10,12 @@ output:
 
   *Run 000_load_extraction.Rmd first*
 
+# Setup
+
+```{r}
+save_plot <- T
+```
+
 
 # Data cleaning 
 
@@ -33,6 +39,58 @@ df_n <- df %>%
 summary(df_n$n)
 
 sum(df_n$n, na.rm = T) - 397900
+```
+
+
+## Stat 
+```{r nature_quantity}
+
+df_q <- df %>%
+  select(1:2, Indicator, Tools, nature_type, nature_quantity, 
+         # buffer, buffer_unit, 
+         exposure_type) %>%
+  filter(!nature_quantity %in% c('', NA, 'NA'))
+
+unique(df_q$nature_quantity)
+
+
+df_q2 <- df_q %>%
+  # dplyr::select(Tools, nature_quantity) %>%
+  # expand_col_to_long(data = ., target_col = 'Tools') %>%
+  expand_col_to_long(data = ., target_col = 'nature_quantity') %>%
+  func_clean_nature_quant(column_name = 'nature_quantity') 
+
+
+df_q_stat <- df_q2 %>%
+  group_by(nature_quantity) %>%
+  tally() %>%
+  as.data.frame()
+
+
+df_q_stat %>%
+  dplyr::slice_max(order_by = n, n = 20) %>%
+  ggplot(aes(
+    x = reorder(nature_quantity, n), y = n )) +
+  geom_col() +
+  geom_text(
+    aes(label = n), vjust = 0.5, hjust = 1.1, color = 'white', size = 3) +
+  coord_flip() +
+  # scale_fill_distiller(name = '', palette = "Blues", guide = "colorbar", direction = 1) +
+  xlab("") +
+  ggtitle("Top 20 nature quantity metrics") +
+  theme_bw() +
+  theme(
+    # axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+    plot.title = element_text(size = 12, hjust = 1, face = 'bold'),
+    axis.text = element_text(size = 11),
+    )
+
+
+f <- paste0("mini-review_nature quantity_", today, ".png")
+fname <- paste0(dir.fig, f)
+w = 6
+h = 5
+func_ggsave(fname = fname, w = w, h = h, save_png = T)
 ```
 
 
@@ -122,9 +180,6 @@ func_ggsave(fname = fname, w = w, h = h)
 
 
 
-
-
-
 ## Tool
 
 ```{r - tool, include=FALSE}
@@ -158,7 +213,8 @@ dt.tool.clean <- dt.tool.expand %>%
 
 dt.tool.design_clean <- dt.tool.expand %>%
   group_by(Tool, `Study design`) %>%
-  # dplyr::summarise_at(c("n"), sum, na.rm = T) %>%
+  dplyr::filter(!Tool %in% c('Official MH survey')) %>%
+  dplyr::mutate(`Study design` = factor(`Study design`, levels = c('Observational', 'Experimental'))) %>%
   tally() %>%
   ungroup() %>%
   arrange(Tool) %>%
@@ -222,22 +278,32 @@ func_ggsave(fname = fname, w = w, h = h)
 
 
 dt.tool.design_clean %>%
-  dplyr::filter(Tool_sum > 5) %>%
-  # dplyr::slice_max(order_by = n, n = 20) %>%
+  # dplyr::filter(Tool_sum > 5) %>%
+  dplyr::slice_max(order_by = Tool_sum, n = 18*2, with_ties = T) %>%
   ggplot(., aes(
     x = reorder(eval(parse(text = 'Tool')), Tool_sum),
     y = n,
     fill = `Study design`)) + 
-    geom_bar(stat = "identity", show.legend = T) +
+  geom_bar(stat = "identity", alpha = 0.7, show.legend = T) +
+  scale_fill_grey(start = 0.5, end = 0.2) +
   coord_flip() +
   
   geom_text(aes(label = n), 
             # vjust = 0.5, hjust = 0, 
-            position=position_stack(vjust=0.5),
-            color = 'white', size = 3) +
+            position=position_stack(vjust=0.5), color = 'white', size = 3) +
+  # geom_text(aes(y = Tool_sum, group = Tool, label = stat(y)), vjust = 0.5, hjust =-0.5, size = 3) +
+  ggtitle("Top 20 MH measurement tools") +
   xlab("") +
-  theme_bw()
-
+  theme_bw() +
+  theme(
+    legend.position = c(0.7, 0.15),
+    plot.title = element_text(size = 12, hjust = 1, face = 'bold'), 
+    plot.title.position = "plot", #NEW parameter. Apply for subtitle too.
+    axis.text = element_text(size = 11),
+    )
+f <- paste0('mini-review_tools_bar_', today, '_byDesign.png'); f
+fname <- paste0(dir.fig, f)
+func_ggsave(fname = fname, w = w, h = h)
 ```
 
 
