@@ -125,8 +125,13 @@ func_clean_nature_quant <-  function(data, column_name = "nature_quantity") {
       !!column_name := str_squish(!!sym(column_name)),
       !!column_name := gsub("\\s*\\([^\\)]+\\)", "", !!sym(column_name)), # remove text within parenthesis 
       !!column_name := gsub("Other\\: | \\- General", "", !!sym(column_name)),
+      !!column_name := gsub("Presence of water", "Presence of bluespace", !!sym(column_name)),
+      !!column_name := gsub("Area of greenspace per 10000 residents in county", "Greenspace per capita", !!sym(column_name)),
+      !!column_name := gsub("SVG-grass|SVG-quantity|SVG-tree|Street view images|Green View Index|Street View Greenness|Streetscape greenery", "SVG", !!sym(column_name)),
+      !!column_name := gsub("Time spent on visiting green space near home", "Time in greenspace", !!sym(column_name)),
+      !!column_name := gsub("Distance to green space", "Distance to greenspace", !!sym(column_name)),
+
       !!column_name := gsub("\\*", "", !!sym(column_name)),
-      
       !!column_name := gsub(",", ";", !!sym(column_name)),
       !!column_name := trimws(!!sym(column_name)),
       !!column_name := str_squish(!!sym(column_name)),
