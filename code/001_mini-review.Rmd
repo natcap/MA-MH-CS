@@ -286,7 +286,7 @@ dt.tool.design_clean %>%
     plot.title.position = "plot", #NEW parameter. Apply for subtitle too.
     axis.text = element_text(size = 11),
     )
-f <- paste0('mini-review_tools_bar_', today, '_byDesign.png'); f
+f <- paste0('mini-review_tools_bar_byDesign_', today, '.png'); f
 fname <- paste0(dir.fig, f)
 func_ggsave(fname = fname, w = w, h = h)
 ```
