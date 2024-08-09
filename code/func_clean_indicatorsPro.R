@@ -13,8 +13,8 @@ func_clean_indicatorsPro <-  function(data, column_name) {
       !!column_name := gsub("\\(include schizophrenia\\)", "", !!sym(column_name)),
       !!column_name := gsub("\\s*\\([^\\)]+\\)", "", !!sym(column_name)), # remove text within parenthesis 
       
-      !!column_name := gsub("\\/Restorativeness", "Restorativeness", !!sym(column_name)),
-      !!column_name := gsub("Restoration experience|Restorative experience|Restorative States|Restorativeness|Psychological Restorative Effects", 
+      !!column_name := gsub("Restorative effects\\/Restorativeness", "Restorative effect", !!sym(column_name)),
+      !!column_name := gsub("Restoration experience|Restorative experience|Restorative States|Psychological Restorative Effects", 
                             "Restorative effect", !!sym(column_name), ignore.case = T), 
       !!column_name := gsub("Restoration", "Restorative effect", !!sym(column_name)),
       !!column_name := gsub("Attention capacity|Sustained attention|Attention Functioning", "Attention", !!sym(column_name), ignore.case = T), ##  
