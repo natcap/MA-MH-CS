@@ -14,6 +14,8 @@ output:
 
 ```{r}
 save_plot <- T
+library(dplyr)
+source('./code/func_clean_nature.R')
 ```
 
 
@@ -24,16 +26,25 @@ save_plot <- T
 fs <- list.files(path = "./data/0301-MA-input/", pattern = '^df_covidenceFull', full.names = T); 
 ##' select the up-to-date data, which is the second to the last
 f <- fs[(length(fs)-2)]; f;
-df <- readRDS(file = f)
+df <- readRDS(file = f) %>%
+  dplyr::rename(
+    'exposure_type'   = 'Nature exposure type',
+    'nature_type'     = "General category of urban nature",
+    'nature_quantity' = "Nature quantity measure metric",
+    "n_participants"  = "Total number of participants",
+    "buffers"         = "Buffer zone size considered for nature exposure measurement",
+    "buffers_unit"    = "Buffer zone size's unit",
+    'study_design'    = 'Study design',
+    "City" = "City and state/province  in which the study conducted"
+    )
 ```
 
 
 
 ```{r - data summary}
 df_n <- df %>% 
-  dplyr::rename(n = `Total number of participants`) %>%
-  dplyr::select(1:5, n) %>%
-  dplyr::mutate(n = as.numeric(n)) %>%
+  dplyr::select(1:5, n_participants) %>%
+  dplyr::mutate(n = as.numeric(n_participants)) %>%
   arrange(n)
 
 summary(df_n$n)
@@ -46,10 +57,10 @@ sum(df_n$n, na.rm = T) - 397900
 ```{r nature_quantity}
 
 df_q <- df %>%
-  select(1:2, Indicator, Tools, nature_type, nature_quantity, 
+  dplyr::select(1:2, Indicator, Tools, nature_type, nature_quantity, 
          # buffer, buffer_unit, 
          exposure_type) %>%
-  filter(!nature_quantity %in% c('', NA, 'NA'))
+  dplyr::filter(!nature_quantity %in% c('', NA, 'NA'))
 
 unique(df_q$nature_quantity)
 
@@ -62,6 +73,7 @@ df_q2 <- df_q %>%
 
 
 df_q_stat <- df_q2 %>%
+  dplyr::filter(!nature_quantity %in% c('', NA, 'NA')) %>%
   group_by(nature_quantity) %>%
   tally() %>%
   as.data.frame()
@@ -101,12 +113,11 @@ func_ggsave(fname = fname, w = w, h = h, save_png = T)
 source('./code/func_clean_design.R')
 
 dt <- df %>%
-  dplyr::rename('City' = "City and state/province  in which the study conducted") %>%
   dplyr::select(1:4, City, matches("Country|Mental health|Indicator|Tools|design")) %>%
   dplyr::select(!matches("duration", ignore.case = T)) %>%
   func_clean_indicatorsPro(data = ., column_name = 'Indicator') %>%
   func_clean_indicator_level2(data = ., column_name = 'Indicator', upper_case = F) %>%
-  func_clean_design(data = ., column_name = 'Study design', aggregate = T) %>%
+  func_clean_design(data = ., column_name = 'study_design', aggregate = T) %>%
   dplyr::arrange(!is.na(Indicator), Reviewer) %>%
   as.data.frame()
 
@@ -187,7 +198,7 @@ func_ggsave(fname = fname, w = w, h = h)
 
 dt.tool <- dt %>%
   ### -clean up the names of the tools
-  dplyr::select(1:5, Tools, -Title, `Study design`) %>%
+  dplyr::select(1:Country, Tools, -Title, `study_design`) %>%
   dplyr::filter(str_detect(string = Tools, pattern = "exclude", negate = T)) %>%
   dplyr::mutate(Tool = gsub("Other: ", "", Tools)) %>%
   func_clean_tools(data = ., column_name = 'Tool') %>%
@@ -212,48 +223,21 @@ dt.tool.clean <- dt.tool.expand %>%
 
 
 dt.tool.design_clean <- dt.tool.expand %>%
-  group_by(Tool, `Study design`) %>%
+  group_by(Tool, `study_design`) %>%
   dplyr::filter(!Tool %in% c('Official MH survey')) %>%
-  dplyr::mutate(`Study design` = factor(`Study design`, levels = c('Observational', 'Experimental'))) %>%
+  dplyr::mutate(`study_design` = factor(`study_design`, levels = c('Observational', 'Experimental'))) %>%
   tally() %>%
   ungroup() %>%
   arrange(Tool) %>%
   group_by(Tool) %>% 
-  mutate(Tool_sum = sum(n, na.rm = T) ) %>%
+  dplyr::mutate(Tool_sum = sum(n, na.rm = T) ) %>%
   as.data.frame()
 
 ```
 
 
 
-```{r - tools selected for MA, include=FALSE}
-##' select the most used measures in literature for meta-analysis
-##' we will use this to create the paper list in gsheet "paperID_byTopTools"
-
-### - 1. top 3
-tools_selected <- c('POMS', 'GHQ-12', 'PANAS')
-
-### - 2. adding more for data extraction 
-tools_selected <- c('ROS',   # Restoration Outcome Scale
-                    'PSS',   # Perceived Stress Scale
-                    'PRS',   # Perceived Restorativeness Scale
-                    'SF-12', # Short From Health Survey 36-item
-                    'SF-36')
-
-dt.tool.expand.selected <- dt.tool.expand %>% 
-  dplyr::filter(Tool %in% tools_selected) %>%
-  dplyr::select(-Tools) %>%
-  arrange(Tool, id) %>%
-  dplyr::mutate(id = paste0('#', id)) %>%
-  as.data.frame()
-
-# f <- paste0('./data/0301-MA-input/', 'paperID_byTopTools_for_gsheet.CSV'); f
-# readr::write_csv(x = dt.tool.expand.selected, file = f)
-```
-
-
-
-```{r - tool bar}
+```{r - bar plot}
 
 dt.tool.clean %>%
   dplyr::slice_max(order_by = n, n = 20) %>%
@@ -283,7 +267,7 @@ dt.tool.design_clean %>%
   ggplot(., aes(
     x = reorder(eval(parse(text = 'Tool')), Tool_sum),
     y = n,
-    fill = `Study design`)) + 
+    fill = `study_design`)) + 
   geom_bar(stat = "identity", alpha = 0.7, show.legend = T) +
   scale_fill_grey(start = 0.5, end = 0.2) +
   coord_flip() +
@@ -295,6 +279,7 @@ dt.tool.design_clean %>%
   ggtitle("Top 20 MH measurement tools") +
   xlab("") +
   theme_bw() +
+  guides(fill=guide_legend(title="Study design")) +
   theme(
     legend.position = c(0.7, 0.15),
     plot.title = element_text(size = 12, hjust = 1, face = 'bold'), 
@@ -305,6 +290,41 @@ f <- paste0('mini-review_tools_bar_', today, '_byDesign.png'); f
 fname <- paste0(dir.fig, f)
 func_ggsave(fname = fname, w = w, h = h)
 ```
+
+
+
+
+```{r - for MA ***, include=FALSE}
+##' select the most used measures in literature for meta-analysis
+##' we will use this to create the paper list in gsheet "paperID_byTopTools"
+
+### - 1. top 3
+tools_selected <- c('POMS', 'GHQ-12', 'PANAS')
+
+### - 2. adding more for data extraction 
+tools_selected <- c('ROS',   # Restoration Outcome Scale
+                    'PSS',   # Perceived Stress Scale
+                    'PRS',   # Perceived Restorativeness Scale
+                    'WEMWBS',# Warwick-Edinburgh Mental Wellbeing Scale
+                    'WHO-5',
+                    'SF-12', # Short From Health Survey 36-item
+                    'SF-36')
+
+### - 3. adding more 
+tools_selected <- c('STAI')
+tools_selected <- c('SVS')
+
+dt.tool.expand.selected <- dt.tool.expand %>% 
+  dplyr::filter(Tool %in% tools_selected) %>%
+  dplyr::select(-Tools, -City) %>%
+  arrange(Tool, id) %>%
+  dplyr::mutate(id = paste0('#', id)) %>%
+  as.data.frame()
+
+f <- paste0('./data/', 'paperID_byTopTools_v4.CSV'); f
+readr::write_csv(x = dt.tool.expand.selected, file = f)
+```
+
 
 
 ## Matching
