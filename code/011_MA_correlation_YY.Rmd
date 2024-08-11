@@ -5,7 +5,7 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 ```{r}
-install.packages("openxlsx")
+# install.packages("openxlsx")
 ```
 
 
@@ -13,7 +13,7 @@ install.packages("openxlsx")
 # Setup 
 ```{r, include=FALSE}
 ### To clear your environment
-remove(list = ls())
+# remove(list = ls())
 
 # load the metafor package
 library(metafor)
@@ -34,10 +34,12 @@ today <- format(Sys.time(), "%Y%m%d"); today ## "%Y%m%d%H%M"
 # setwd(dir.root)
 getwd()
 # path in my own laptop
-dir.raw   <- "E:/R/meta_mental wellbeing/source/"
-dir_share <- 'E:/R/meta_mental wellbeing/result/'
-dir.fig <- "E:/R/meta_mental wellbeing/meta-analysis-nature-health-main (1)/meta-analysis-nature-health-main/code/figures"
-
+# dir.raw   <- "E:/R/meta_mental wellbeing/source/"
+dir_share <- './data/YY/'
+dir.fig   <- dir_share
+# dir.report <- paste0('E:/R/meta_mental wellbeing/meta-analysis-nature-health-main/figures');
+dir.report <- dir.fig
+dir.MA.output <- paste0(dir_share, 'MA_output/')
 
 # path in the desktop of office room
 # dir.raw   <- "C:/Users/maoy1/OneDrive - Universiteit Leiden/maoy1_Pdisk/R/meta_mental wellbeing/source/"
@@ -50,7 +52,7 @@ dir.fig <- "E:/R/meta_mental wellbeing/meta-analysis-nature-health-main (1)/meta
 #df_exp_all_model <- read.csv(file = paste0(dir_share, 'exp_all_model_op1.CSV'))
 
 df_op1 <- read.csv(file = paste0(dir_share, 'exp_all_model_op1.CSV'))
-df_op2 <- read.csv(file = paste0(dir_share, 'exp_all_model_op2.CSV'))
+# df_op2 <- read.csv(file = paste0(dir_share, 'exp_all_model_op2.CSV'))
 
 ```
 
@@ -256,9 +258,7 @@ plot(influence(res_op1_L1L3_regr), cex=0.8, las=1)
 
 ```{r - auto-report, eval=FALSE, include=FALSE}
 ### reporter() function
-dir.report <- paste0('E:/R/meta_mental wellbeing/meta-analysis-nature-health-main/figures');
 
-dir.report
 metafor::reporter(res_op1_L1_regr, dir = dir.report)
 
 metafor::reporter(res_op1_L1L3_regr, dir = dir.report)
@@ -277,7 +277,7 @@ metafor::reporter(res_op1_L1L3_regr, dir = dir.report)
 
 
 ## L1 - meta forest
-```{r}
+```{r warning=FALSE}
 xlim_custmize = c(-1,1)
 
 
@@ -303,8 +303,9 @@ dev.off()
 ```
 
 
+### subgroup
 
-```{r - plot subgroup}
+```{r}
 width_forestPlot = 40
 height_cm <- nrow(df_op1_L1_regr)/1.1
 
@@ -318,6 +319,12 @@ subgroup_select_tool <- 'MH_tool'
 # subgroup_select <- 'nature_type.1'
 # subgroup_select <- 'nature_quantity.1'
 
+
+## list all the tools in the data
+unique(dat_op1_L1_regr$Tools)
+unique(dat_op1_L1_regr$MH_tool)
+
+
 ma_cor_op1_L1 <- dat_op1_L1_regr %>%
   dplyr::mutate(nature_type.1 = str_to_sentence(nature_type.1),
                 buffer = str_to_sentence(buffer),
@@ -328,13 +335,11 @@ ma_cor_op1_L1 <- dat_op1_L1_regr %>%
                   # nature_type_o1 == "Community private green space" ~ "Greenspace",
                 T ~ nature_quantity.1
                 )) %>%
-  #dplyr::filter(!is.na(nature_type.1)) %>%
-  #dplyr::filter(!is.na(nature_quantity.1)) %>%
-  #dplyr::filter(!is.na(buffer)) %>%
   dplyr::mutate(subgroup_selected_type = !!sym(subgroup_select_type))%>%
   dplyr::mutate(subgroup_selected_quantity = !!sym(subgroup_select_quantity))%>%
   dplyr::mutate(subgroup_selected_buffer = !!sym(subgroup_select_buffer)) %>% 
   dplyr::mutate(subgroup_selected_tool = !!sym(subgroup_select_tool))
+
   
 
 unique(ma_cor_op1_L1$nature_type.1)
@@ -355,13 +360,16 @@ ma_cor_L1 <- meta::metacor(
   title = "Mental health_op1_L1")
 summary(ma_cor_L1)
 
-
-
 # length(ma_cor_op1_L1)
 # length(subgroup_selected_type)
+```
 
 
-##  subgroup analysis - type
+```{r - subgroup - type}
+
+subgroup_select_type <- 'nature_type.1'
+subgroup_selected_type <- subgroup_select_type
+
 if (add_subgroup_analysis == T) {
   ma_cor_L1_type <- update(ma_cor_L1, subgroup = subgroup_selected_type)
   #ma_cor_L1_type <- rma(yi, vi, mods = ~ subgroup_selected_type, data = ma_cor_op1_L1)
@@ -377,7 +385,7 @@ if (add_subgroup_analysis == T) {
   
   
 
-f <- paste0('./figures/', 'forest_op1_L1_',postfix_subgroup_type,  today, '.png'); f
+f <- paste0(dir.fig, 'forest_op1_L1_',postfix_subgroup_type,  '_', today, '.png'); f
 png(filename = f, 
     # width = 3000, height = 3000, units = "px", pointsize = 22,
     width = width_forestPlot/2, height = height_cm/1.2, units = "cm", res = 100)
@@ -406,9 +414,13 @@ p_forest <- meta::forest(
 p_forest
 
 dev.off()
+```
 
 
-## subgroup - buffer
+```{r - subgroup - buffer}
+
+subgroup_select_buffer <- 'buffer'
+subgroup_selected_type <- subgroup_select_type
 
 if (add_subgroup_analysis == TRUE) {
   ma_cor_L1_buffer <- update(ma_cor_L1, subgroup = subgroup_selected_buffer, control = list(maxiter = 1000, stepadj = 0.5, reltol = 1e-8))
@@ -421,7 +433,7 @@ if (add_subgroup_analysis == TRUE) {
 }
 
 
-f <- paste0('./figures/', 'forest_op1_L1_', postfix_subgroup_buffer, today, '.png')
+f <- paste0(dir.fig, 'forest_op1_L1_', postfix_subgroup_buffer, today, '.png')
 
 
 png(filename = f, 
@@ -493,10 +505,14 @@ dev.off()
 # p_forest
 # 
 # dev.off()
+```
 
 
+```{r - subgroup - tools}
 
-# subgroup - tools
+subgroup_select_tool <- 'MH_tool'
+subgroup_selected_type <- subgroup_select_type
+
 if (add_subgroup_analysis == T) {
   ma_cor_L1_tool <- update(ma_cor_L1, subgroup = subgroup_selected_tool)
   #ma_cor_L1_type <- rma(yi, vi, mods = ~ subgroup_selected_type, data = ma_cor_op1_L1)
@@ -510,7 +526,7 @@ if (add_subgroup_analysis == T) {
     postfix_subgroup_tool <- ""
   }
 
-f <- paste0('./figures/', 'forest_op1_L1_',postfix_subgroup_tool,  today, '.png'); f
+f <- paste0(dir.fig, 'forest_op1_L1_',postfix_subgroup_tool,  today, '.png'); f
 png(filename = f, 
     # width = 3000, height = 3000, units = "px", pointsize = 22,
     width = width_forestPlot/2, height = height_cm/1.2, units = "cm", res = 100)
@@ -544,6 +560,7 @@ dev.off()
 
 
 ### prep for viz
+
 ```{r - prep for the plot}
 
 print(paste("Length of mean_adjusted:", length(ma_cor_op1_L1$mean_adjusted)))
@@ -576,9 +593,10 @@ for (tool in mh_tools) {
     
     # 数据处理
     ma_cor_op1_L1 <- dat_op1_L1_regr %>%
-      #dplyr::filter(MH_tool == tools) %>%  # 筛选当前工具的数据
+      dplyr::filter(MH_tool == tool) %>%  # 筛选当前工具的数据
       dplyr::mutate(subgroup_selected = !!sym(subgroup_select))  # 添加子组选择列
     print(paste("Number of rows for", tool, ":", nrow(ma_cor_op1_L1)))
+    
     # 获取唯一的子组和指标名称
     ind_name <- unique(ma_cor_op1_L1$MH_indicator)
     
@@ -667,12 +685,12 @@ for (tool in mh_tools) {
     }
     
     # 保存结果
-    fname <- paste0('./data/0302-MA-output/', 
+    fname <- paste0(dir.MA.output, 
                     paste('ma_result.L1', tool, '.rds', sep = '_'))
     saveRDS(ma_result.L1, file = fname)
     
     if (add_subgroup_analysis == T) {
-      fname <- paste0('./data/0302-MA-output/', 
+      fname <- paste0(dir.MA.output, 
                       paste('ma_result.L1.subgroup', tool, subgroup_select, '.rds', sep = '_'))
       print(basename(fname))
       saveRDS(ma_result.L1.subgroup, file = fname)
@@ -685,7 +703,147 @@ for (tool in mh_tools) {
 ```
 
 
+
+
+
+
+
+
+```{r - load data}
+
+fs <- list.files(path = dir.MA.output, 
+                 pattern = '^ma_result.L1.subgroup_', ## if opt to include selected ones
+                 full.names = T);
+cat('\n This', length(fs), 'files will be included:\n')
+print(fs)
+
+ma_result_all_ <- data.frame()
+for (f in fs) {
+  # print(f)
+  d <- readRDS(file = f) 
+  ma_result_all_ <- rbind(ma_result_all_, d)
+}
+
+
+```
+
+
+```{r - plot by group}
+source('./code/func_plot_ma.R')
+source('./code/func_color_bygroup.R')
+
+## figure version
+vv <- ''
+
+subgroups <- c('nature_type.1', 'buffer')
+
+##' Pick one for viz ---------------------------------------------------------------------
+
+subgroup_select <- 'nature_type.1';  
+
+
+## indicators to be included in the combined sub-group analysis plots
+unique(ma_result_all$tool) %>% sort()
+ind_sub_levels <- unique(ma_result_all$tool)
+
+
+##' as you want to plot by `tool`, instead of `indicator`, we need to rename the column name
+##' so that you can use the function I created directly 
+ma_result_all <- ma_result_all_ %>%
+  dplyr::rename('ind_sub_raw' = 'ind_sub') %>%
+  dplyr::mutate(ind_sub = tool) %>%
+  dplyr::select(tool, ind_sub, everything())
+
+
+##' get the unique list of buffer size
+# buf_v <- ma_result_all %>%
+#   dplyr::filter(group_name == 'buffer') %>%
+#   select(subgroup) %>%
+#   unique(.) %>% unlist() %>% as.vector()
+# ##' order the list, and use it for plotting (in the same order) 
+# buf_v_order <- as.numeric(buf_v) %>% sort() %>% as.character()
+
+
+for (subgroup_select in subgroups) {
+  
+  ## subset data
+  ma_result_all_sub <- ma_result %>%
+    dplyr::filter(subgroup != 'Overall', 
+                  group_name == subgroup_select) %>%
+    dplyr::filter(tool %in% tool_sub_levels)
+  
+  ## postfix to be added to figure names
+  postfix_group <- paste0("_subgroup_", subgroup_select); postfix_group
+  
+  ## decide color scheme 
+  if(subgroup_select == 'nature_type_o2'){
+    group_title = str_to_sentence(gsub('_|_o2', ' ', subgroup_select)) %>% trimws()
+    color_bygroup = nature_type_color; 
+    group_list = nature_type_list
+  } else if(subgroup_select == 'age_group'){
+    group_title = str_to_sentence(gsub('_', ' ', subgroup_select))
+    color_bygroup = age_group_color; 
+    group_list = age_group_list
+  } else if(subgroup_select == 'gender_group'){
+    group_title = str_to_sentence(gsub('_', ' ', subgroup_select))
+    color_bygroup = gender_group_color; 
+    group_list = gender_group_list
+  } else if(subgroup_select == 'duration_group'){
+    group_title = 'Duration in nature'
+    color_bygroup = duration_group_color; 
+    group_list = duration_group_list
+  } else if(subgroup_select == 'Region'){
+    group_title = subgroup_select
+    color_bygroup = region_color; 
+    group_list = region_list
+  } else if(subgroup_select == 'buffer'){
+    group_title = str_to_sentence(gsub('_|_o2', ' ', subgroup_select)) %>% trimws()
+    group_list = unique(ma_result_all_sub$subgroup)
+    color_bygroup = func_color_bygroup(df = ma_result_all_sub, column_name = 'subgroup')
+    # ma_result_all_sub$subgroup <- factor(ma_result_all_sub$subgroup, levels = buf_v_order)
+  } else {
+    # next
+    group_title = str_to_sentence(gsub('_|_o2', ' ', subgroup_select)) %>% trimws()
+    group_list = unique(ma_result_all_sub$subgroup)
+    color_bygroup = func_color_bygroup(df = ma_result_all_sub, column_name = 'subgroup')
+  }
+  
+  
+  ##' run sourced code 
+  ##' 
+  ##' 1. plot by tool and combine plots
+  # source('./code/020s1_subgroup_loop_source_code.R')
+  
+  ##' 2. pool all tools together and plot
+  source('./code/020s2_subgroup_loop_source_code.R')
+  
+}
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ```{r - original code without "for" recycle}
+
 add_subgroup_analysis <- T
 subgroup_select <- c('GHQ-12', 'WEMWBS', 'SF-36', 'SF-12', 'WHO-5', 'PSS'); subgroup_label = 'MH tool'
 MH_tool_list <- unique(ma_cor_op1_L1$MH_tool); MH_tool_list
