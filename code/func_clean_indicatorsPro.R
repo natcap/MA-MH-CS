@@ -14,9 +14,9 @@ func_clean_indicatorsPro <-  function(data, column_name) {
       !!column_name := gsub("\\s*\\([^\\)]+\\)", "", !!sym(column_name)), # remove text within parenthesis 
       
       !!column_name := gsub("Restorative effects\\/Restorativeness", "Restorative effect", !!sym(column_name)),
-      !!column_name := gsub("Restoration experience|Restorative experience|Restorative States|Psychological Restorative Effects", 
+      !!column_name := gsub("Restoration experience|Restoration Outcome Scale|Restorative experience|Restorative States|Psychological Restorative Effects|Restorative Effects", 
                             "Restorative effect", !!sym(column_name), ignore.case = T), 
-      !!column_name := gsub("Restoration", "Restorative effect", !!sym(column_name)),
+      !!column_name := gsub("Restoration|Restorativeness", "Restorative effect", !!sym(column_name), ignore.case = T),
       !!column_name := gsub("Attention capacity|Sustained attention|Attention Functioning", "Attention", !!sym(column_name), ignore.case = T), ##  
       !!column_name := gsub("Behavioural", "Behavioral", !!sym(column_name), ignore.case = T), ##  
       !!column_name := gsub("Behavioral problems", "Behavioral disorder", !!sym(column_name), ignore.case = T), ## 
@@ -28,6 +28,9 @@ func_clean_indicatorsPro <-  function(data, column_name) {
       !!column_name := gsub("psychiatric morbidity|psychiatric disorder|mental illness", "Mental disorder", !!sym(column_name), ignore.case = T),
       !!column_name := gsub("Symptoms of psychosis", "Psychosis", !!sym(column_name), ignore.case = T), #### 
       !!column_name := gsub("Subjective Vitality", "Vitality", !!sym(column_name), ignore.case = T),
+      !!column_name := gsub("State Anxiety|STAI", "Anxiety", !!sym(column_name), ignore.case = T),
+      !!column_name := gsub("Positive Emotion", "Positive Affect", !!sym(column_name), ignore.case = T),
+      !!column_name := gsub("Negative Emotion", "Negative Affect", !!sym(column_name), ignore.case = T),
       
       !!column_name := gsub(",", ";", !!sym(column_name)),
       !!column_name := trimws(!!sym(column_name))
@@ -75,7 +78,7 @@ func_clean_indicator_level2 <-  function(data, column_name, upper_case = T) {
       ## for SF and WHO-5
       !!column_name := gsub(" in general", "", !!sym(column_name), ignore.case = T),
       !!column_name := case_when(
-        tolower(!!sym(column_name)) %in% tolower(c("Wellbeing", "Well-Being", "Positive Well-Being")) ~ "Mental Wellbeing", 
+        tolower(!!sym(column_name)) %in% tolower(c("Wellbeing", "Well-Being", "Positive Well-Being", "Positive Wellbeing", "Emotional Wellbeing")) ~ "Mental Wellbeing", 
         TRUE ~ !!sym(column_name)),
       !!column_name := gsub("mental health|mental well\\-being|Mental Wellbeing|Psychological wellbeing|Psychological Well-Being", 
                             "Mental health", !!sym(column_name), ignore.case = T),
@@ -85,8 +88,8 @@ func_clean_indicator_level2 <-  function(data, column_name, upper_case = T) {
       !!column_name := ifelse(!!sym(column_name) == "F", "Fatigue", !!sym(column_name)),
       !!column_name := ifelse(!!sym(column_name) == "V", "Vigor", !!sym(column_name)),
       
-      !!column_name := gsub("Positive Affect", "Positive Affect", !!sym(column_name), ignore.case = T),
-      !!column_name := gsub("Negative Affect", "Negative Affect", !!sym(column_name), ignore.case = T),
+      # !!column_name := gsub("Positive Emotion", "Positive Affect", !!sym(column_name), ignore.case = T),
+      # !!column_name := gsub("Negative Emotion", "Negative Affect", !!sym(column_name), ignore.case = T),
       
       !!column_name := trimws(!!sym(column_name))
     ) %>%
