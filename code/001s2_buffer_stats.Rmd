@@ -88,18 +88,19 @@ n_study <- nrow(df_bf_)
 
 p1 <- df_bf_ %>%
   ggplot(aes(x = buf_m)) +
-  geom_histogram(binwidth = 500, color = "black", fill = "lightblue", alpha = 0.7) +
+  geom_histogram(binwidth = 200, color = "black", fill = "lightblue", alpha = 0.7) +
+  scale_x_continuous(breaks = seq(0, max(df_bf_$buf_m, na.rm = T), 1000)) + 
   theme_classic() +
   labs(title = paste0("Commonly used buffer size in ", n_paper, ' papers (', n_study, ' studies)'), 
        x = "Buffer (m)", y = "Frequency")
 
-buf_m_upper <- 10000
+buf_m_upper <- 5000
 
 p2 <- df_bf_ %>%
   dplyr::filter(buf_m <= buf_m_upper) %>%
   ggplot(aes(x = buf_m)) +
   geom_histogram(binwidth = 100, color = "black", fill = "lightblue", alpha = 0.7) +
-  scale_x_continuous(breaks = seq(0, buf_m_upper, 500)) + 
+  scale_x_continuous(breaks = seq(0, buf_m_upper, 200)) + 
   
   theme_classic() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +

@@ -50,5 +50,5 @@ p_all %>%
 
 # p_all
 
-fname <- paste0(dir.fig, 'es_comb_subgroup_', subgroup_select, '_', today, vv, '.png'); fname
+fname <- paste0(dir.fig, 'es_comb_subgroup_', subgroup_select, '_', today, vv, '.png'); print(fname)
 func_ggsave(fname, w = 6, h = 6, save_png = T)

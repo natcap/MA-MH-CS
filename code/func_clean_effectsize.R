@@ -31,7 +31,7 @@ func_clean_effectsize <- function(
       !!column_name := gsub(" = Cohen\\’s d = \\(mean1 - mean2\\)\\/sd", "", !!sym(column_name)),
       !!column_name := gsub(" = Cohen’s d =\\/sd", "", !!sym(column_name)),
       
-      !!column_name := gsub("Measure values before and after intervention", "Mean_pre_post", !!sym(column_name)),
+      !!column_name := gsub("Measure values before and after intervention", "Mean_pre_post", !!sym(column_name), ignore.case = T),
       !!column_name := gsub("raw values|raw value|raw scores|raw score", "Raw values", !!sym(column_name), ignore.case = T),
       !!column_name := gsub("Incidence Rate Ratios|Incidence Rate Ratio", "IRR", !!sym(column_name), ignore.case = T),
       

@@ -1,3 +1,4 @@
+Sys.setenv(LANG = "en")
 
 ## Most used packages
 library(readr)
