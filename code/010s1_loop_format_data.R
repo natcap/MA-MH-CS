@@ -394,7 +394,7 @@ cat('\n\n')
 unique(exp_sub_comb_clean$MH_tool_o1) %>% cat('unique MH_tool_o1:', ., '\n')
 unique(exp_sub_comb_clean$MH_tool_o2) %>% cat('unique MH_tool_o2:', ., '\n')
 
-if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5', 'PSS')) ) {
+if ( all(mh_tool %in% mh_tool_obs) ) {
   exp_sub_mods_coef <- exp_sub_mods %>%
     dplyr::filter((str_detect(pattern = paste(effect_size_ind_i, collapse = "|"), string = effect_size_indices))) %>%
     dplyr::filter(MH_tool_o1 %in% mh_tool | MH_tool_o2 %in% mh_tool) %>%
@@ -402,7 +402,7 @@ if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5', 'PSS')) )
     func_clean_indicator_level2(data = ., column_name = 'MH_indicator_o2') %>%
     as.data.frame() 
   
-} else if ( all(mh_tool %in% c('PANAS', 'POMS', 'ROS')) ) {
+} else if ( all(mh_tool %in% mh_tool_exp) ) {
   exp_sub_mods_md <- exp_sub_mods %>%
     dplyr::filter((str_detect(pattern = paste(effect_size_ind_i, collapse = "|"), string = effect_size_indices))) %>%
     dplyr::filter(MH_tool_o1 %in% mh_tool | MH_tool_o2 %in% mh_tool) %>%
@@ -421,14 +421,14 @@ if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5', 'PSS')) )
 
 ## - print & check
 ### print and double-check results =======================================================
-if ( any(mh_tool %in% c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5', 'PSS')) ) {
+if ( any(mh_tool %in% mh_tool_obs) ) {
   exp_sub_mods_print <- exp_sub_mods_coef
 } else {
   exp_sub_mods_print <- exp_sub_mods_md
 }
 
 ## how many unique papers?
-length(unique(exp_sub_mods_print$id)) %>% cat('\nFor', mh_tool, '------ \n In total, there are', ., 'unique papers.')
+length(unique(exp_sub_mods_print$id)) %>% cat('\nFor', mh_tool, '--------------- \n In total, there are', ., 'unique papers.')
 nrow(exp_sub_mods_print) %>% cat('\n In total, there are', ., 'studies. \n\n')
 
 ##' unique tools 
