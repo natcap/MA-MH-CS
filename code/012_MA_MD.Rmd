@@ -62,7 +62,6 @@ stats_count_by_ind_selected <- stats_count_by_ind %>% dplyr::filter(n>8)
 sub_indicator_selected <- unique(stats_count_by_ind_selected$MH_indicator_o2)
 sub_indicator_selected
 
-
 ### This is a list manually selected for POMS  
 # sub_indicator_selected <- c("Anger", "Anxiety", "Confusion", "Depression", "Fatigue", "Vigor", "TMD")
 
@@ -85,13 +84,20 @@ names(exp_sub_mods_md_o2fewCol)
 
 ### show study details
 ```{r}
-library(meta)
 library(grid)
-# Use metcont to pool results.
+# Use metcont() to pool results.
 
+cat('... Working on', mh_tool, '... \n\t', sub_indicator_selected, '\n\n')
+
+
+##' 1. plot overall data for double-checking
+show_raw_data_in_forest <- T
+add_subgroup_analysis   <- F
+
+##' 2. subgroup analysis & get result data
 show_raw_data_in_forest <- F
-
 add_subgroup_analysis   <- T
+
 
 subgroups <- c(
   'subgroup_design', ## ?? [] need to fix NAs in the column -> revise `subgroup_selected`
@@ -236,11 +242,12 @@ for (subgroup_select in subgroups) {
       postfix_subgroup <- ""
     }
     
-    
-    f <- paste0('./figures/', 'forest_', mh_tool, '/', sub_ind_i, '_', 
+    subDir <- paste0('forest_', mh_tool)
+    ifelse(!dir.exists(file.path(dir.fig, subDir)), dir.create(file.path(dir.fig, subDir)), 'Dir already exists.')
+    f <- paste0(dir.fig, subDir, '/', sub_ind_i, '_', 
                 postfix_simplify, 
                 postfix_subgroup, '_', today, 
-                '.png'); f
+                '.png'); print(f)
     png(filename = f, 
         # width = 3000, height = 3000, units = "px", pointsize = 22,
         width = width_forestPlot, height = height_cm/1.5, units = "cm", res = 100)
