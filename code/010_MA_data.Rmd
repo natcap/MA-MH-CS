@@ -1385,7 +1385,7 @@ if ( all(mh_tool %in% mh_tool_obs) ) {
   } else if ( all(mh_tool %in% mh_tool_exp) ) {
     exp_sub_mods_md <- exp_sub_mods %>%
       dplyr::filter((str_detect(pattern = paste(effect_size_ind_i, collapse = "|"), string = effect_size_indices))) %>%
-      dplyr::filter(MH_tool_o1 %in% mh_tool | MH_tool_o2 %in% mh_tool) %>%
+      dplyr::filter(MH_tool_o2 %in% mh_tool) %>%
       func_clean_indicator_level2(data = ., column_name = 'MH_indicator_o1') %>%
       func_clean_indicator_level2(data = ., column_name = 'MH_indicator_o2') %>%
       as.data.frame()
