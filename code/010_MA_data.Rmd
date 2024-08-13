@@ -371,6 +371,7 @@ func_alluvial(data = df_exp_tool_flow, indicator_n_min = 5, width_my = width_my,
 ```{r selected tools ---------------}
 ### only include the top 3 MH tools ------------------------------------------------------
 tool_selected <- c('GHQ-12', 'PANAS', 'POMS', 
+                   'STAI', 'SVS',
                    'SF-12', 'SF-36', 'WEMWBS', 'WHO-5',
                    'PSS', 'ROS')
 n_tool <- length(unique(tool_selected)); n_tool
@@ -439,26 +440,30 @@ df_type_exp_tool %>% func_alluvial(
   filename.prefix = '', filename.postfix = paste0('tool', n_tool, '_exposure_natureType'))
 ```
 
-'duration_mins', '', 'average_age'
+
 
 ```{r age group}
 min(df$average_age_mean, na.rm = T) # 10.8
 
-df %>% 
+p_age <- df %>% 
   ggplot() +
   geom_histogram(aes(x = average_age_mean, fill = age_group), binwidth = 2) +
   # scale_x_continuous()
-  theme_bw()
-
+  theme_bw()+
+  theme(legend.position = c(0.8, 0.75), legend.background = element_rect(fill = "transparent", colour = "transparent"))
+p_age
 ```
 
 
 
 ```{r gender %}
-df %>% 
+p_gender <- df %>% 
   ggplot() +
   geom_histogram(aes(x = male_percent_mean, fill = gender_group), binwidth = 5) +
-  theme_bw()
+  theme_bw()+
+  theme(legend.position = c(0.8, 0.75), legend.background = element_rect(fill = "transparent", colour = "transparent"))
+
+p_gender
 ```
 
 
@@ -470,7 +475,6 @@ df %>%
   geom_histogram(aes(x = duration_mins), binwidth = 10) +
   theme_bw()
 
-
 # df %>% 
 #   # dplyr::filter(duration_mins < quantile(.$duration_mins, probs = 0.85, na.rm = T) ) %>%
 #   dplyr::filter(duration_mins < 120 ) %>%
@@ -480,13 +484,24 @@ df %>%
 #   theme_bw()
 
 
-df %>% 
+p_duration <- df %>% 
   # dplyr::filter(duration_mins < quantile(.$duration_mins, probs = 0.85, na.rm = T) ) %>%
   dplyr::filter(duration_mins < 120 ) %>%
   ggplot() +
   geom_histogram(aes(x = duration_mins, fill = duration_group), binwidth = 10) +
   scale_x_continuous(breaks = c(15, 30, 45, 60)) +
-  theme_bw()
+  theme_bw() +
+  theme(legend.position = c(0.8, 0.75), legend.background = element_rect(fill = "transparent", colour = "transparent"))
+
+p_duration
+```
+
+
+```{r stat - combine - SM, warning=FALSE}
+ggarrange(p_age, p_gender, p_duration)
+
+fname <- paste0(dir.fig, paste0('stats_subgroup_', today, '.png')); #fname
+func_ggsave(fname = fname, w = 7, h = 7, save_png = T)
 ```
 
 
@@ -499,14 +514,18 @@ df_q <- df_exp %>%
          exposure_type) %>%
   dplyr::filter(!nature_quantity %in% c('', NA, 'NA'))
 
+
+## nature quantity metrics - plan to look into
+pat_q <- "NDVI|EVI|Percent|SVG"
+
 df_q_ndvi <- df_q %>%
-  dplyr::filter(str_detect(nature_quantity, pattern = regex("NDVI|EVI|Percent", ignore_case = TRUE)))
+  dplyr::filter(str_detect(nature_quantity, pattern = regex(pat_q, ignore_case = TRUE)))
 
 df_q_ndvi_ <- df_q_ndvi %>%
   dplyr::select(Tools, nature_quantity) %>%
   expand_col_to_long(data = ., target_col = 'Tools') %>%
   expand_col_to_long(data = ., target_col = 'nature_quantity') %>%
-  dplyr::filter(str_detect(nature_quantity, pattern = regex("NDVI|EVI|Percent", ignore_case = TRUE))) %>%
+  dplyr::filter(str_detect(nature_quantity, pattern = regex(pat_q, ignore_case = TRUE))) %>%
   group_by(Tools, nature_quantity) %>%
   tally() %>%
   as.data.frame() %>%  
@@ -702,7 +721,7 @@ saveRDS(exp_sub_df, file = f)
 
 
 
-#### - PSS
+#### - PSS - obs
 ```{r}
 mh_tool <- c('PSS')
 
@@ -726,7 +745,7 @@ exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_too
 sub_pss <- exp_sub_df
 
 ## save for later use
-f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData'); f
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '_obs.RData'); f
 save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
 
 f <- gsub('RData', 'rds', f); f
@@ -737,6 +756,15 @@ saveRDS(exp_sub_df, file = f)
 
 ### * MD-focused outcomes ---
 
+```{r}
+effect_size_ind_i <- c(
+  "D",
+  "d",
+  'Raw values',
+  "Mean_pre_post")
+```
+
+
 #### - PANAS
 ```{r}
 mh_tool <- "PANAS"
@@ -744,16 +772,7 @@ mh_tool <- "PANAS"
 # exposure_type_i   <- c('stay static in nature', 'physical activity in nature') 
 exposure_type_i   <- c('In nature - Static', 'In nature - PA')
  
-
-## [] TBD - clean the data
-effect_size_ind_i <- c(
-  "D",
-  "d",
-  "Mean_pre_post")
-  
-
-
-exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
+exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool) 
 sub_panas <- exp_sub_df
 
 ## save for later use
@@ -772,14 +791,7 @@ mh_tool <- "POMS"
 
 # exposure_type_i   <- c('stay static in nature', 'physical activity in nature') 
 exposure_type_i   <- c('In nature - Static', 'In nature - PA')
- 
 
-## [] TBD - clean the data
-effect_size_ind_i <- c(
-  "D",
-  "d",
-  "Mean_pre_post")
-  
 ###' subset papers that examined `exposure_type_i`
 exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
 sub_poms <- exp_sub_df
@@ -793,7 +805,35 @@ saveRDS(exp_sub_df, file = f)
 ```
 
 
+#### - PSS - exp
+```{r}
+mh_tool <- c('PSS')
 
+##' filter exposure types based on this broader category
+##' It is likely this does not cover all the list in papers
+unique(df_exp_l$exposure_type)
+exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA', 'Interacting')
+
+## test 
+df_test <- df %>%
+  dplyr::filter(stringr::str_detect(Tools, paste(mh_tool, collapse = "|"))) %>%
+  as.data.frame()
+
+df_test %>%
+  group_by(effect_size_indices) %>% count(effect_size_indices)
+
+exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
+exp_sub_df %>%
+  group_by(effect_size_indices) %>% count(effect_size_indices)
+sub_pss <- exp_sub_df
+
+## save for later use
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData'); f
+save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
+
+f <- gsub('RData', 'rds', f); f
+saveRDS(exp_sub_df, file = f)
+```
 
 
 #### - ROS
@@ -804,11 +844,7 @@ mh_tool <- c('ROS')
 ##' It is likely this does not cover all the list in papers
 unique(df_exp_l$exposure_type)
 exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
-effect_size_ind_i <- c(
-  "D",
-  "d",
-  "Mean_pre_post")
-  
+
 
 ## test 
 df_test <- df %>%
@@ -828,49 +864,122 @@ saveRDS(exp_sub_df, file = f)
 ```
 
 
-## Choose and load input data
+#### - STAI
+```{r}
+mh_tool <- c('STAI')
+
+##' filter exposure types based on this broader category
+##' It is likely this does not cover all the list in papers
+unique(df_exp_l$exposure_type)
+exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
+
+
+## test 
+df_test <- df %>%
+  # dplyr::filter(id %in% exp_sub_id) %>%
+  dplyr::filter(stringr::str_detect(Tools, paste(mh_tool, collapse = "|"))) %>%
+  as.data.frame()
+
+exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
+
+sub_stai <- exp_sub_df
+
+## save for later use
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData'); f
+save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
+
+f <- gsub('RData', 'rds', f); f
+saveRDS(exp_sub_df, file = f)
+```
+
+
+#### - SVS
+```{r}
+mh_tool <- c('SVS')
+
+##' filter exposure types based on this broader category
+##' It is likely this does not cover all the list in papers
+unique(df_exp_l$exposure_type)
+exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
+
+
+## test 
+df_test <- df %>%
+  # dplyr::filter(id %in% exp_sub_id) %>%
+  dplyr::filter(stringr::str_detect(Tools, paste(mh_tool, collapse = "|"))) %>%
+  as.data.frame()
+
+exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
+
+sub_svs <- exp_sub_df
+
+## save for later use
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData'); f
+save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
+
+f <- gsub('RData', 'rds', f); f
+saveRDS(exp_sub_df, file = f)
+```
+
+
+#### - DASS-21
+```{r}
+mh_tool <- c('DASS-21')
+
+unique(df_exp_l$exposure_type)
+exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA', 'Interacting')
+
+
+## test 
+df_test <- df %>%
+  dplyr::filter(stringr::str_detect(Tools, paste(mh_tool, collapse = "|"))) %>%
+  as.data.frame()
+
+df_test %>%
+  group_by(effect_size_indices) %>% count(effect_size_indices)
+
+exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
+exp_sub_df %>%
+  group_by(effect_size_indices) %>% count(effect_size_indices)
+sub_dass <- exp_sub_df
+
+## save for later use
+f <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, sep = '', collapse = '_'), '.RData'); f
+save(mh_tool, exposure_type_i, effect_size_ind_i, exp_sub_df, file = f)
+
+f <- gsub('RData', 'rds', f); f
+saveRDS(exp_sub_df, file = f)
+```
+
+
+
+## Format data
+
+### Load input data
 
   Now, each paper can include data from multiple models, and they are presented in columns. 
 We need to put all data on models in rows. 
 
 ```{r}
-source('./code/010s1_loop_format_data.R')
-```
+
+# source('./code/010s1_loop_format_data.R')
 
 
-```{r - ? choose one as input}
-
-# f <- paste0('./data/0301-MA-input/', 'sub_ghq.RData')   # `mh_tool`, `exposure_type_i`, `effect_size_ind_i`, `exp_sub_df`
-# f <- paste0('./data/0301-MA-input/', 'sub_panas.RData')
-# f <- paste0('./data/0301-MA-input/', 'sub_poms.RData')
-# 
-# load(file = f)
-
-fs <- list.files(path = './data/0301-MA-input/', pattern = '^sub_.*.RData', full.names = T)
-fs
-
-for (f in fs) {
-  
-  print(basename(f))
-  f.c <- gsub('.rds|.RData', '_cleaned.csv', f); f.c
-  
-  # exp_sub_df <- readRDS(f)
-  load(f)
-  
-  ## 
-  source('./code/010s1_loop_format_data.R')
-  
-  
-  readr::write_csv(x = exp_sub_mods_print, file = f.c)
-}
+##' 1. when 'PSS' is mainly used in `obs` studies
+mh_tool_obs <- c('GHQ-12', 'SF-12', 'SF-36', 'WEMWBS', 'WHO-5', 'PSS'); design <- 'obs'
+mh_tool_exp <- c('PANAS', 'POMS', 'ROS', 'STAI', 'SVS');         design <- 'exp'
 
 
-
+##' 2. when 'PSS' is mainly used in `exp` studies
+mh_tool_obs <- c('GHQ-12', 'SF-12', 'SF-36', 'WEMWBS', 'WHO-5'); design <- 'obs'
+mh_tool_exp <- c('PANAS', 'POMS', 'ROS', 'STAI', 'SVS', 'PSS', 'DASS-21');  design <- 'exp'
 ```
 
 
 
-### format data
+### Format data
+
+#### * One-by-one
 ```{r - wide to long format}
 
 ##' Test code for formatting one model
@@ -965,8 +1074,8 @@ exp_sub_l_o1_gs_add <- exp_sub_l_o1_cov %>%
   as.data.frame()
   
 
-names(exp_sub_l_o1_cov)
-names(exp_sub_l_o1_gs_add)
+# names(exp_sub_l_o1_cov)
+# names(exp_sub_l_o1_gs_add)
 names(exp_sub_l_o1_gs_add) <- names(exp_sub_l_o1_cov)
 
 ## bind covidence and gsheet data
@@ -983,7 +1092,7 @@ name2 <- names(exp_sub_l_o2_cov) %>%
   gsub('\\.1|\\.2', '_o2', .) %>%
   gsub('Other covariates that are beyond the baseline', 'Other_covariates', .)
 names(exp_sub_l_o2_cov) <- name2  
-names(exp_sub_l_o2_cov)
+# names(exp_sub_l_o2_cov)
 
 
 exp_sub_l_o2_gs <- df_2o2 %>%
@@ -991,8 +1100,8 @@ exp_sub_l_o2_gs <- df_2o2 %>%
   ## only include the selected `mh_tool`
   dplyr::filter(id %in% unique(exp_sub_df$id)) %>%
   as.data.frame()
-names(exp_sub_l_o2_cov)
-names(exp_sub_l_o2_gs)
+# names(exp_sub_l_o2_cov)
+# names(exp_sub_l_o2_gs)
 names(exp_sub_l_o2_gs) <- names(exp_sub_l_o2_cov)
 
 ## bind covidence and gsheet data
@@ -1256,9 +1365,8 @@ exp_sub_mods <- exp_sub_comb_clean %>%
 
 
 
-### subset `effect_size_indice`
 
-```{r}
+```{r - subset `effect_size_indice`}
 ##' further filter data based on MH tools ------------------------------------------------
 source('./code/func_clean_indicatorsPro.R')
 
@@ -1266,7 +1374,7 @@ cat('\n\n')
 unique(exp_sub_comb_clean$MH_tool_o1) %>% cat('unique MH_tool_o1:', ., '\n')
 unique(exp_sub_comb_clean$MH_tool_o2) %>% cat('unique MH_tool_o2:', ., '\n')
 
-if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5', 'PSS')) ) {
+if ( all(mh_tool %in% mh_tool_obs) ) {
   exp_sub_mods_coef <- exp_sub_mods %>%
     dplyr::filter((str_detect(pattern = paste(effect_size_ind_i, collapse = "|"), string = effect_size_indices))) %>%
     dplyr::filter(MH_tool_o1 %in% mh_tool | MH_tool_o2 %in% mh_tool) %>%
@@ -1274,7 +1382,7 @@ if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5', 'PSS')) )
     func_clean_indicator_level2(data = ., column_name = 'MH_indicator_o2') %>%
     as.data.frame() 
   
-  } else if ( all(mh_tool %in% c('PANAS', 'POMS', 'ROS')) ) {
+  } else if ( all(mh_tool %in% mh_tool_exp) ) {
     exp_sub_mods_md <- exp_sub_mods %>%
       dplyr::filter((str_detect(pattern = paste(effect_size_ind_i, collapse = "|"), string = effect_size_indices))) %>%
       dplyr::filter(MH_tool_o1 %in% mh_tool | MH_tool_o2 %in% mh_tool) %>%
@@ -1293,14 +1401,14 @@ if ( all(mh_tool %in% c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5', 'PSS')) )
 
 ```{r - print & check}
 ### print and double-check results =======================================================
-if ( any(mh_tool %in% c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5', 'PSS')) ) {
+if ( any(mh_tool %in% mh_tool_obs) ) {
   exp_sub_mods_print <- exp_sub_mods_coef
 } else {
   exp_sub_mods_print <- exp_sub_mods_md
 }
 
 ## how many unique papers?
-length(unique(exp_sub_mods_print$id)) %>% cat('\nFor', mh_tool, '------ \n In total, there are', ., 'unique papers.')
+length(unique(exp_sub_mods_print$id)) %>% cat('\nFor', mh_tool, '--------------- \n In total, there are', ., 'unique papers.')
 nrow(exp_sub_mods_print) %>% cat('\n In total, there are', ., 'studies. \n\n')
 
 ##' unique tools 
@@ -1320,7 +1428,49 @@ unique(exp_sub_mods_print$nature_type_o1) %>% sort()
 unique(exp_sub_mods_print$nature_type_o2) %>% sort()
 ```
   
-# Meta-analysis
+  
+
+#### * Batch
+
+```{r - 1. batch one}
+##' 1. Choose one as input --------------------------------
+##' 
+# f <- paste0('./data/0301-MA-input/', 'sub_ghq.RData')   # `mh_tool`, `exposure_type_i`, `effect_size_ind_i`, `exp_sub_df`
+f <- paste0('./data/0301-MA-input/', 'sub_PANAS.RData')
+# f <- paste0('./data/0301-MA-input/', 'sub_poms.RData')
+# f <- paste0('./data/0301-MA-input/', 'sub_PSS.RData')
+# f <- paste0('./data/0301-MA-input/', 'sub_ROS.RData')
+# f <- paste0('./data/0301-MA-input/', 'sub_SVS.RData')
+# f <- paste0('./data/0301-MA-input/', 'sub_STAI.RData')
+# f <- paste0('./data/0301-MA-input/', 'sub_DASS-21.RData')
+
+load(f)
+source('./code/010s1_loop_format_data.R')
+f.c <- gsub('.rds|.RData', '_cleaned.csv', f); f.c
+readr::write_csv(x = exp_sub_mods_print, file = f.c)
+```
+
+
+```{r  - 2. loop all}
+##' 1. loop all -----------------------------------
+##' 
+fs <- list.files(path = './data/0301-MA-input/', pattern = '^sub_.*.RData', full.names = T) %>% sort()
+fs
+for (f in fs) {
+  print(basename(f))
+  # exp_sub_df <- readRDS(f)
+  load(f)
+  ##
+  source('./code/010s1_loop_format_data.R')
+  f.c <- gsub('.rds|.RData', '_cleaned.csv', f); f.c
+  readr::write_csv(x = exp_sub_mods_print, file = f.c)
+}
+
+```
+
+
+
+*Meta-analysis*
 
   --> Ref to `010a_MA_intro.Rmd` for more background knowledge. 
 
