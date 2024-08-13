@@ -194,7 +194,9 @@ func_ggsave(fname = fname, w = w, h = h)
 ## Tool
 
 ```{r - tool, include=FALSE}
-## - by scale
+## - tools to be excluded for viz
+tools_remove <- c('SD', ## SD does not measure MH
+                  'Official MH survey')
 
 dt.tool <- dt %>%
   ### -clean up the names of the tools
@@ -211,7 +213,8 @@ dt.tool.expand <- dt.tool %>%
     Tool = gsub(".*Likert.*|.*likert.*", "Likert scale", Tool),
     # Tool = gsub(";", "", Tool),
     ) %>% 
-  func_clean_tools(data = ., column_name = 'Tool') 
+  func_clean_tools(data = ., column_name = 'Tool') %>%
+  dplyr::filter(!Tool %in% tools_remove) 
 
 dt.tool.clean <- dt.tool.expand %>%
   group_by(Tool) %>%
@@ -224,7 +227,6 @@ dt.tool.clean <- dt.tool.expand %>%
 
 dt.tool.design_clean <- dt.tool.expand %>%
   group_by(Tool, `study_design`) %>%
-  dplyr::filter(!Tool %in% c('Official MH survey')) %>%
   dplyr::mutate(`study_design` = factor(`study_design`, levels = c('Observational', 'Experimental'))) %>%
   tally() %>%
   ungroup() %>%
@@ -311,8 +313,10 @@ tools_selected <- c('ROS',   # Restoration Outcome Scale
                     'SF-36')
 
 ### - 3. adding more 
-tools_selected <- c('STAI')
-tools_selected <- c('SVS')
+tools_selected <- c('STAI'); vx = 'v3'
+tools_selected <- c('SVS');  vx = 'v4'
+# tools_selected <- c('SD');   vx = 'v5' ## SD does not measure MH
+tools_selected <- c('DASS-21');  vx = 'v6'
 
 dt.tool.expand.selected <- dt.tool.expand %>% 
   dplyr::filter(Tool %in% tools_selected) %>%
@@ -321,7 +325,7 @@ dt.tool.expand.selected <- dt.tool.expand %>%
   dplyr::mutate(id = paste0('#', id)) %>%
   as.data.frame()
 
-f <- paste0('./data/', 'paperID_byTopTools_v4.CSV'); f
+f <- paste0('./data/', 'paperID_byTopTools_', vx, '.CSV'); f
 readr::write_csv(x = dt.tool.expand.selected, file = f)
 ```
 
