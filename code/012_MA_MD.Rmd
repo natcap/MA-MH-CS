@@ -90,11 +90,7 @@ library(grid)
 cat('... Working on', mh_tool, '... \n\t', sub_indicator_selected, '\n\n')
 
 
-##' 1. plot overall data for double-checking
-show_raw_data_in_forest <- T
-add_subgroup_analysis   <- F
-
-##' 2. subgroup analysis & get result data
+##' plot for double-checking
 show_raw_data_in_forest <- F
 add_subgroup_analysis   <- T
 
@@ -130,9 +126,11 @@ for (subgroup_select in subgroups) {
         as.data.frame()
     }
     
-  
+    
+    ## define figure height based on the number of rows/data 
     height_cm <- nrow(exp_sub_mods_md_o2i)
     
+    ## run MA
     ma_smd <- meta::metacont(
       data = exp_sub_mods_md_o2i,
       n.e = e_n,
@@ -151,17 +149,11 @@ for (subgroup_select in subgroups) {
       hakn = TRUE, 
       subgroup = NULL,  ## Grouping results by a variable, default = NULL
       title = paste(mh_tool, collapse = '; '))
-    ma_smd
-    
-    ## update the MA by adding subgroup analysis
-    if (add_subgroup_analysis == T) {
-      ma_smd <- update(ma_smd, subgroup = subgroup_selected)
-    }
+    # ma_smd
+    ma_smd_overall <- ma_smd
     
     
-    
-    ## extract the overall effect size data to a dataframe =================================
-    ### 1. overall model data
+    ### 1. extract the overall effect size data to a dataframe
     ma_smd.df <- data.frame(
       tool = mh_tool, 
       ind_sub = sub_ind_i,
@@ -187,8 +179,16 @@ for (subgroup_select in subgroups) {
       )
     ma_result.overall <- rbind(ma_result.overall, ma_smd.df)
     
-    ### 2. subgroup model data
+    
+    
+    
+    ## update the MA by adding subgroup analysis -----------------------------------------
     if (add_subgroup_analysis == T) {
+      ma_smd <- update(ma_smd, subgroup = subgroup_selected)
+      ma_smd_subgroup <- ma_smd
+      
+      
+      ### 2. extract subgroup analysis data
       ma_smd.df.subgroup <- data.frame(
         tool = paste(mh_tool, collapse = '; '), 
         ind_sub = sub_ind_i, 
@@ -214,12 +214,12 @@ for (subgroup_select in subgroups) {
         )
       ma_result.subgroup <- rbind(ma_result.subgroup, ma_smd.df.subgroup)
     }
-  
-  
     
+
     ##' forest plot ========================================================================
     ##'     https://insidethenumbers.netlify.app/post/meta-analysis/
     ##'     https://www.rdocumentation.org/packages/meta/versions/6.5-0/topics/forest.meta
+    
     if(show_raw_data_in_forest == T){
       leftcols_show = c("studlab", "n.e", "mean.e", "sd.e", "n.c", "mean.c", "sd.c")
       add_print.tau2 = T
@@ -233,77 +233,25 @@ for (subgroup_select in subgroups) {
     }
     
     
+    ## plot forest for the overall 
+    test.effect.subgroup.random_para = F
+    postfix_subgroup <- ""
+    ## forest plot
+    ma_smd_data <- ma_smd_overall
+    source('./code/func_plot_forest.R')
+      
+    ## plot forest if subgroup analysis
     if (add_subgroup_analysis == T) {
       test.effect.subgroup.random_para = TRUE
       postfix_subgroup <- paste0("_subgroup_", subgroup_select)
       height_cm <- height_cm + 10 + n_group
-    } else {
-      test.effect.subgroup.random_para = F
-      postfix_subgroup <- ""
+      ## forest plot
+      ma_smd_data <- ma_smd_subgroup
+      source('./code/func_plot_forest.R')
     }
     
-    subDir <- paste0('forest_', mh_tool)
-    ifelse(!dir.exists(file.path(dir.fig, subDir)), dir.create(file.path(dir.fig, subDir)), 'Dir already exists.')
-    f <- paste0(dir.fig, subDir, '/', sub_ind_i, '_', 
-                postfix_simplify, 
-                postfix_subgroup, '_', today, 
-                '.png'); print(f)
-    png(filename = f, 
-        # width = 3000, height = 3000, units = "px", pointsize = 22,
-        width = width_forestPlot, height = height_cm/1.5, units = "cm", res = 100)
-    
-    
-    meta::forest(ma_smd,
-           # layout = "RevMan5",
-           # sortvar = TE,
-           prediction = F, ## prediction interval for the treatment effect in a future study
-           col.predict="gray",
-           addpred=TRUE, 
-           print.tau2 = T,
-           
-           ##' specify which variables should be displayed on the left side of the forest plot. 
-           leftcols = leftcols_show, 
-           # leftlabs = c(),
-           # lab.e = "Post-intervention",
-           # lab.c = "Pre-intervention",
-           
-           # xlim = 's', # “s” to produce symmetric forest plots
-           
-           # print.byvar = FALSE, ## whether the name of the grouping variable should be printed in front of the group labels.
-           # label.left = "loss",
-           # label.right = "gain",
-           digits=2,
-           digits.sd = 2,
-           digits.tau2 = 2,
-           colgap = "0.2cm",
-           # colgap.forest = "1cm",
-           colgap.forest.left = '1.8cm',
-           col.by = "black",
-           col.square = "black",
-           col.inside = "black",
-           col.square.lines = "black",
-           shade=TRUE,
-           test.effect.subgroup.random = test.effect.subgroup.random_para,
-           pooled.totals=T,
-           overall = T,
-           overall.hetstat = T)
-    
-    # forest(ma_smd, 
-    #        addpred=TRUE, 
-    #        header=TRUE, 
-    #        # xlim=c(-1,1), 
-    #        # slab = study_label, 
-    #        digits.sd = 2,
-    #        digits.tau2 = 2,
-    #        shade=TRUE)
-    
-    # Add a title to the entire plot
-    grid::grid.text(label = sub_ind_i, x = 0, y = .98, just = 'left', gp=gpar(cex=1, fontface='bold'))
-    
-    dev.off()
     
   }
-  
   
   
   ## save MA result 
@@ -319,6 +267,7 @@ for (subgroup_select in subgroups) {
     print(fname)
     saveRDS(ma_result.subgroup, file = fname)
   }
+  
   
 }
 ```

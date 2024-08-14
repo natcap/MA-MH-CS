@@ -1436,8 +1436,8 @@ unique(exp_sub_mods_print$nature_type_o2) %>% sort()
 ##' 1. Choose one as input --------------------------------
 ##' 
 # f <- paste0('./data/0301-MA-input/', 'sub_ghq.RData')   # `mh_tool`, `exposure_type_i`, `effect_size_ind_i`, `exp_sub_df`
-f <- paste0('./data/0301-MA-input/', 'sub_PANAS.RData')
-# f <- paste0('./data/0301-MA-input/', 'sub_poms.RData')
+# f <- paste0('./data/0301-MA-input/', 'sub_PANAS.RData')
+f <- paste0('./data/0301-MA-input/', 'sub_POMS.RData')
 # f <- paste0('./data/0301-MA-input/', 'sub_PSS.RData')
 # f <- paste0('./data/0301-MA-input/', 'sub_ROS.RData')
 # f <- paste0('./data/0301-MA-input/', 'sub_SVS.RData')
