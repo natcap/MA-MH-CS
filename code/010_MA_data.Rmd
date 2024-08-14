@@ -507,6 +507,7 @@ func_ggsave(fname = fname, w = 7, h = 7, save_png = T)
 
 
 ```{r nature_quantity}
+source('./code/func_alluvial.R')
 
 df_q <- df_exp %>%
   dplyr::select(1:2, Indicator, Tools, nature_type, nature_quantity, 
@@ -516,7 +517,7 @@ df_q <- df_exp %>%
 
 
 ## nature quantity metrics - plan to look into
-pat_q <- "NDVI|EVI|Percent|SVG"
+pat_q <- "NDVI|EVI|Percent|SVG|cover"
 
 df_q_ndvi <- df_q %>%
   dplyr::filter(str_detect(nature_quantity, pattern = regex(pat_q, ignore_case = TRUE)))
@@ -540,13 +541,13 @@ df_q_ndvi_ <- df_q_ndvi %>%
   dplyr::mutate(total = sum(freq, na.rm = T)) %>%
   as.data.frame()
 
-indicator_n_min <- 5 ## only map indicators with more than 5 times
+indicator_n_min <- 2 ## only map indicators with more than n times
 # Labeling small strata
 labele_small <- 3
 
 
-func_alluvial(data = df_q_ndvi_, indicator_n_min = 2, width_my = width_my, w_p = 7,
-              show_y_ticks = T, 
+func_alluvial(data = df_q_ndvi_, indicator_n_min = indicator_n_min, width_my = width_my, w_p = 7,
+              show_y_ticks = T, add_flow_label = F,
               filename.prefix = '', filename.postfix = 'tool_quantity')
 ```
 
