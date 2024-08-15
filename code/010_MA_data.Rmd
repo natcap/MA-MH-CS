@@ -281,6 +281,12 @@ df_exp_l <- df_exp %>%
 
 ### stats
 
+```{r stats for MS}
+print(paste(nrow(df), 'unique papers were included in data extraction.', sep = ' '))
+
+```
+
+
 ```{r **To-do**}
 ```
   [] 6686 is missing in the data for POMS 
@@ -770,10 +776,15 @@ effect_size_ind_i <- c(
 ```{r}
 mh_tool <- "PANAS"
 
+##' exclude selected study for now, while waiting for the authors to clarify the data (e.g., sd, se)
+id_exclude <- c('2186') 
+
 # exposure_type_i   <- c('stay static in nature', 'physical activity in nature') 
 exposure_type_i   <- c('In nature - Static', 'In nature - PA')
  
-exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool) 
+exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool) %>%
+  dplyr::filter(!id %in% id_exclude)
+
 sub_panas <- exp_sub_df
 
 ## save for later use
@@ -790,11 +801,16 @@ saveRDS(exp_sub_df, file = f)
 ```{r}
 mh_tool <- "POMS"
 
+##' exclude selected study for now, while waiting for the authors to clarify the data (e.g., sd, se)
+id_exclude <- c('6523') 
+
 # exposure_type_i   <- c('stay static in nature', 'physical activity in nature') 
 exposure_type_i   <- c('In nature - Static', 'In nature - PA')
 
 ###' subset papers that examined `exposure_type_i`
-exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool)
+exp_sub_df <- func_exp_subset(df = df, exposure_type_i = exposure_type_i, mh_tool = mh_tool) %>%
+  dplyr::filter(!id %in% id_exclude)
+
 sub_poms <- exp_sub_df
 
 ## save for later use
@@ -1435,15 +1451,8 @@ unique(exp_sub_mods_print$nature_type_o2) %>% sort()
 
 ```{r - 1. batch one}
 ##' 1. Choose one as input --------------------------------
-##' 
-# f <- paste0('./data/0301-MA-input/', 'sub_ghq.RData')   # `mh_tool`, `exposure_type_i`, `effect_size_ind_i`, `exp_sub_df`
-# f <- paste0('./data/0301-MA-input/', 'sub_PANAS.RData')
-f <- paste0('./data/0301-MA-input/', 'sub_POMS.RData')
-# f <- paste0('./data/0301-MA-input/', 'sub_PSS.RData')
-# f <- paste0('./data/0301-MA-input/', 'sub_ROS.RData')
-# f <- paste0('./data/0301-MA-input/', 'sub_SVS.RData')
-# f <- paste0('./data/0301-MA-input/', 'sub_STAI.RData')
-# f <- paste0('./data/0301-MA-input/', 'sub_DASS-21.RData')
+##'   `mh_tool`, `exposure_type_i`, `effect_size_ind_i`, `exp_sub_df`
+f <- paste0('./data/0301-MA-input/', 'sub_', mh_tool, '.RData'); f
 
 load(f)
 source('./code/010s1_loop_format_data.R')
