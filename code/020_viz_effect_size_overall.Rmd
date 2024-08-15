@@ -26,7 +26,7 @@ source('./code/func_plot_ma.R')
 
 
 ##' an extra post fix for figure's version control
-vv <- ""
+vv <- "v1"
 ```
 
 
@@ -59,12 +59,13 @@ mh_tool_exp <- c('PANAS', 'POMS', 'ROS', 'STAI', 'SVS');
 ##' 2. when 'PSS' is mainly used in `exp` studies
 mh_tool_obs <- c('GHQ-12')
                  # 'SF-12', 'SF-36', 'WEMWBS', 'WHO-5'
+mh_tool_exp <- c('PANAS', 'POMS', 'ROS', 'STAI', 'SVS', 'PSS', 'DASS-21') # 
 mh_tool_exp <- c('PANAS', 'POMS', 'ROS', 'STAI', 'SVS', 'PSS') # , 'DASS-21'
 
 
 
 mh_tool_list <- c(mh_tool_exp, mh_tool_obs); design <- 'exp_obs'
-mh_tool_list <- c(mh_tool_exp);              design <- 'exp'
+mh_tool_list <- c(mh_tool_exp);              design <- 'exp_obs'
 
 fs <- list.files(path = "./data/0302-MA-output/", 
                  pattern = paste('^ma_result.*_', mh_tool_list, sep = '', collapse = '|'), ## if opt to include selected ones
@@ -158,6 +159,61 @@ func_ggsave(fname, w = 6, h = 5.5/2/6*n_ind, dpi = 500, save_png = T)
 ma_result.subgroup_only <- ma_result_all %>%
   dplyr::filter(subgroup != 'Overall') %>%
   dplyr::distinct(tool, ind_sub, subgroup, .keep_all = T)
+
+
+##' some indicators can be measured by > 1 tools, to simplify the subgroup analysis, here 
+##' we only pick one of the tools
+ma_ind_tool_n <- ma_result.subgroup_only %>%
+  dplyr::distinct(tool, ind_sub) %>%
+  group_by(ind_sub) %>%
+  mutate(n = n()) %>%
+  ungroup() %>%
+  arrange(desc(n))
+
+case1 <- c("POMS", "STAI")    # Anxiety
+case2 <- c("POMS", "DASS-21") # Depression, Anxiety
+case3 <- c("PSS", "DASS-21")  # Stress
+
+##' get the tool list
+case_tools <- ma_ind_tool_n %>%
+  dplyr::filter(n>1) %>%
+  distinct(tool) %>%
+  select(tool) %>%
+  unlist() %>% 
+  as.vector()
+case_tools
+
+
+##' remove one tool for better viz
+if ( max(ma_ind_tool_n$n, rm.na = T) > 1) {
+
+  ## case 1
+  if ( all(case1 %in% case_tools) ) {
+    tool_remove <- 'STAI'
+    ma_result_all <- ma_result_all %>%
+      dplyr::filter(!tool %in% tool_remove)
+    
+    ## case 2
+  } else if ( all(case2 %in% case_tools) ) {
+    tool_remove <- 'DASS-21'
+    ma_result_all <- ma_result_all %>%
+      dplyr::filter(!tool %in% tool_remove)
+    
+  } else if ( all(case3 %in% case_tools) ) {
+    tool_remove <- 'DASS-21'
+    ma_result_all <- ma_result_all %>%
+      dplyr::filter(!tool %in% tool_remove)
+    
+  } else {
+    tool_remove <- NULL
+    ma_result_all <- ma_result_all
+  }
+  
+  
+  ##
+  cat('This is a case when ... ', tool_remove, ' ... is removed ...')
+  
+}
 ```
 
 
@@ -210,6 +266,21 @@ ind_sub_levels <- c(
 )   
 
 
+
+# Find elements missing in subset_vector
+missing_indicators <- setdiff(unique(ma_result_all$ind_sub), ind_sub_levels)
+
+# Print error message if some indicators are missing 
+if ( length(missing_indicators) > 0) {
+  message <- paste0('This indicators are missing in the analysis: \n\t', paste(missing_indicators, collapse = ', '))
+  stop(message)
+}
+
+
+##' to decide how many columns we need for facet plots
+##'   if # of indicators < 12, ncol = 4; 
+##'   if # of indicators >= 12, ncol = 5
+facet_ncol <- ifelse(length(ind_sub_levels) < 12, 4, 5)
 
 
 for (subgroup_select in subgroups) {

@@ -4,6 +4,14 @@
 ##'   as a source code script prepared for the main script
 ##'   
 
+source('./code/func_plot_ma.R')
+
+# Custom function to format axis labels
+custom_x_axis_format <- function(x) {
+  ifelse(x == round(x), as.character(x), sprintf("%.1f", x))
+}
+
+
 p_all <- ma_result_all %>%
   dplyr::filter(group_name == subgroup_select) %>%
   dplyr::filter(ind_sub %in% ind_sub_levels) %>%
@@ -21,13 +29,14 @@ p_all$subgroup <- factor(p_all$subgroup, levels = group_list)
 p_all %>%
   plot_effect_size_overall(data = .,
                            subgroup = 'subgroup', 
-                           facet_bygroup = T, 
+                           facet_bygroup = T,  
+                           facet_ncol = facet_ncol,
                            facet_scales = 'free',
                            text_size = 11,
                            add_gradient_bg = F,
                            show_legend = T) +
   scale_colour_manual(values = color_bygroup) +
-  scale_x_continuous(expand = expansion(mult = c(0.2, 0.25))) +
+  scale_x_continuous(expand = expansion(mult = c(0.2, 0.25)), n.breaks = 4, labels = custom_x_axis_format) +
   # scale_x_continuous(expand = expansion(add = c(0.25, 0.25))) +
   # this will allow the text outside of the plot panel
   coord_cartesian(clip = 'off', xlim = c(NA, NA), expand = TRUE) +
