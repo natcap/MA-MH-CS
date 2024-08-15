@@ -18,6 +18,7 @@ for (i in 1:20) {
   mod_id <- paste0("Model ", i, " ")
   exp_sub_dfi <- exp_sub_df %>%
     dplyr::select(id, `Study ID`,
+                  Reviewer, ## need to keep "Reviewer" to match data from gsheet
                   all_of(cols_keep),
                   contains("effect_size_indices"), 
                   `Health outcome direction`, 
@@ -55,6 +56,8 @@ rm(exp_sub_dfi)
 ##' for data extracted in table option 1 ----------------------------------------------- #
 exp_sub_l_o1_cov <- exp_sub_l %>%
   dplyr::select(id:t_value) %>%
+  dplyr::mutate(id_Reviewer = paste0(trimws(id), '_', gsub(' ','',Reviewer))) %>%
+  dplyr::select(id, Reviewer,id_Reviewer, everything()) %>%
   as.data.frame()
 name1 <- names(exp_sub_l_o1_cov) %>%
   gsub('\\.1|\\.2', '', .) %>%
@@ -66,15 +69,16 @@ names(exp_sub_l_o1_cov)
 
 
 
-#### - bind Covidence and gsheet data} ----
+#### - bind Covidence and gsheet data ----
 
+##' 1. For option 1 data --------------------------------------------------------------- #
 exp_sub_l_o1_gs <- df_2o1 %>%
-  dplyr::select(-c("group_id", "Study ID", "Reviewer", "Reviewer_id")) %>%
+  ## need to keep "Reviewer" to match data from gsheet
+  dplyr::select(-c("group_id", "Study ID", "Reviewer_id")) %>%
   dplyr::mutate(id = gsub('#', '', id))
 
 # exp_sub_l_o1_cov_ <- exp_sub_l_o1_cov %>%
 #   dplyr::select(id, model_id, Other_covariates_o1:ncol(.))
-
 
 unique(exp_sub_l_o1_gs$id)
 
@@ -86,8 +90,18 @@ exp_sub_l_o1_gs_add <- exp_sub_l_o1_cov %>%
   dplyr::distinct(id, .keep_all = T) %>%
   dplyr::select(1:exp_mean, -model_id) %>%
   
+  ## remove 'Reviewer' and 'id_Reviewer' from Covidence data part
+  dplyr::select(-Reviewer, -id_Reviewer) %>%
+  
   ##' join the *Covidence data* to *gsheet-based table*
   right_join(., exp_sub_l_o1_gs, by = 'id') %>%
+  
+  ## 
+  dplyr::mutate(id_Reviewer = paste0(trimws(id), '_', gsub(' ','',Reviewer))) %>%
+  dplyr::select(id, Reviewer, id_Reviewer, everything()) %>%
+  ## remove data from the reviewers that are not included in the Covidence part
+  dplyr::filter(id_Reviewer %in% unique(exp_sub_l_o1_cov$id_Reviewer)) %>%
+  
   dplyr::select(1:effect_size_indices, model_id, everything()) %>%
   ##' if effect_size_indices is NA, this means these papers are not related to 
   ##'   the MH tool we are working on 
@@ -101,13 +115,17 @@ names(exp_sub_l_o1_gs_add) <- names(exp_sub_l_o1_cov)
 
 ## bind covidence and gsheet data
 exp_sub_l_o1 <- rbind(exp_sub_l_o1_cov, exp_sub_l_o1_gs_add) %>%
-  dplyr::mutate(model_id = as.character(model_id))
+  dplyr::select(-Reviewer, -id_Reviewer) %>%
+  dplyr::mutate(model_id = as.character(model_id)) 
 
 
 
-## for data extracted in table option 2 ------------------------------------------------ #
+##' 2. For option 2 data --------------------------------------------------------------- #
 exp_sub_l_o2_cov <- exp_sub_l %>%
-  dplyr::select(id, model_id, Notes:Notes.1) %>%
+  dplyr::select(id, Reviewer, model_id, Notes:Notes.1) %>% 
+  ## need to keep "Reviewer" to match data from gsheet
+  dplyr::mutate(id_Reviewer = paste0(trimws(id), '_', gsub(' ','',Reviewer))) %>%
+  dplyr::select(id, Reviewer,id_Reviewer, everything()) %>%
   dplyr::select(-c(Notes:t_value))
 name2 <- names(exp_sub_l_o2_cov) %>%
   gsub('\\.1|\\.2', '_o2', .) %>%
@@ -117,7 +135,12 @@ names(exp_sub_l_o2_cov)
 
 
 exp_sub_l_o2_gs <- df_2o2 %>%
-  dplyr::select(-c("group_id", "Study ID", "Reviewer", "Reviewer_id")) %>%
+  ## need to keep "Reviewer" to match data from gsheet
+  dplyr::select(-c("group_id", "Study ID", "Reviewer_id")) %>%
+  dplyr::mutate(id_Reviewer = paste0(trimws(id), '_', gsub(' ','',Reviewer))) %>%
+  dplyr::select(id, Reviewer,id_Reviewer, everything()) %>%
+  ## remove data from the reviewers that are not included in the Covidence part
+  dplyr::filter(id_Reviewer %in% unique(exp_sub_l_o2_cov$id_Reviewer)) %>%
   ## only include the selected `mh_tool`
   dplyr::filter(id %in% unique(exp_sub_df$id)) %>%
   as.data.frame()
@@ -127,25 +150,28 @@ names(exp_sub_l_o2_gs) <- names(exp_sub_l_o2_cov)
 
 ## bind covidence and gsheet data
 exp_sub_l_o2 <- rbind(exp_sub_l_o2_cov, exp_sub_l_o2_gs) %>%
-  dplyr::mutate(model_id = as.character(model_id))
+  dplyr::mutate(model_id = as.character(model_id)) %>%
+  dplyr::select(-Reviewer, -id_Reviewer)
 
 
 
-##' further combine data from the combined table option 1 and option 2 ----------------- #
+##' 3. Further combine data from option 1 and option 2 --------------------------------- #
 ##' 
-##' 1. get the shared/common info, and unique columns for tables o1 and o2
+##'   3.1. get the shared/common info, and unique columns for tables o1 and o2
 tab_o1 <- exp_sub_l_o1 %>%
-  dplyr::select(id, model_id, exp:ncol(.))
-tab_o2 <- exp_sub_l_o2
+  dplyr::select(id, model_id, exp:ncol(.)) 
 
-non_shared_cols <- setdiff(names(tab_o1), 'id')
+tab_o2 <- exp_sub_l_o2 
+
+non_shared_cols <- setdiff(names(tab_o1), c('id'))
 
 tab_share <- exp_sub_l_o1 %>%
   dplyr::select(-any_of(non_shared_cols)) %>%
   dplyr::distinct_all()
 
+
 ##' 
-##' 2. merge table option 1 and table option 2 as a combined table
+##'   3.2. merge table option 1 and table option 2 as a combined table
 ##'     given the number of models for option 1 could be different from the number of 
 ##'     models for option 2, we need to use `full_join()`, 
 ##'     instead of `left_join()`, in order to keep all the data
@@ -181,7 +207,7 @@ exp_sub_comb <- tab_comb %>%
 
 
 
-#### - add geodata} ----
+#### - add geodata ----
 f <- paste0('./data/0301-MA-input/id_region_match.rds'); f
 id_region <- readRDS(f) %>%
   dplyr::select(id, Region) %>%
@@ -194,7 +220,7 @@ exp_sub_comb_update <- exp_sub_comb %>%
 
 
 
-#### - clean numeric values} ------
+#### - clean numeric values ------
 ### clean up the negative sign "-" in data
 test <- exp_sub_comb_update %>%
   dplyr::filter(id %in% c(387)) ## take the character from this paper
@@ -447,3 +473,4 @@ unique(exp_sub_mods_print$MH_indicator_o2) %>% sort() %>%
 
 unique(exp_sub_mods_print$nature_type_o1) %>% sort()
 unique(exp_sub_mods_print$nature_type_o2) %>% sort()
+

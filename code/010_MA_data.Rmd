@@ -588,7 +588,7 @@ func_exp_subset <- function(df, exposure_type_i, mh_tool) {
                   all_of(cols_keep), 
                   n_participants, buffers, buffers_unit,
                   effect_size_indices:ncol(.)) %>%
-    dplyr::select(-c(Title:meet_criteria)) %>%
+    dplyr::select(-c('Title', 'Reviewer_id', 'meet_criteria')) %>% ## keep "Reviewer" to match data from gsheet
     dplyr::select(-contains(c('Please specify the tables', 'Additional comments'))) %>%
     as.data.frame()
   
@@ -994,10 +994,7 @@ mh_tool_exp <- c('PANAS', 'POMS', 'ROS', 'STAI', 'SVS', 'PSS', 'DASS-21');  desi
 
 
 
-### Format data
-
-
-#### * Batch
+### Batch
 
 ```{r - 1. batch one}
 ##' 1. Choose one as input --------------------------------
@@ -1011,7 +1008,7 @@ readr::write_csv(x = exp_sub_mods_print, file = f.c)
 ```
 
 
-```{r  - 2. loop all}
+```{r - 2. loop all, eval=FALSE, include=FALSE}
 ##' 1. loop all -----------------------------------
 ##' 
 fs <- list.files(path = './data/0301-MA-input/', pattern = '^sub_.*.RData', full.names = T) %>% sort()
@@ -1034,7 +1031,7 @@ for (f in fs) {
 
   --> Ref to `010a_MA_intro.Rmd` for more background knowledge. 
 
-```{r functions}
+```{r functions, eval=FALSE, include=FALSE}
 # Calculate s_pooled - pooled standard deviation (SD) of both groups
 sd_pooled <- function(n1, n2, sd1, sd2) {
   sd_p <- sqrt(
