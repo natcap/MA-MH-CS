@@ -1,6 +1,7 @@
 
-### format data
-## - wide to long format}
+### Format data -----
+
+#### - wide to long format ----
 
 ##' Test code for formatting one model
 # exp_sub_mod1 <- exp_sub_df %>%
@@ -45,13 +46,13 @@ rm(exp_sub_dfi)
 
 
 
-## - clean names from table 1/2, include=FALSE}
+#### - clean names from table 1/2, include=FALSE} ----
 ##' _o1:  table option 1
 ##' _o2:  table option 2
 ##' _cov: extracted data stored in Covidence 
 ##' _gs:  extracted data stored in gsheet (the extended tables)
 
-## for data extracted in table option 1 --------------------------------------------------
+##' for data extracted in table option 1 ----------------------------------------------- #
 exp_sub_l_o1_cov <- exp_sub_l %>%
   dplyr::select(id:t_value) %>%
   as.data.frame()
@@ -65,7 +66,7 @@ names(exp_sub_l_o1_cov)
 
 
 
-## - bind Covidence and gsheet data}
+#### - bind Covidence and gsheet data} ----
 
 exp_sub_l_o1_gs <- df_2o1 %>%
   dplyr::select(-c("group_id", "Study ID", "Reviewer", "Reviewer_id")) %>%
@@ -104,7 +105,7 @@ exp_sub_l_o1 <- rbind(exp_sub_l_o1_cov, exp_sub_l_o1_gs_add) %>%
 
 
 
-## for data extracted in table option 2 --------------------------------------------------
+## for data extracted in table option 2 ------------------------------------------------ #
 exp_sub_l_o2_cov <- exp_sub_l %>%
   dplyr::select(id, model_id, Notes:Notes.1) %>%
   dplyr::select(-c(Notes:t_value))
@@ -130,7 +131,7 @@ exp_sub_l_o2 <- rbind(exp_sub_l_o2_cov, exp_sub_l_o2_gs) %>%
 
 
 
-##' further combine data from the combined table option 1 and option 2 -------------------
+##' further combine data from the combined table option 1 and option 2 ----------------- #
 ##' 
 ##' 1. get the shared/common info, and unique columns for tables o1 and o2
 tab_o1 <- exp_sub_l_o1 %>%
@@ -180,7 +181,7 @@ exp_sub_comb <- tab_comb %>%
 
 
 
-## - add geodata}
+#### - add geodata} ----
 f <- paste0('./data/0301-MA-input/id_region_match.rds'); f
 id_region <- readRDS(f) %>%
   dplyr::select(id, Region) %>%
@@ -193,7 +194,7 @@ exp_sub_comb_update <- exp_sub_comb %>%
 
 
 
-## - clean numeric values}
+#### - clean numeric values} ------
 ### clean up the negative sign "-" in data
 test <- exp_sub_comb_update %>%
   dplyr::filter(id %in% c(387)) ## take the character from this paper
@@ -268,7 +269,7 @@ exp_sub_comb_clean <- exp_sub_comb_update %>%
   ) %>%
   dplyr::select(study_label, everything()) %>%
   
-  ## check and tidy sample size (N) ------------------------------------------------------
+  ## check and tidy sample size (N) ---------------------------------------------------- #
   dplyr::mutate(
     n_participants = str_squish(n_participants) %>% trimws(.) %>% as.numeric(.),
     
@@ -299,7 +300,7 @@ exp_sub_comb_clean <- exp_sub_comb_update %>%
   ## keep new created variables next to its similar ones
   dplyr::select(1:Control_N, c_n, Treatment_N, e_n, study_label, everything()) %>%
   
-  ## convert SE, and CI to `SD` ----------------------------------------------------------
+  ## convert SE, and CI to `SD` -------------------------------------------------------- #
   func_all_to_sd(data = ., table_option = 'o1') %>%
   func_all_to_sd(data = ., table_option = 'o2') %>%
   
@@ -344,11 +345,11 @@ unique(exp_sub_comb_clean$id) %>% length() %>% cat('\n', ., 'unique papers for',
 
 
 
-## - unify outcome direction}
+#### - unify outcome direction ----
 unique(exp_sub_comb_clean$effect_size_indices)
 
 
-##' Unify the direction of MH outcomes, mainly apply to the following tools --------------
+##' Unify the direction of MH outcomes, mainly apply to the following tools ------------ #
 ##'   - GHQ-12 
 ##'   - SF
 ##'   - WHO-5
@@ -385,9 +386,9 @@ exp_sub_mods <- exp_sub_comb_clean %>%
 
 
 
-### subset `effect_size_indice`
+#### - subset `effect_size_indice` ----
 
-##' further filter data based on MH tools ------------------------------------------------
+##' further filter data based on MH tools ---------------------------------------------- #
 source('./code/func_clean_indicatorsPro.R')
 
 cat('\n\n')
@@ -419,8 +420,8 @@ if ( all(mh_tool %in% mh_tool_obs) ) {
 
 
 
-## - print & check
-### print and double-check results =======================================================
+#### - print & check ----
+### print and double-check results ===================================================== #
 if ( any(mh_tool %in% mh_tool_obs) ) {
   exp_sub_mods_print <- exp_sub_mods_coef
 } else {
@@ -435,7 +436,7 @@ nrow(exp_sub_mods_print) %>% cat('\n In total, there are', ., 'studies. \n\n')
 unique(exp_sub_mods_print$MH_tool_o1) %>% cat('unique MH_tool_o1:', ., '\n')
 unique(exp_sub_mods_print$MH_tool_o2) %>% cat('unique MH_tool_o2:', ., '\n\n')
 
-##' inspect data for further cleaning --------------------------------------------------
+##' inspect data for further cleaning -------------------------------------------------- #
 unique(exp_sub_mods_print$MH_indicator_o1) %>% sort() %>% 
   paste(., collapse = '\n\t', sep = '') %>%
   cat('MH_indicator_o1:\n\t', ., '\n\n');
