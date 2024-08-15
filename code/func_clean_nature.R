@@ -104,8 +104,8 @@ func_clean_nature_type_customize <-  function(data, column_name) {
     dplyr::mutate(
       ## merge all types of blue spaces into one "Bluespace"
       !!column_name := gsub("\\- Open water|\\- Beach\\/coastline|\\- Wetland|\\- Sea", "", !!sym(column_name)),
-      ## merge "Green roof/wall" into "Garden"
-      !!column_name := gsub("\\- Green roof/wall", "- Garden", !!sym(column_name)),
+      ## merge "Green roof/wall" into "Greenspace - General"
+      !!column_name := gsub("\\- Green roof/wall", "", !!sym(column_name)),
       !!column_name := trimws(!!sym(column_name)),
       !!column_name := str_squish(!!sym(column_name)),
     ) %>%
