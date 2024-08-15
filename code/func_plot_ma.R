@@ -5,6 +5,8 @@ library(ggpubr)
 source('./code/func_ggsave.R')
 source('./code/func_make_gradient_bg.R')
 
+
+
 # Create a forest plot-style ggplot
 
 plot_effect_size_overall <- function(
@@ -14,16 +16,18 @@ plot_effect_size_overall <- function(
     subgroup = NULL, 
     dodge_value = 0.9,
     facet_bygroup = F,
+    facet_ncol = 4,
     facet_scales = 'free',
     add_gradient_bg = T,
     text_size = 12,
     show_legend = F) {
   
-  theme_set(theme_minimal() + 
-              theme(text = element_text(size = text_size), 
-                    axis.text = element_text(size = text_size),
-                    strip.text = element_text(size = text_size)
-                    )) # Applies a base size
+  theme_set(
+    theme_minimal() + 
+      theme(text = element_text(size = text_size), 
+            axis.text = element_text(size = text_size),
+            strip.text = element_text(size = text_size)
+            )) # Applies a base size
   
   # x_limit_max <- max(abs(data$es.lower), abs(data$es.upper), na.rm = T) * 1.1
   
@@ -90,7 +94,7 @@ plot_effect_size_overall <- function(
                  # y = reorder(ind_sub, desc(es.mean)), # the largest effect on the top 
                  y = subgroup_sorted, # the largest effect on the top
                  color = !!sym(subgroup),
-                 )) 
+                 ))
   }
   
   
@@ -169,7 +173,7 @@ plot_effect_size_overall <- function(
     
     
     
-    ## remove sample size for subgroups
+    ## remove sample size for plot of subgroup results
   } else {
     p <- p +
       
@@ -182,6 +186,7 @@ plot_effect_size_overall <- function(
       #           size = text_size/5,
       #           position=position_dodge(dodge_value), show.legend = F) +
 
+      ##' add `n` label
       geom_text(aes(x = ifelse(es.mean<0, 
                                es.lower,
                                es.upper
@@ -193,6 +198,8 @@ plot_effect_size_overall <- function(
                                    ifelse(abs(es.lower-es.mean)<0.5, -0.8*es.mean/abs(es.mean), -0.3*es.mean/abs(es.mean))),
                     label = n_lab),  
                 vjust = -0.5, size = text_size/6, position=position_dodge(dodge_value), show.legend = F) +
+      
+      ##' add `I2` label
       geom_text(aes(x = ifelse(es.mean<0, 
                                es.lower,
                                es.upper
@@ -223,7 +230,7 @@ plot_effect_size_overall <- function(
   ## when the number of subgroup is too large, it is better to facet the plot
   if (facet_bygroup == T) {
     p <- p +
-      facet_wrap(~ind_sub, scales = facet_scales, ncol = 4) +
+      facet_wrap(~ind_sub, scales = facet_scales, ncol = facet_ncol) +
       theme_bw() +
       theme(axis.title.y = element_blank(),
             axis.text.y = element_blank(),
