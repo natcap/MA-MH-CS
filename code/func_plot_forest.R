@@ -4,7 +4,7 @@ subDir <- paste0('forest_', mh_tool)
 ifelse(!dir.exists(file.path(dir.fig, subDir)), dir.create(file.path(dir.fig, subDir)), 'Dir already exists.')
 f <- paste0(dir.fig, subDir, '/', sub_ind_i, '_', 
             postfix_simplify, 
-            postfix_subgroup, '_', today, 
+            postfix_subgroup, '_', today, '_', vv,
             '.png'); print(f)
 png(filename = f, 
     # width = 3000, height = 3000, units = "px", pointsize = 22,

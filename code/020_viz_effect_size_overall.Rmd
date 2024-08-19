@@ -26,7 +26,7 @@ source('./code/func_plot_ma.R')
 
 
 ##' an extra post fix for figure's version control
-vv <- "v1"
+# vv <- "v5"
 ```
 
 
@@ -294,7 +294,7 @@ for (subgroup_select in subgroups) {
   ## postfix to be added to figure names
   postfix_group <- paste0("_subgroup_", subgroup_select); postfix_group
   
-  ## decide color scheme 
+  ##' decide color scheme 
   if(subgroup_select == 'nature_type_o2'){
     group_title = str_to_sentence(gsub('_|_o2', ' ', subgroup_select)) %>% trimws()
     color_bygroup = nature_type_color; 
@@ -318,9 +318,11 @@ for (subgroup_select in subgroups) {
   } else {
     # next
     group_title = str_to_sentence(gsub('_|_o2', ' ', subgroup_select)) %>% trimws()
-    group_list = unique(ma_result_all_sub$subgroup)
+    group_list = unique(ma_result_all_sub$subgroup) %>% sort()
     color_bygroup = func_color_bygroup(df = ma_result_all_sub, column_name = 'subgroup')
   }
+  
+
   
   
   ##' run sourced code 

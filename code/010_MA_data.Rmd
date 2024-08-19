@@ -576,7 +576,7 @@ func_exp_subset <- function(df, exposure_type_i, mh_tool) {
   ## get paper id
   exp_sub <- df_exp_l %>%
     dplyr::filter(exposure_type %in% exposure_type_i)
-  exp_sub_id <- unique(exp_sub$id)
+  exp_sub_id <- unique(exp_sub$id) %>% sort()
 
   ## subset based paper id
   exp_sub_df <- df %>%
