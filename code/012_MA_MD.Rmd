@@ -21,7 +21,7 @@ packageVersion("meta")
 
 ##' an extra post fix for figure's version control
 vv <- ""
-# vv <- "v2"
+vv <- "v2"
 ```
 
 
@@ -184,7 +184,12 @@ for (subgroup_select in subgroups) {
     
     ## update the MA by adding subgroup analysis -----------------------------------------
     if (add_subgroup_analysis == T) {
-      ma_smd <- update(ma_smd, subgroup = subgroup_selected)
+      ma_smd <- update(ma_smd, subgroup = subgroup_selected,
+                       control = list(maxiter = 1000, stepadj = 0.5))
+      ##' To address error "Fisher scoring algorithm did not converge.", 
+      ##'   try adjusting the control parameters of the rma() function to help with convergence. 
+      ##'   For example, increasing the maximum number of iterations or changing the step size might help.
+      ##'   
       ma_smd_subgroup <- ma_smd
       
       
