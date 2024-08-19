@@ -14,8 +14,17 @@ func_clean_exposure <- function(data, column_name) {
       ## final formatting 
       !!column_name := gsub(",+", ",", !!sym(column_name)), ## Removing repeated punctuation character from a string
       !!column_name := gsub(";+", ";", !!sym(column_name)), ## Removing repeated punctuation character from a string
+      
+      !!column_name := case_when(
+        # str_detect(pattern = ";", string = !!sym(column_name)) ~ 'Mixed',
+        !!sym(column_name) %in% c('L5 - gardening', 'L5 - gardening frequency') ~ 'L5 - nature participatory activities',
+        TRUE ~ !!sym(column_name)),
+      # !!column_name := gsub('L1 - |L3 - |L4 - |L5 - ', '', !!sym(column_name)), 
+      
       !!column_name := trimws(!!sym(column_name)),
-      !!column_name := str_squish(!!sym(column_name))) %>%
+      !!column_name := str_squish(!!sym(column_name)),
+      !!column_name := str_to_sentence(!!sym(column_name))
+      ) %>%
     # dplyr::filter(!!column_name != 'NA') %>%
     as.data.frame()
   
