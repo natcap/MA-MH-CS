@@ -24,9 +24,21 @@ p_all <- ma_result_all %>%
 p_all$subgroup <- factor(p_all$subgroup, levels = group_list)
 # colors_group <- func_color_bygroup(df = p_all, column_name = "subgroup", color_pal = color_bygroup)
 # color_bygroup <- colors_group
+unique(p_all$subgroup)
 
+##' to double check if there are more than one entries in the subgroup column 
+more_than_one_matches <-stringr::str_detect(pattern = ";|from window", string = unique(p_all$subgroup));
+# Print the matching elements
+matching_elements <- unique(p_all$subgroup)[more_than_one_matches] %>% as.character()
+if( length(matching_elements) > 0) {
+  warning(paste0("There are more than one entries in the subgroup ------ "), 
+          subgroup_select, ' ------ \n\t',
+          paste(matching_elements, collapse = '\n\t'))
+}
 
 p_all %>%
+  ## remove this TBD more-than-one entries in the subgroup
+  dplyr::filter(!subgroup %in% matching_elements) %>% 
   plot_effect_size_overall(data = .,
                            subgroup = 'subgroup', 
                            facet_bygroup = T,  
@@ -40,7 +52,7 @@ p_all %>%
   # scale_x_continuous(expand = expansion(add = c(0.25, 0.25))) +
   # this will allow the text outside of the plot panel
   coord_cartesian(clip = 'off', xlim = c(NA, NA), expand = TRUE) +
-  theme(legend.position = c(0.75, 0.15),
+  theme(legend.position = c(0.7, 0.15),
         legend.spacing.y = unit(0, 'cm'),
         legend.spacing.x = unit(0, 'cm'),
         legend.key.size = unit(0.01, 'cm'), 
