@@ -108,7 +108,8 @@ for (subgroup_select in subgroups) {
   n_group <- unique(exp_sub_mods_md_o2[subgroup_select]) %>% nrow()
   
   ma_result.overall <- data.frame()
-  ma_result.subgroup <- data.frame()
+  ma_result.subgroup.pool <- data.frame()
+  ma_result.subgroup.each <- data.frame()
   
   for (sub_ind_i in sub_indicator_selected) {
     
@@ -193,7 +194,7 @@ for (subgroup_select in subgroups) {
       ma_smd_subgroup <- ma_smd
       
       
-      ### 2. extract subgroup analysis data
+      ### 2. extract pooled subgroup analysis data
       ma_smd.df.subgroup <- data.frame(
         tool = paste(mh_tool, collapse = '; '), 
         ind_sub = sub_ind_i, 
@@ -217,7 +218,20 @@ for (subgroup_select in subgroups) {
             pval < 0.05  ~ '*',
             T ~ ''),
         )
-      ma_result.subgroup <- rbind(ma_result.subgroup, ma_smd.df.subgroup)
+      ma_result.subgroup.pool <- rbind(ma_result.subgroup.pool, ma_smd.df.subgroup)
+      
+      
+      ## 2.2 extract single subgroup analysis data
+      ma_smd.df.subgroup.each <- data.frame(
+        tool = paste(mh_tool, collapse = '; '), 
+        ind_sub = sub_ind_i, 
+        id = ma_smd_subgroup$studlab, 
+        group_name = subgroup_select,
+        subgroup = ma_smd_subgroup$subgroup,
+        SMD = ma_smd_subgroup$TE
+      )
+      ma_result.subgroup.each <- rbind(ma_result.subgroup.each, ma_smd.df.subgroup.each)
+        
     }
     
 
@@ -262,15 +276,18 @@ for (subgroup_select in subgroups) {
   ## save MA result 
   cat('\n')
   fname <- paste0('./data/0302-MA-output/', 
-                  paste('ma_result.overall', paste(mh_tool, collapse = "_"), '.rds', sep = '_')); 
+                  paste('ma_result.overall.pool', paste(mh_tool, collapse = "_"), '.rds', sep = '_')); 
   print(fname)
   saveRDS(ma_result.overall, file = fname)
   
   if (add_subgroup_analysis == T) {
     fname <- paste0('./data/0302-MA-output/', 
-                    paste('ma_result.subgroup', paste(mh_tool, collapse = "_"), subgroup_select, '.rds', sep = '_')); 
+                    paste('ma_result.subgroup.pool', paste(mh_tool, collapse = "_"), subgroup_select, '.rds', sep = '_')); 
     print(fname)
-    saveRDS(ma_result.subgroup, file = fname)
+    
+    f.each <- gsub('ma_result.subgroup.pool', 'ma_result_subgroup.each', fname)
+    saveRDS(ma_result.subgroup.pool, file = fname)
+    saveRDS(ma_result.subgroup.each, file = f.each)
   }
   
   
