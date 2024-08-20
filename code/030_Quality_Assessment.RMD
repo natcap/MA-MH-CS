@@ -1,0 +1,133 @@
+---
+title: "Untitled"
+author: "Yingjie"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Data
+```{r}
+dir   <- "./data/0005-covidence_export/Quality assessment/"
+
+csv <- "review_278532_20240820163423.csv"     
+
+
+t <- basename(csv) %>% gsub('review_278532_', '', .) %>%
+  str_sub(start = 1, end = 14)  %>%
+  as.POSIXct(.,format="%Y%m%d%H%M%S") 
+t
+
+q <- readr::read_csv(file = paste0(dir, csv), show_col_types = F) %>%
+  dplyr::mutate(date = t) %>%
+  dplyr::rename(
+    'id' = 'Covidence #',
+    "Reviewer" = "Reviewer Name"
+  ) %>%
+  dplyr::select(!matches("supporting text|^---")) %>%
+  arrange(id, Reviewer) %>%
+  as.data.frame()
+```
+
+
+```{r - clean data}
+source('./code/func_add_reviewer_id.R')
+qa <- func_add_reviewer_id_qa(data = q) %>%
+  ## keep one reviewer's data based on priority setting
+  arrange(id, Reviewer_id, desc(date)) %>%
+  dplyr::distinct(id, .keep_all = T) %>%
+  dplyr::select(-Reviewer_id) %>% 
+  as.data.frame()
+
+## remove strings after ":" in the column names
+names(qa) <- sub(":.*", "", names(qa))
+
+qa_obs <- qa %>%
+  dplyr::filter(!is.na(OBS1)) %>%
+  dplyr::select(1:OBS8) %>%
+  pivot_longer(cols = 5:ncol(.), names_to = 'Item') %>%
+  dplyr::mutate(rate = case_when(
+    value == 'Yes' ~ 'Low risk',
+    value == 'No'  ~ 'High risk',
+    value == 'Not applicable' ~ 'Unclear',
+    TRUE ~ value
+  )) %>%
+  dplyr::mutate(Items = case_when(
+    Item == 'OBS1' ~ 'criteria for inclusion of samples',
+    Item == 'OBS2' ~ 'description of the study participants',
+    Item == 'OBS3' ~ 'measurement of exposure',
+    Item == 'OBS4' ~ 'measurement of the condition',
+    Item == 'OBS5' ~ 'confounding factors identified',
+    Item == 'OBS6' ~ 'strategies to confounding factors',
+    Item == 'OBS7' ~ 'measurement of outcomes',
+    Item == 'OBS8' ~ 'appropriate statistical analysis',
+    TRUE ~ Item
+  )) %>%
+  dplyr::mutate(Items = str_to_sentence(Items)) %>%
+  group_by(Items, rate) %>%
+  tally()
+
+
+qa_exp <- qa %>%
+  dplyr::filter(is.na(OBS1)) %>%
+  dplyr::select(-c(OBS1:OBS8), -date) %>%
+  pivot_longer(cols = 5:ncol(.), names_to = 'Items') %>%
+  dplyr::mutate(rate = gsub(' of bias', '', value),
+                rate = stringr::str_squish(rate)) %>%
+  group_by(Items, rate) %>%
+  tally()
+```
+
+
+
+
+```{r  - viz}
+# library
+library(ggplot2)
+
+# # Stacked
+# qa_obs %>%
+#   ggplot(., aes(fill=value, y=n, x=items)) + 
+#   geom_bar(position="stack", stat="identity") +
+#   coord_flip() +
+#   theme_minimal()
+
+func_plot_qa <- function(data) {
+  p <- data %>%
+    group_by(Items) %>%
+    mutate(Percent = n / sum(n, na.rm = T),
+           Label = scales::percent(Percent)) %>%
+    ungroup() %>%
+    ggplot(., aes(fill=rate, y=Percent, x=Items)) + 
+    # Stacked + percent
+    geom_bar(position="fill", stat="identity") +
+    geom_text(aes(label = Label), position = position_stack(vjust = 0.5), size =2) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    coord_flip() +
+    theme_minimal() +
+    theme(axis.title = element_blank())  # Remove the x-axis title
+  return(p)
+}
+
+p1 <- func_plot_qa(data = qa_obs)
+p2 <- func_plot_qa(data = qa_exp)
+
+
+## save figure for experimental studies
+f <- paste0(dir.fig, 'qa_exp_', today, vv, '.png'); print(f)
+ggsave(plot = p2, filename = f, width = 7, height = 2, units = 'in', dpi = 300)
+
+
+## save combined data for both observational and experimental studies
+ggpubr::ggarrange(p1, p2, labels = 'auto', ncol = 1, align = 'v')
+
+f <- paste0(dir.fig, 'qa_', today, vv, '.png'); print(f)
+ggsave(filename = f, width = 7, height = 4, units = 'in', dpi = 300)
+
+
+```
+
