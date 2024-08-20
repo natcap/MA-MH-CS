@@ -217,31 +217,9 @@ dd.gsheet2c_w %>% group_by(id) %>% tally()
 unique(dd$Reviewer)
 
 
-function_add_reviewer_id <- function(data) {
-  d <- data %>%
-    dplyr::mutate(Reviewer_id = case_when(
-      Reviewer == 'Yingjie Li'    ~ 1, 
-      Reviewer == 'Yuanyuan Mao'  ~ 2, 
-      Reviewer == 'Zander Galli'  ~ 3, 
-      Reviewer == 'Xin Lan'       ~ 4, 
-      Reviewer == 'Anders Rydstrom' ~ 4.5,
-      Reviewer == 'Renee Bertrand'  ~ 4.6,
-      Reviewer == 'Emily Brieant'   ~ 5, 
-      Reviewer == 'Carl Purisima' ~ 5.2,
-      Reviewer == 'Sehrish Gohar' ~ 5.3,
-      Reviewer == 'Bryan Diaz'    ~ 5.4,
-      Reviewer == 'Katherine Wu'  ~ 6,
-      Reviewer == 'test person'   ~ 7,
-      Reviewer == 'Mary Lee'      ~ 8,
-      Reviewer == 'Consensus'     ~ 99,
-      TRUE                        ~ 999 ## other input
-    )) %>%
-    dplyr::select(id:Reviewer, Reviewer_id, everything()) %>%
-    as.data.frame()
-}
+source('./code/func_add_reviewer_id.R')
 
-
-df <- function_add_reviewer_id(data = dd) %>%
+df <- func_add_reviewer_id(data = dd) %>%
   ## keep one reviewer's data based on priority setting
   arrange(id, Reviewer_id, desc(date)) %>%
   dplyr::distinct(id, .keep_all = T) %>%
@@ -252,7 +230,7 @@ df <- function_add_reviewer_id(data = dd) %>%
 
 ## for data from gsheet ------------------------------------------------------------------
 df.gsheet1 <- dd.gsheet1c_w %>%
-  function_add_reviewer_id(data = .) %>%
+  func_add_reviewer_id(data = .) %>%
   arrange(id, Reviewer_id) %>%
   dplyr::distinct(id, .keep_all = T) %>%
 
@@ -285,7 +263,7 @@ df.gsheet1 <- dd.gsheet1c_w %>%
 
 
 df.gsheet2 <- dd.gsheet2c_w %>%
-  function_add_reviewer_id(data = .) %>%
+  func_add_reviewer_id(data = .) %>%
   arrange(id, Reviewer_id) %>%
   dplyr::distinct(id, .keep_all = T) %>%
 
