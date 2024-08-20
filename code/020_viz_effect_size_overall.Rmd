@@ -68,7 +68,7 @@ mh_tool_list <- c(mh_tool_exp, mh_tool_obs); design <- 'exp_obs'
 mh_tool_list <- c(mh_tool_exp);              design <- 'exp_obs'
 
 fs <- list.files(path = "./data/0302-MA-output/", 
-                 pattern = paste('^ma_result.*_', mh_tool_list, sep = '', collapse = '|'), ## if opt to include selected ones
+                 pattern = paste('^ma_result.*pool_', mh_tool_list, sep = '', collapse = '|'), ## if opt to include selected ones
                  full.names = T);
 cat('\n This', length(fs), 'files will be included:\n')
 print(fs)
@@ -155,7 +155,8 @@ func_ggsave(fname, w = 6, h = 5.5/2/6*n_ind, dpi = 500, save_png = T)
 
 ### by group
 
-```{r - table & numbers}
+####  - table & numbers
+```{r}
 ma_result.subgroup_only <- ma_result_all %>%
   dplyr::filter(subgroup != 'Overall') %>%
   dplyr::distinct(tool, ind_sub, subgroup, .keep_all = T)
@@ -217,8 +218,8 @@ if ( max(ma_ind_tool_n$n, rm.na = T) > 1) {
 ```
 
 
-
-```{r - plot}
+#### - plot
+```{r}
 source('./code/func_plot_ma.R')
 source('./code/func_color_bygroup.R')
 
@@ -339,7 +340,102 @@ for (subgroup_select in subgroups) {
 ```
 
 
-```{r - plot_all, eval=FALSE, include=FALSE}
+
+####  - test different between two groups
+Summary
+  Use a t-test for comparing means of normally distributed data.
+  Use a Wilcoxon test for non-parametric data.
+  Use a Chi-square test for categorical data.
+  Use a paired t-test if the data points are related or paired.
+  
+```{r - data}
+fs <- list.files(path = "./data/0302-MA-output/", 
+                 pattern = paste('^ma_result.*each_', mh_tool_list, sep = '', collapse = '|'), 
+                 full.names = T);
+cat('\n This', length(fs), 'files will be included:\n')
+print(fs)
+
+ma_result_each <- data.frame()
+for (f in fs) {
+  # print(f)
+  d <- readRDS(file = f) %>%
+    ## note which tools are exp or obs
+    dplyr::mutate(design = ifelse(tool %in% mh_tool_exp, 'exp', 'obs'))
+  ma_result_each <- rbind(ma_result_each, d)
+}
+```
+
+
+
+
+```{r - test}
+
+subgroup_select <- 'exposure_o2'
+
+ma_result_each_i <- ma_result_each  %>%
+  dplyr::mutate(ind_sub = factor(ind_sub, levels = ind_sub_levels)) %>%
+  # dplyr::filter(tool == 'PANAS') %>%
+  # dplyr::filter(ind_sub == 'Negative Affect') %>%
+  dplyr::filter(group_name == 'exposure_o2') %>%
+  dplyr::filter(!stringr::str_detect(pattern = ";|from window|residential|participatory", string = subgroup)) %>%
+  dplyr::mutate(subgroup = gsub('L4 - | in nature|L5 - nature ', '', subgroup))
+
+# ma_result_each_i1 <- ma_result_each_i %>%
+#   dplyr::filter(subgroup == 'L4 - stay static in nature')
+# 
+# ma_result_each_i2 <- ma_result_each_i %>%
+#   dplyr::filter(subgroup == 'L4 - physical activity in nature')
+
+
+##' Testing whether your data is normally distributed is an important step before applying many statistical tests that assume normality (e.g., t-tests, ANOVA). 
+##' If the p-value is greater than 0.05, the data does not significantly deviate from normality.
+##' If the p-value is less than 0.05, the data significantly deviates from normality.
+# hist(ma_result_each_i1$SMD)
+
+# Perform Shapiro-Wilk test
+shapiro_test <- shapiro.test(ma_result_each_i1$SMD)
+# print(shapiro_test)
+
+shapiro_test <- shapiro.test(ma_result_each_i2$SMD)
+# print(shapiro_test)
+
+
+if (shapiro_test$p.value <= 0.05) {
+  print('The data is NOT normally distributed.')
+} else {
+  print('The data is normally distributed.')
+}
+
+
+control <- ma_result_each_i1$SMD
+experiment <- ma_result_each_i2$SMD
+
+##' 1. T-Test (for normally distributed continuous data)
+##' If your data is continuous and normally distributed, and you want to compare the means of two independent groups, you can use a two-sample t-test (also known as an independent t-test).
+##' var.equal = TRUE: Assumes equal variances between the two groups. Use var.equal = FALSE if variances are not assumed equal.
+##' Perform two-sample t-test
+# t_test_result <- t.test(control, experiment, var.equal = TRUE)
+# print(t_test_result)
+
+
+##' 2. Wilcoxon Rank-Sum Test (for non-normally distributed continuous data)
+##'   If your data is not normally distributed, you can use the Wilcoxon rank-sum test (also known as the Mann-Whitney U test) to compare the distributions of two independent groups.
+##' Perform Wilcoxon rank-sum test
+wilcox_test_result <- wilcox.test(control, experiment)
+print(wilcox_test_result)
+
+source('code/func_test_differences_among_means.R')
+func_test_dif(df = ma_result_each_i, value = 'SMD', group = 'subgroup', facet_by = 'ind_sub')
+
+
+fname <- paste0(dir.fig, 'es_comb_subgroup_', subgroup_select, '_TestDiff_', today, vv, '.png'); print(fname)
+func_ggsave(fname, w = 7, h = 6, save_png = T)
+```
+
+
+
+#### - plot_all
+```{r eval=FALSE, include=FALSE}
 
 ##' This chunk was used as an example or test code for the source code
 ##' 
