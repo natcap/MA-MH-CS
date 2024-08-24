@@ -14,9 +14,11 @@ library(stringr)
 func_clean_country <- function(data, column_name = "Country") {
   d <- data %>%
     dplyr::mutate(
+      !!column_name := str_squish(!!sym(column_name)),
       ## clean and correct country names
+      !!column_name := gsub('The United Kingdom', 'United Kingdom', !!sym(column_name)), 
       !!column_name := case_when(
-        str_detect(string = !!sym(column_name), pattern = 'Scotland|UK|England|United kingdom|The United Kingdom') ~ 'United Kingdom',
+        str_detect(string = !!sym(column_name), pattern = 'Scotland|UK|England|United kingdom') ~ 'United Kingdom',
         str_detect(string = !!sym(column_name), pattern = 'Indonasia') ~ 'Indonesia',
         str_detect(string = !!sym(column_name), pattern = 'Malasia') ~ 'Malaysia',
         str_detect(string = !!sym(column_name), pattern = 'The Netherlands') ~ 'Netherlands',
@@ -25,7 +27,7 @@ func_clean_country <- function(data, column_name = "Country") {
         str_detect(string = !!sym(column_name), pattern = 'Brasil') ~ 'Brazil',
         str_detect(string = !!sym(column_name), pattern = 'Chili') ~ 'Chile',
         str_detect(string = !!sym(column_name), pattern = 'Czech') ~ 'Czechia',
-        str_detect(string = !!sym(column_name), pattern = 'Virginia') ~ 'USA',
+        str_detect(string = !!sym(column_name), pattern = 'Virginia|United States') ~ 'USA',
         # 
         T ~ !!sym(column_name))
     ) %>%
