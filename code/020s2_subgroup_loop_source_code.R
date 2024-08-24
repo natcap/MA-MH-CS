@@ -27,7 +27,7 @@ p_all$subgroup <- factor(p_all$subgroup, levels = group_list)
 unique(p_all$subgroup)
 
 ##' to double check if there are more than one entries in the subgroup column 
-more_than_one_matches <-stringr::str_detect(pattern = ";|from window", string = unique(p_all$subgroup));
+more_than_one_matches <- stringr::str_detect(pattern = ";|from window", string = unique(p_all$subgroup));
 # Print the matching elements
 matching_elements <- unique(p_all$subgroup)[more_than_one_matches] %>% as.character()
 if( length(matching_elements) > 0) {

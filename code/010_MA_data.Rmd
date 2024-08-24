@@ -284,8 +284,28 @@ df_exp_l <- df_exp %>%
 ### stats
 
 ```{r stats for MS}
-print(paste(nrow(df), 'unique papers were included in data extraction.', sep = ' '))
+nrow(df) %>%
+  cat(., 'unique papers were included in data extraction.\n\n')
 
+
+## count number of countries in these included studies 
+df.c <- df %>%
+  dplyr::select(1:2, Country) %>%
+  expand_col_to_long(data = ., target_col = 'Country') %>%
+  func_clean_country(column_name = 'Country') %>%
+  as.data.frame()
+
+
+df.c %>%
+  group_by(Country) %>%
+  tally() %>% arrange(desc(n)) %>%
+  head() 
+
+# unique(df.c$Country) %>% sort()
+
+unique(df.c$Country) %>%
+  length() %>%
+  cat('\n\n', ., 'unique countries are incldued in the meta-analysis.')
 ```
 
 
