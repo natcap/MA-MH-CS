@@ -7,6 +7,10 @@ output: html_document
 
 ```{r include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+source("./code/_pkgs_dirs.R")
+library(tidyverse)
+
+vv <- ''
 ```
 
 
@@ -14,7 +18,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 dir   <- "./data/0005-covidence_export/Quality assessment/"
 
-csv <- "review_278532_20240820163423.csv"     
+csv <- "review_278532_20241001091213.csv"     
 
 
 t <- basename(csv) %>% gsub('review_278532_', '', .) %>%
@@ -46,9 +50,12 @@ qa <- func_add_reviewer_id_qa(data = q) %>%
 ## remove strings after ":" in the column names
 names(qa) <- sub(":.*", "", names(qa))
 
-qa_obs <- qa %>%
+qa_obs_data <- qa %>%
   dplyr::filter(!is.na(OBS1)) %>%
-  dplyr::select(1:OBS8) %>%
+  dplyr::select(1:OBS8) 
+  
+  
+qa_obs <- qa_obs_data %>%
   pivot_longer(cols = 5:ncol(.), names_to = 'Item') %>%
   dplyr::mutate(rate = case_when(
     value == 'Yes' ~ 'Low risk',
@@ -72,14 +79,20 @@ qa_obs <- qa %>%
   tally()
 
 
-qa_exp <- qa %>%
+qa_exp_data <- qa %>%
   dplyr::filter(is.na(OBS1)) %>%
   dplyr::select(-c(OBS1:OBS8), -date) %>%
+  dplyr::filter(!id %in% c('852'))
+
+qa_exp <- qa_exp_data %>%
   pivot_longer(cols = 5:ncol(.), names_to = 'Items') %>%
   dplyr::mutate(rate = gsub(' of bias', '', value),
                 rate = stringr::str_squish(rate)) %>%
   group_by(Items, rate) %>%
   tally()
+
+cat(nrow(qa_obs_data), 'unique observational papers were included in quality assessment.\n')
+cat(nrow(qa_exp_data), 'unique experimental  papers were included in quality assessment.\n')
 ```
 
 
@@ -107,6 +120,7 @@ func_plot_qa <- function(data) {
     geom_bar(position="fill", stat="identity") +
     geom_text(aes(label = Label), position = position_stack(vjust = 0.5), size =2) +
     scale_y_continuous(labels = scales::percent_format()) +
+    labs(fill='Risk of Bias') +
     coord_flip() +
     theme_minimal() +
     theme(axis.title = element_blank())  # Remove the x-axis title
