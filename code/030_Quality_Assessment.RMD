@@ -18,7 +18,7 @@ vv <- ''
 ```{r}
 dir   <- "./data/0005-covidence_export/Quality assessment/"
 
-csv <- "review_278532_20241001091213.csv"     
+csv <- "review_278532_20241002083452.csv"     
 
 
 t <- basename(csv) %>% gsub('review_278532_', '', .) %>%
@@ -95,6 +95,79 @@ cat(nrow(qa_obs_data), 'unique observational papers were included in quality ass
 cat(nrow(qa_exp_data), 'unique experimental  papers were included in quality assessment.\n')
 ```
 
+```{r - study design}
+
+library(googlesheets4)
+link <- 'https://docs.google.com/spreadsheets/d/1MZlUT5USAyydOE4CJQma3ZrmsYTwryUV3DbW5nZxL84/edit?usp=sharing'
+
+### matching doc
+gs <- googlesheets4::read_sheet(link, sheet = 'paperID_byTopTools', skip = 1) 
+
+gs_stat <- gs %>%
+  dplyr::filter(!exclude %in% c('yes')) %>%
+  dplyr::distinct(id, .keep_all = T) %>%
+  as.data.frame()
+
+
+gs_exp <- gs_stat %>%
+  dplyr::filter(!`study design` %in% c('Cross sectional study', 'Observational')) %>%
+  dplyr::filter(str_detect(`study design`, 'Longitudinal', negate = T)) %>%
+  dplyr::mutate(`study design` = gsub(' - crossover', '', `study design`))
+
+d <- gs_exp %>%
+  group_by(`study design`) %>%
+  tally() %>%
+  dplyr::mutate(perc = `n` / sum(`n`)) %>% 
+  arrange(perc) %>%
+  dplyr::mutate(labels = scales::percent(perc))
+
+p1 <- d %>%
+  ggplot(aes(x = reorder(`study design`, perc), y = n)) + 
+  geom_col() +
+  geom_text(aes(label = n), vjust = 0.5, hjust = -.3) +
+  xlab('')+
+  coord_flip()
+# p1
+
+library(scales)
+library(ggrepel)
+
+
+d2 <- d %>%
+  dplyr::mutate(csum = rev(cumsum(rev(n))), 
+         pos = n/2 + lead(csum, 1),
+         pos = if_else(is.na(pos), n/2, pos)) %>%
+  as.data.frame()
+
+
+p2 <- d %>%
+  ggplot(data= ., aes(x="", y=n, fill=`study design`)) +
+  geom_col() +
+  
+  geom_text(aes(label = labels), 
+            position = position_stack(vjust = 0.5),
+            size=3) +
+  # geom_label(aes(label = labels),
+  #            # size = 3,
+  #            position = position_stack(vjust = 0.5), 
+  #            label.size = NA,  fill = alpha("white", 0.1),
+  #            show.legend = FALSE) +
+  
+  # geom_label_repel(data = d2,
+  #                  aes(y = pos, label = labels),
+  #                  label.size = NA,  fill = alpha("white", 0.1),
+  #                  size = 4.5, nudge_x = 1, show.legend = FALSE) +
+  guides(fill = guide_legend(title = "Group")) +
+  coord_polar("y") +
+  theme_void() 
+# p2  
+
+
+ggpubr::ggarrange(p1, p2, nrow = 2, labels = 'auto')
+
+f <- paste0(dir.fig, 'qa_byDesign_', today, vv, '.png'); print(f)
+ggsave(filename = f, width = 7, height = 4, units = 'in', dpi = 300)
+```
 
 
 
