@@ -88,6 +88,9 @@ d2 <- d %>%
   as.data.frame()
 
 
+# library(RColorBrewer)
+# display.brewer.all(colorblindFriendly = TRUE)
+
 p2 <- d %>%
   ggplot(data= ., aes(x="", y=n, fill=`study design`)) +
   geom_col() +
@@ -107,6 +110,7 @@ p2 <- d %>%
   #                  size = 4.5, nudge_x = 1, show.legend = FALSE) +
   guides(fill = guide_legend(title = "Group")) +
   coord_polar("y") +
+  scale_fill_brewer(palette = "Set2") +
   theme_void() 
 # p2  
 
