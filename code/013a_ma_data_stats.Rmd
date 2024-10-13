@@ -1,0 +1,148 @@
+---
+title: "Untitled"
+author: "Yingjie"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+
+# Data
+
+```{r message=TRUE, warning=TRUE}
+
+### To clear your environment
+remove(list = ls())
+
+## Load common packages
+source("./code/_pkgs_dirs.R")
+
+library(data.table)
+```
+
+
+## load data
+
+```{r}
+mh_tool_exp <- c('PANAS', 'POMS', 'ROS', 'STAI', 'SVS', 'PSS') # , 'DASS-21'
+mh_tool_exp <- c('PANAS', 'POMS', 'ROS', 'STAI', 'SVS', 'PSS', 'DASS-21')
+mh_tool_list <- mh_tool_exp
+
+
+## 1. based on csv ----
+ls <- list.files(path = './data/0301-MA-input/', 
+           pattern = paste('^sub_', mh_tool_list, '_cleaned.csv', sep = '', collapse = '|'),
+           full.names = T)
+
+# Read and combine CSV files using fread for efficiency
+list_df <- lapply(ls, fread)
+
+# Bind all data frames together
+n_dfs1 <- rbindlist(list_df) %>%
+  dplyr::select(1:Tools, study_design, n_participants, N, n)
+
+n_dfs1_unique <- n_dfs1 %>% dplyr::distinct(id, .keep_all = T)
+
+
+## 2. based on Rdata ----
+ls <- list.files(path = './data/0301-MA-input/', 
+           pattern = paste('^sub_', mh_tool_list, '.rds', sep = '', collapse = '|'),
+           full.names = T)
+ls
+# Read and combine CSV files using fread for efficiency
+list_df <- lapply(ls, readRDS)
+
+# Bind all data frames together
+n_dfs2 <- rbindlist(list_df) %>%
+  dplyr::select(1:Tools, study_design, n_participants) %>%
+  dplyr::mutate(n_participants = str_squish(n_participants) %>% trimws(.) %>% as.numeric(.))
+
+n_dfs2_unique <- n_dfs2 %>% dplyr::distinct(id, .keep_all = T)
+
+
+
+
+## 3. select one as the input for next step 
+n_dfs <- n_dfs2
+
+```
+
+
+## load data with design labels
+
+```{r}
+##' label each study "obs" or "exp" based on the most updated quality assessment data
+f <- paste0(dir.output, 'qa_exp_data.csv')
+qa_exp <- read_csv(f, show_col_types = FALSE) %>%
+  dplyr::mutate(id = gsub('#', '', id))
+  
+f <- paste0(dir.output, 'qa_obs_data.csv')
+qa_obs <- read_csv(f, show_col_types = FALSE) %>%
+  dplyr::mutate(id = gsub('#', '', id))
+
+```
+
+
+## pre-cleanning
+
+```{r}
+n_df <- n_dfs %>%
+  dplyr::mutate(design_new = case_when(
+    id %in% unique(qa_exp$id) ~ 'exp',
+    id %in% unique(qa_obs$id) ~ 'obs',
+    T ~ NA
+  )) %>%
+  
+  ## further enrich the design label 
+  dplyr::mutate(design_new = case_when(
+    is.na(design_new) & study_design %in% c('RCT', 'Non-randomised experimental study') ~ 'exp',
+    is.na(design_new) & study_design %in% c('Cross sectional study', 'Longitudinal cohort study') ~ 'obs',
+    T ~ design_new
+  ))
+
+## check the total # of NA in each column 
+colSums(is.na(n_df))
+
+
+n_df_unique <- n_df %>%
+  dplyr::distinct(id, .keep_all = T)
+
+
+n_df_unique_exp <- n_df_unique %>%
+  dplyr::filter(design_new == 'exp')
+
+
+## double-check the rows without label ---------------------------------------------------
+a <- unique(n_df_unique_exp$id)
+b <- unique(qa_exp$id)
+setdiff(x = a, y = b)
+setdiff(x = b, y = a)
+rows_duplicate <- union(setdiff(a,b), setdiff(b,a))
+
+##' Some of the following are using tools, such as PRS, DASS, for SF
+##' "19"   "171"  "493"  "574"  "734"  
+##' "854"   ## POMS, view from window
+##' "2030" 
+##' "2186"  ## PANAS, waiting for author to confirm the data
+##' "2295" 
+##' "2315"  ## PANAS, interactive exposure
+##' "2815"  ## ROS, data extraction error, revised by YL
+##' "2934" "3327" "3334" 
+##' "6523"  ## manually excluded in '010_MA_data'
+```
+
+
+# Summary of stats
+
+```{r}
+## 
+cat('\n For all extracted data: \n')
+summary(n_df_unique$n_participants)
+sum(n_df_unique$n_participants, na.rm = T)
+
+
+cat('\n For experimental data only: \n')
+summary(n_df_unique_exp$n_participants)
+sum(n_df_unique_exp$n_participants, na.rm = T)
+
+```
+
