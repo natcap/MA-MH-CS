@@ -13,15 +13,7 @@ output:
 # To clear your environment
 remove(list = ls())
 
-Sys.setenv(LANG = "en")
-
 ## Load directories
-# knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
-# getwd()
-# setwd(dirname(getwd()))
-
-## Load common packages
-getwd()
 source("./code/_pkgs_dirs.R")
 dir.raw   <- "./data/0005-covidence_export/data extraction/"
 dir_share <- 'G:/Shared drives/Urban nature-health/projects/meta-analysis/figures/'
@@ -33,7 +25,6 @@ library(tidyverse)
 library(splitstackshape) ## `cSplit()`
 library(Hmisc)
 library(rworldmap)
-today <- format(Sys.time(), "%Y%m%d"); today ## "%Y%m%d%H%M"
 
 
 save_plot <- F

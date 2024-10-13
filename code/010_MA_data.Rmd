@@ -14,17 +14,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ### To clear your environment
-remove(list = ls())
+# remove(list = ls())
 
-Sys.setenv(LANG = "en")
-
-## Load directories
-knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
-getwd()
-dir.root <- dirname(getwd())
-# setwd(dir.root)
-
-getwd()
 
 ## Load common packages
 source("./code/_pkgs_dirs.R")
@@ -48,8 +39,6 @@ library(ggpubr)
 library(meta)
 library(metafor)
 
-
-today <- format(Sys.time(), "%Y%m%d"); today ## "%Y%m%d%H%M"
 ```
 
 
@@ -85,8 +74,8 @@ fs <- list.files(path = "./data/0301-MA-input/", pattern = '^df_covidenceFull', 
 f1 <- fs[(length(fs)-2)]; f1
 
 ##' select the gsheet data file
-f2o1 <- fs[(length(fs)-1)]; f2o1
-f2o2 <- fs[(length(fs)-0)]; f2o2
+f2o1 <- fs[(length(fs)-1)]; f2o1;
+f2o2 <- fs[(length(fs)-0)]; f2o2;
 
 df_1 <- readRDS(file = f1) 
 
@@ -180,7 +169,6 @@ df <- df_1 %>%
   func_cell_mean(df = ., column_name = 'male_percent', sep = ';') %>%
   func_cell_mean(df = ., column_name = 'average_age', sep = ';') %>%
   dplyr::mutate(
-    
     gender_group = case_when(
       is.na(male_percent_mean) ~ NA,
       male_percent_mean < 40 ~ "Female > 60%",
@@ -284,10 +272,26 @@ df_exp_l <- df_exp %>%
 ### stats
 
 ```{r stats for MS}
+
 nrow(df) %>%
   cat(., 'unique papers were included in data extraction.\n\n')
 
 
+##' n_participants -----------------------------------------------------------------------
+df.n <- df %>%
+  dplyr::select(1:2, n_participants) %>%
+  expand_col_to_long(data = ., target_col = 'n_participants') %>%
+  dplyr::mutate(n_participants = as.numeric(n_participants)) %>%
+  as.data.frame()
+
+summary(df.n$n_participants)
+sum(df.n$n_participants, na.rm = T)
+
+
+
+
+##' Country coverage ---------------------------------------------------------------------
+##' 
 ## count number of countries in these included studies 
 df.c <- df %>%
   dplyr::select(1:2, Country) %>%
@@ -296,6 +300,7 @@ df.c <- df %>%
   as.data.frame()
 
 
+## rank countries by # of papers
 df.c %>%
   group_by(Country) %>%
   tally() %>% arrange(desc(n)) %>%
@@ -584,7 +589,7 @@ func_alluvial(data = df_q_ndvi_, indicator_n_min = indicator_n_min, width_my = w
 
 ### * Coefficient-based outcomes ---
 
-```{r}
+```{r - function}
 tool_selected
 
 
@@ -1021,12 +1026,12 @@ mh_tool_exp <- c('PANAS', 'POMS', 'ROS', 'STAI', 'SVS', 'PSS', 'DASS-21');  desi
 ```{r - 1. batch one}
 ##' 1. Choose one as input --------------------------------
 ##'   `mh_tool`, `exposure_type_i`, `effect_size_ind_i`, `exp_sub_df`
-f <- paste0('./data/0301-MA-input/', 'sub_', mh_tool, '.RData'); f
+fi <- paste0('./data/0301-MA-input/', 'sub_', mh_tool, '.RData'); fi
 
-load(f)
+load(fi)
 source('./code/010s1_loop_format_data.R')
-f.c <- gsub('.rds|.RData', '_cleaned.csv', f); f.c
-readr::write_csv(x = exp_sub_mods_print, file = f.c)
+fi.c <- gsub('.rds|.RData', '_cleaned.csv', fi); fi.c
+readr::write_csv(x = exp_sub_mods_print, file = fi.c)
 ```
 
 
@@ -1035,14 +1040,14 @@ readr::write_csv(x = exp_sub_mods_print, file = f.c)
 ##' 
 fs <- list.files(path = './data/0301-MA-input/', pattern = '^sub_.*.RData', full.names = T) %>% sort()
 fs
-for (f in fs) {
+for (fi in fs) {
   print(basename(f))
   # exp_sub_df <- readRDS(f)
-  load(f)
+  load(fi)
   ##
   source('./code/010s1_loop_format_data.R')
-  f.c <- gsub('.rds|.RData', '_cleaned.csv', f); f.c
-  readr::write_csv(x = exp_sub_mods_print, file = f.c)
+  fi.c <- gsub('.rds|.RData', '_cleaned.csv', fi); fi.c
+  readr::write_csv(x = exp_sub_mods_print, file = fi.c)
 }
 
 ```
