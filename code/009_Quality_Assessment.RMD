@@ -7,6 +7,12 @@ output: html_document
 
 ```{r include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+
+### To clear your environment
+remove(list = ls())
+
+
 source("./code/_pkgs_dirs.R")
 library(tidyverse)
 
@@ -19,7 +25,7 @@ vv <- ''
 ```{r}
 dir   <- "./data/0005-covidence_export/Quality assessment/"
 
-csv <- "review_278532_20241004083620.csv"     
+csv <- "review_278532_20241012170155.csv"     
 
 
 t <- basename(csv) %>% gsub('review_278532_', '', .) %>%
@@ -42,34 +48,50 @@ q <- readr::read_csv(file = paste0(dir, csv), show_col_types = F) %>%
 
 
 ```{r - study design}
-
 library(googlesheets4)
 link <- 'https://docs.google.com/spreadsheets/d/1MZlUT5USAyydOE4CJQma3ZrmsYTwryUV3DbW5nZxL84/edit?usp=sharing'
 
 ### matching doc
 gs <- googlesheets4::read_sheet(link, sheet = 'paperID_byTopTools', skip = 1) 
 
-gs_stat <- gs %>%
+gs_all <- gs %>%
   dplyr::filter(!exclude %in% c('yes')) %>%
   dplyr::distinct(id, .keep_all = T) %>%
+  dplyr::mutate(`study design` = gsub(' - crossover|-crossover', '', `study design`)) %>%
   as.data.frame()
 
 
-gs_exp <- gs_stat %>%
+gs_exp <- gs_all %>%
   dplyr::filter(!`study design` %in% c('Cross sectional study', 'Observational')) %>%
-  dplyr::filter(str_detect(`study design`, 'Longitudinal', negate = T)) %>%
-  dplyr::mutate(`study design` = gsub(' - crossover|-crossover', '', `study design`))
+  dplyr::filter(str_detect(`study design`, 'Longitudinal', negate = T)) 
+
+
+cat('\n\n There are \n\t', nrow(gs_all), 'included studies (obs + exp), and \n\t',
+    nrow(gs_exp), 'exp studies')
+```
+
+
+
+```{r - study design - viz}
+
+library(scales)
+library(ggrepel)
+
+
+# library(RColorBrewer)
+# display.brewer.all(colorblindFriendly = TRUE)
 
 
 ## plot the stats of different study design
-d <- gs_exp %>%
+gs_all_stat <- gs_all %>%
   group_by(`study design`) %>%
   tally() %>%
   dplyr::mutate(perc = `n` / sum(`n`)) %>% 
   arrange(perc) %>%
   dplyr::mutate(labels = scales::percent(perc))
 
-p1 <- d %>%
+
+p1 <- gs_all_stat %>%
   ggplot(aes(x = reorder(`study design`, perc), y = n)) + 
   geom_col() +
   geom_text(aes(label = n), vjust = 0.5, hjust = -.3) +
@@ -77,21 +99,57 @@ p1 <- d %>%
   coord_flip()
 # p1
 
-library(scales)
-library(ggrepel)
 
 
-d2 <- d %>%
-  dplyr::mutate(csum = rev(cumsum(rev(n))), 
-         pos = n/2 + lead(csum, 1),
-         pos = if_else(is.na(pos), n/2, pos)) %>%
-  as.data.frame()
+p2 <- gs_all_stat %>%
+  ggplot(data= ., aes(x="", y=n, fill=`study design`)) +
+  geom_col() +
+  
+  geom_text(aes(label = labels), 
+            position = position_stack(vjust = 0.5),
+            size=3) +
+  guides(fill = guide_legend(title = "Group")) +
+  coord_polar("y") +
+  scale_fill_brewer(palette = "Set2") +
+  theme_void() 
+# p2  
 
 
-# library(RColorBrewer)
-# display.brewer.all(colorblindFriendly = TRUE)
+ggpubr::ggarrange(p1, p2, nrow = 2, labels = 'auto')
 
-p2 <- d %>%
+f <- paste0(dir.fig, 'qa_byDesign_both_', today, vv, '.png'); print(f)
+ggsave(filename = f, width = 7, height = 4, units = 'in', dpi = 300)
+```
+
+
+
+
+```{r - study design - viz exp}
+## plot the stats of different study design
+gs_exp_stat <- gs_exp %>%
+  group_by(`study design`) %>%
+  tally() %>%
+  dplyr::mutate(perc = `n` / sum(`n`)) %>% 
+  arrange(perc) %>%
+  dplyr::mutate(labels = scales::percent(perc))
+
+# d2 <- gs_exp_stat %>%
+#   dplyr::mutate(csum = rev(cumsum(rev(n))), 
+#          pos = n/2 + lead(csum, 1),
+#          pos = if_else(is.na(pos), n/2, pos)) %>%
+#   as.data.frame()
+
+
+p1 <- gs_exp_stat %>%
+  ggplot(aes(x = reorder(`study design`, perc), y = n)) + 
+  geom_col() +
+  geom_text(aes(label = n), vjust = 0.5, hjust = -.3) +
+  xlab('')+
+  coord_flip()
+# p1
+
+
+p2 <- gs_exp_stat %>%
   ggplot(data= ., aes(x="", y=n, fill=`study design`)) +
   geom_col() +
   
@@ -117,7 +175,7 @@ p2 <- d %>%
 
 ggpubr::ggarrange(p1, p2, nrow = 2, labels = 'auto')
 
-f <- paste0(dir.fig, 'qa_byDesign_', today, vv, '.png'); print(f)
+f <- paste0(dir.fig, 'qa_byDesign_exp_', today, vv, '.png'); print(f)
 ggsave(filename = f, width = 7, height = 4, units = 'in', dpi = 300)
 ```
 
@@ -187,8 +245,16 @@ qa_exp <- qa_exp_data %>%
   group_by(Items, rate) %>%
   tally()
 
-cat(nrow(qa_obs_data), 'unique observational papers were included in quality assessment.\n')
-cat(nrow(qa_exp_data), 'unique experimental  papers were included in quality assessment.\n')
+cat(nrow(qa_obs_data), 'unique observational papers were included in quality assessment.\n') # 50
+cat(nrow(qa_exp_data), 'unique experimental  papers were included in quality assessment.\n') # 84
+
+
+## save data
+f <- paste0(dir.output, 'qa_exp_data.csv')
+readr::write_csv(x = qa_exp_data, file = f)
+  
+f <- paste0(dir.output, 'qa_obs_data.csv')
+readr::write_csv(x = qa_obs_data, file = f)
 ```
 
 
@@ -242,7 +308,7 @@ ggsave(filename = f, width = 7, height = 4, units = 'in', dpi = 300)
 
 
 
-```{r - data - RCT}
+```{r - data - RCT, fig.height=2, fig.width=7}
 gs_rct <- gs_exp %>%
   dplyr::filter(`study design` == 'RCT')
 
@@ -250,7 +316,7 @@ qa_rct_data <- qa_exp_data %>%
   dplyr::filter(id %in% unique(gs_rct$id))
 
 ## save data 
-f <- paste0(dir, 'qa_rct_data_', today, '.xlsx'); f
+f <- paste0(dir.output, 'qa_rct_data_', today, '.xlsx'); f
 writexl::write_xlsx(x = qa_rct_data, path = f)
 
 ## to check if some studies have not been assessed
