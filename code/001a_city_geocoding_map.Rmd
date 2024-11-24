@@ -82,6 +82,27 @@ df_addr <- reg_city %>%
   ## test
   # dplyr::slice(1:10) %>%
   expand_col_to_long(data = ., target_col = "City", sep_list = ';') %>%
+  dplyr::mutate(
+    City = gsub('Hongkong', 'Hong Kong', City),
+    City = gsub('Taipei City', 'Taipei', City),
+    City = gsub("Ya’an", "Ya'an", City),
+    Country = trimws(Country),
+    ) %>%
+  dplyr::mutate(
+    Country = case_when(
+      City == 'Taipei' & Country != 'Taiwan' ~ 'China', 
+      City == 'Barcelona' & Country != 'Spain' ~ 'Spain', 
+      City == 'Doetinchem' & Country != 'The Netherlands' ~ 'The Netherlands', 
+      City == 'Kaunas' & Country != 'Lithuania' ~ 'Lithuania', 
+      City == 'Seoul' & Country != 'South Korea' ~ 'South Korea', 
+      City == 'Stoke-on-Trent' & Country != 'UK' ~ 'UK', 
+      T ~ Country)) %>%
+  dplyr::mutate(
+    City = case_when(
+      City %in% c('Not sure', 'NA', 'Na') ~ NA, 
+      City == 'Taiwan' & Country == 'China' ~ 'Taipei, Taiwan', 
+      City %in% c('Taipei', 'Taiwan') & Country %in% c('Taiwan', 'China') ~ 'Taipei, Taiwan', 
+      T ~ City) ) %>%
   as.data.frame()
 
 
@@ -117,6 +138,10 @@ geocode1 <- df_addr %>%
 df_addr2 <- geocode1 %>%
   dplyr::filter(is.na(lat)|is.na(lon)) %>%
   dplyr::select(1:ncol(df_addr)) %>%
+  dplyr::mutate(
+    City = case_when(
+      City %in% c('Not sure', 'NA', 'Na') ~ NA, 
+      T ~ City) ) %>%
   ## remove cities that are NA
   dplyr::filter(!is.na(City)) %>%
   dplyr::mutate(addr = paste0(City, ', ', Country))
