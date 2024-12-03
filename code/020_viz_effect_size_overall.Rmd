@@ -26,7 +26,8 @@ source('./code/func_plot_ma.R')
 
 
 ##' an extra post fix for figure's version control
-# vv <- "v5"
+vv <- ""
+# vv <- "vPr" ## simplified figure version for presentation
 ```
 
 
@@ -37,14 +38,13 @@ source('./code/func_plot_ma.R')
 ## select a few easy-to-understand indicator for IALE presentation 
 ind_for_presentation <- 
   c("Anxiety", "Depression", 
-    # "Stress", 
+    "Stress",
     "Restorative Effect", "Vigor")
 
 nature_type_remove_for_presentation <- 
   c("Greenspace",
     "Greenspace - Garden",
-    "Greenspace - Green alley/Roadside green", 
-    "Greenspace - Green roof/wall")
+    "Greenspace - Street trees")
 ```
 
 
@@ -111,8 +111,14 @@ writexl::write_xlsx(x = ma_result_all, path = './data/0302-MA-output/ma_result_a
 
 
 ## pool all data together 
-data <- ma_result_all %>%
-  # dplyr::filter(ind_sub %in% ind_for_presentation) %>%
+if(vv == "vPr") {
+  data <- ma_result_all %>%
+    dplyr::filter(ind_sub %in% ind_for_presentation) ## for IALE presentation
+} else {
+  data <- ma_result_all 
+}
+
+data <- data %>%
   dplyr::filter(subgroup == 'Overall') 
 x_limit_max <- max(abs(data$es.lower), abs(data$es.upper), na.rm = T) * 1.2
 x_limit_max
@@ -122,7 +128,6 @@ p <- data %>%
                            color_var = 'tool', 
                            text_size = 11,
                            show_legend = T) +
-  annotate("segment", x = -x_limit_max, xend = x_limit_max, y = 4.5, colour = "gray70", size = 0.5) +
   theme(legend.position = c(0.85, 0.85),
         # legend.spacing.y = unit(0, 'cm'),
         legend.spacing.x = unit(0.2, 'cm'),
@@ -143,12 +148,26 @@ if(design == 'obs_exp') {
   p <- p
 }
 
-p
 
 n_ind <- length(unique(data$ind_sub)); 
 
+
+## parameters for presentation figure
+if(vv == "vPr") {
+  ## 
+  p <- p +
+    annotate("segment", x = -x_limit_max, xend = x_limit_max, y = 2.5, colour = "gray70", size = 0.5)
+  hh <- 5.5/2/6*n_ind + 1
+} else {
+  ## add hline to seperate postive vs negative indicators
+  p <- p +
+    annotate("segment", x = -x_limit_max, xend = x_limit_max, y = 4.5, colour = "gray70", size = 0.5)
+  hh <- 5.5/2/6*n_ind
+}
+
+p
 fname <- paste0(dir.fig, 'es_comb_', design, '_', today, vv, '.png'); fname
-func_ggsave(fname, w = 6, h = 5.5/2/6*n_ind, dpi = 500, save_png = T)
+func_ggsave(fname, w = 6, h = hh, dpi = 500, save_png = T)
 ```
 
 
@@ -283,11 +302,25 @@ if ( length(missing_indicators) > 0) {
 ##'   if # of indicators >= 12, ncol = 5
 facet_ncol <- ifelse(length(ind_sub_levels) < 12, 4, 5)
 
+if(vv == "vPr") {
+  ind_sub_levels <- c("Anxiety", "Restorative Effect", "Depression", "Vigor")
+  facet_ncol <- 2
+  
+  data <- ma_result_all %>%
+    dplyr::filter(ind_sub %in% ind_sub_levels) %>% ## for IALE presentation
+    dplyr::filter(!subgroup %in% nature_type_remove_for_presentation) %>%
+    dplyr::filter(!tool %in% c('STAI'))
+  
+  
+} else {
+  data <- ma_result_all 
+}
+
 
 for (subgroup_select in subgroups) {
   
   ## subset data
-  ma_result_all_sub <- ma_result_all %>%
+  ma_result_all_sub <- data %>%
     dplyr::filter(subgroup != 'Overall', 
                   group_name == subgroup_select) %>%
     dplyr::filter(ind_sub %in% ind_sub_levels)
