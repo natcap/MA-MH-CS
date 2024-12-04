@@ -10,7 +10,8 @@ library(cowplot)
 today <- format(Sys.time(), "%Y%m%d"); today ## "%Y%m%d%H%M"
 
 ## Data dirs
-dir.fig <- "./figures/"
+dir.fig    <- "./figures/"
+dir.output <- './data/0302-MA-output/'
 
 ## load functions
 source('./code/func_expand_col_to_long.R')

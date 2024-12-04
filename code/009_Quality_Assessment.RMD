@@ -51,6 +51,9 @@ q <- readr::read_csv(file = paste0(dir, csv), show_col_types = F) %>%
 library(googlesheets4)
 link <- 'https://docs.google.com/spreadsheets/d/1MZlUT5USAyydOE4CJQma3ZrmsYTwryUV3DbW5nZxL84/edit?usp=sharing'
 
+# # Re-authenticate with the correct scope
+# gs4_auth(scopes = "https://www.googleapis.com/auth/spreadsheets")
+
 ### matching doc
 gs <- googlesheets4::read_sheet(link, sheet = 'paperID_byTopTools', skip = 1) 
 
