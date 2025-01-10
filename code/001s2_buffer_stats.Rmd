@@ -67,7 +67,9 @@ df_bf_ <- df_bf %>%
       T ~ buffer_unit), 
     
     ## clean `unit` format
-    unit = gsub('Kilometers|\\(|\\)', 'km', unit),
+    ## Remove parentheses and text within
+    unit = gsub("\\s*\\([^\\)]+\\)", '', unit),
+    unit = gsub('Kilometers', 'km', unit),
     unit = gsub('Meters', 'm', unit),
     unit = trimws(unit),
     
@@ -80,6 +82,7 @@ df_bf_ <- df_bf %>%
     )
   
   ) %>%
+  dplyr::filter(buf_m > 0, buf_m < 10000) %>%
   as.data.frame()
 
 unique(df_bf_$unit)
@@ -88,22 +91,28 @@ n_study <- nrow(df_bf_)
 
 p1 <- df_bf_ %>%
   ggplot(aes(x = buf_m)) +
-  geom_histogram(binwidth = 200, color = "black", fill = "lightblue", alpha = 0.7) +
-  scale_x_continuous(breaks = seq(0, max(df_bf_$buf_m, na.rm = T), 1000)) + 
+  geom_histogram(binwidth = 100, color = "black", fill = "lightblue", alpha = 0.7, boundary = 0) +
+  scale_x_continuous(breaks = seq(0, max(df_bf_$buf_m, na.rm = T), 500)) + 
   theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   labs(title = paste0("Commonly used buffer size in ", n_paper, ' papers (', n_study, ' studies)'), 
        x = "Buffer (m)", y = "Frequency")
 
 buf_m_upper <- 5000
 
-p2 <- df_bf_ %>%
-  dplyr::filter(buf_m <= buf_m_upper) %>%
+df_bf_zomm <- df_bf_ %>%
+  dplyr::filter(buf_m <= buf_m_upper) 
+
+p2 <- df_bf_zomm %>%
   ggplot(aes(x = buf_m)) +
-  geom_histogram(binwidth = 100, color = "black", fill = "lightblue", alpha = 0.7) +
-  scale_x_continuous(breaks = seq(0, buf_m_upper, 200)) + 
-  
+  geom_histogram(binwidth = 100, color = "black", fill = "lightblue", alpha = 0.7, boundary = 0) +
+  # scale_x_continuous(breaks = seq(0, buf_m_upper, 200)) +
+  scale_x_continuous(
+    breaks = seq(0, max(df_bf_zomm$buf_m, na.rm = T), by = 100),  # Bin edges as breaks
+    labels = seq(0, max(df_bf_zomm$buf_m, na.rm = T), by = 100)  # Same for labels
+  ) +
   theme_classic() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=0.5)) +
   labs(title = paste0('When narrowed down to the 0 - 10 km range ...'), 
        x = "Buffer (m)", y = "Frequency")
 
