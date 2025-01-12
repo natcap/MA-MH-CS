@@ -36,17 +36,38 @@ output: html_document
 
 ```{r}
 ## 
-exp_sub_mods_cor <- exp_sub_mods_coef %>%
+mh_tool_obs <- c('GHQ-12', 'SF-12', 'SF-36', 'WEMWBS', 'WHO-5', 'PSS'); design <- 'obs'
+
+
+# Add wildcard after each element and collapse into a single regex pattern
+pattern <- paste("sub_(", paste(paste0(mh_tool_obs, ".*"), collapse = "|"), ")_cleaned.csv$", sep = "")
+files  <- list.files(path = dir.input, pattern = pattern, full.names = T) %>% unique() %>% sort()
+# Exclude files containing "PSS_cleaned"
+filtered_files <- grep("PSS_cleaned", files, invert = TRUE, value = TRUE)
+filtered_files
+
+
+## Read and combine all filtered files into a single data frame
+library(data.table)  # For fread()
+data_obs_combined <- do.call(rbind, lapply(filtered_files, function(file) {
+  fread(file)  # Replace fread() with read.csv() or read.delim() if needed
+}))
+
+
+unique(data_obs_combined$MH_tool_o1)
+
+data_obs_cor <- data_obs_combined %>%
   dplyr::filter(!is.na(mean)) %>%
-  dplyr::filter(MH_tool_o1 %in% mh_tool) %>%
-  dplyr::filter(mean <=1 & mean >=-0.6) %>% ## ???
+  dplyr::filter(MH_tool_o1 %in% mh_tool_obs) %>%
+  # dplyr::filter(mean <=1 & mean >=-0.6) %>% ## ???
   # dplyr::mutate() %>%
   dplyr::mutate(
       nature_type_o1 = case_when(
-        str_to_sentence(nature_type_o1) %in% c("Other natural space/element", "Public natural spaces") ~ "Greenspace", T ~ nature_type_o1)) %>%
+        str_to_sentence(nature_type_o1) %in% c("Other natural space/element", "Public natural spaces") ~ "Greenspace", 
+        T ~ nature_type_o1)) %>%
   as.data.frame()
 
-MH_tool_o1_list <- unique(exp_sub_mods_cor$MH_tool_o1); MH_tool_o1_list
+MH_tool_o1_list <- unique(data_obs_cor$MH_tool_o1); MH_tool_o1_list
 ```
 
 
@@ -71,7 +92,7 @@ MH_tool_o1_list <- unique(exp_sub_mods_cor$MH_tool_o1); MH_tool_o1_list
       
 ```{r - use `meta`}
 m.cor <- meta::metacor(
-  data = exp_sub_mods_cor,
+  data = data_obs_cor,
   cor = mean, 
   n = n,
   studlab = study_label,
@@ -90,7 +111,7 @@ summary(m.cor)
 # load the metafor package
 library(metafor)
 
-dat <- metafor::escalc(data=exp_sub_mods_cor, measure="ZCOR", ri=mean, ni=n)
+dat <- metafor::escalc(data=data_obs_cor, measure="ZCOR", ri=mean, ni=n)
 study_label <- paste(dat$id, dat$model_id, sep = '_')
 
 
@@ -122,7 +143,7 @@ predict(res, transf=transf.ztor) ## ztor: z to r
 
 ```{r - forest - meta}
 width_forestPlot = 40
-height_cm <- nrow(exp_sub_mods_cor)/1.1
+height_cm <- nrow(data_obs_cor)/1.1
 
 f <- paste0('./figures/', 'forest_cor/', paste(MH_tool_o1_list, collapse = "_"), '_all_', today, '_meta.png'); f
 png(filename = f, 
@@ -278,7 +299,7 @@ for (subgroup_select in subgroups) {
   
   print(subgroup_select)
   
-  ma_cor_data <- exp_sub_mods_cor %>%
+  ma_cor_data <- data_obs_cor %>%
     dplyr::filter(!is.na(exposure_o1)) %>%
     dplyr::mutate(subgroup_selected = !!sym(subgroup_select)) 
   

@@ -633,8 +633,13 @@ func_exp_subset <- function(df, exposure_type_i, mh_tool) {
 ```{r}
 mh_tool           <- "GHQ-12"
 
+##' filter exposure types based on this broader category
+##' It is likely this does not cover all the list in papers
+unique(df_exp_l$exposure_type)
+# unique(df_exp_l$exposure_type_t1)
 # exposure_type_i   <- 'L1 - neighborhood/residential exposure'
 exposure_type_i   <- c('Residential')
+
 effect_size_ind_i <- c('coef')
   
 
@@ -669,12 +674,6 @@ readr::write_csv(x = exp_sub_df, file = f)
 ```{r}
 mh_tool <- c("SF-12", "SF-36")
 
-##' filter exposure types based on this broader category
-##' It is likely this does not cover all the list in papers
-unique(df_exp_l$exposure_type)
-exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
-effect_size_ind_i <- c('coef')
-  
 
 ## test 
 df_test <- df %>%
@@ -701,12 +700,6 @@ saveRDS(exp_sub_df, file = f)
 ```{r}
 mh_tool <- c('WEMWBS')
 
-##' filter exposure types based on this broader category
-##' It is likely this does not cover all the list in papers
-unique(df_exp_l$exposure_type)
-exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
-effect_size_ind_i <- c('coef')
-  
 
 ## test 
 df_test <- df %>%
@@ -729,12 +722,6 @@ saveRDS(exp_sub_df, file = f)
 ```{r}
 mh_tool <- c('WHO-5')
 
-##' filter exposure types based on this broader category
-##' It is likely this does not cover all the list in papers
-unique(df_exp_l$exposure_type)
-exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
-effect_size_ind_i <- c('coef')
-  
 
 ## test 
 df_test <- df %>%
@@ -759,12 +746,6 @@ saveRDS(exp_sub_df, file = f)
 ```{r}
 mh_tool <- c('PSS')
 
-##' filter exposure types based on this broader category
-##' It is likely this does not cover all the list in papers
-unique(df_exp_l$exposure_type)
-exposure_type_i   <- c('Residential', 'In nature - Static', 'In nature - PA')
-effect_size_ind_i <- c('coef')
-  
 
 ## test 
 df_test <- df %>%
@@ -1011,7 +992,7 @@ We need to put all data on models in rows.
 
 ##' 1. when 'PSS' is mainly used in `obs` studies
 mh_tool_obs <- c('GHQ-12', 'SF-12', 'SF-36', 'WEMWBS', 'WHO-5', 'PSS'); design <- 'obs'
-mh_tool_exp <- c('PANAS', 'POMS', 'ROS', 'STAI', 'SVS');         design <- 'exp'
+mh_tool_exp <- c('PANAS', 'POMS', 'ROS', 'STAI', 'SVS');                design <- 'exp'
 
 
 ##' 2. when 'PSS' is mainly used in `exp` studies
@@ -1023,10 +1004,12 @@ mh_tool_exp <- c('PANAS', 'POMS', 'ROS', 'STAI', 'SVS', 'PSS', 'DASS-21');  desi
 
 ### Batch
 
+  Run this chunk only if you have already executed one of the selected MH tool chunks above.
+  
 ```{r - 1. batch one}
 ##' 1. Choose one as input --------------------------------
 ##'   `mh_tool`, `exposure_type_i`, `effect_size_ind_i`, `exp_sub_df`
-fi <- paste0('./data/0301-MA-input/', 'sub_', mh_tool, '.RData'); fi
+fi <- paste0('./data/0301-MA-input/', 'sub_', paste(mh_tool, collapse = '_'), '.RData'); fi
 
 load(fi)
 source('./code/010s1_loop_format_data.R')
