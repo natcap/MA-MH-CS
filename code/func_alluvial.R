@@ -5,11 +5,13 @@ library(ggalluvial)
 #' @param labele_small    the minimum number to have a label inside the stacked bars
 
 func_alluvial <- function(data, 
+                          first_column = NA, 
                           sorted = NA,
                           indicator_n_min = 5, ## 
                           width_my = 1/2.5, 
                           w_p = 6,
                           labele_small = 15,
+                          add_flow_label = F, 
                           n_ctr = '',
                           show_y_ticks = T, 
                           filename.prefix = 'mini-review_',
@@ -78,13 +80,79 @@ func_alluvial <- function(data,
       )
     )
   
+  
+  ## Calculate cumulative values for the first column (stratum)
+  ## if you'd like to add y-axis ticks and labels at each break point for the first column 
+  if(!is.na(first_column)){
+    breakpoints <- data %>%
+      dplyr::filter(dimension == first_column) %>%         # Filter for the first column's year
+      dplyr::filter(freq >= indicator_n_min) %>%
+      dplyr::distinct(layers, .keep_all = T) %>%
+      arrange(desc(layers)) %>%
+      pull(total) %>%                    # Extract the `value` column
+      cumsum() %>%                       # Compute cumulative sums
+      c(0, .)                            # Add 0 as the first breakpoint
+  }
+  
   if (show_y_ticks == F) {
     p <- p + 
       theme(axis.ticks.y = element_blank(), axis.text.y  = element_blank())
-  } else (
+  } else if (show_y_ticks == T & is.na(first_column)) {
     p <- p + 
       theme(axis.text.y = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0)))
-  )
+  } else {
+    p <- p + 
+      scale_y_continuous(
+        breaks = seq(0, sum(data$freq), by = 10),  # Custom y-axis ticks
+        
+        ## if you'd like to add y-axis ticks and labels at each break point for the first column 
+        # breaks = breakpoints,                       # Use calculated breakpoints
+        # labels = breakpoints,                       # Display breakpoints as labels
+        # expand = c(0, 0)
+      ) +
+      theme(axis.text.y = element_text(margin = margin(t = 0, r = 0, b = 0, l = 0)))
+  }
+  
+  
+  ##' add flow labels
+  ##' https://github.com/corybrunson/ggalluvial/issues/132
+  
+  if (add_flow_label == T){
+    # p <- p +
+    #   geom_text(
+    #     stat = "flow",
+    #     aes(
+    #       # label = ifelse(x == 2, after_stat(n), NA),
+    #       label = ifelse(x == 2 &
+    #                        # stratum == 'Anxiety' &
+    #                        after_stat(flow) == "from" &
+    #                        after_stat(n) > 0,
+    #                      # scales::percent(after_stat(prop), accuracy = 0.1), ## use %
+    #                      after_stat(n), ## use number count
+    #                      NA),
+    #       hjust = (after_stat(flow) == "to")
+    #     )
+    #   )
+
+
+    # p <- p +
+    #   stat_flow(
+    #     geom = "text",
+    #     aes(label = ifelse(as.numeric(total) >= labele_small, n_ind_byregion, NA)),
+    #     decreasing = sorted
+    #   )
+    
+    p <- p +
+      geom_text(
+        stat = "flow",
+        aes(
+          label = ifelse(x == 2, after_stat(n), NA), ##' `x =2` denote the 2nd column 
+          hjust = (after_stat(flow) == "to")
+        )
+      )
+
+
+  }
   
   
   f <- paste0(filename.prefix, filename.postfix, '_min', indicator_n_min, '_ctr', n_ctr, '_', today, '.png')
