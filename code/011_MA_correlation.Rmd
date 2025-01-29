@@ -6,6 +6,48 @@ output: html_document
 ---
 
 
+# Setup 
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+### To clear your environment
+remove(list = ls())
+
+
+## Load common packages
+source(file = "./code/_pkgs_dirs.R")
+
+## Additional packages
+library(googlesheets4)
+library(rprojroot)
+library(tidyverse)
+library(stringr)
+library(splitstackshape) ## `cSplit()`
+library(Hmisc)
+library(rworldmap)
+library(ggpubr)
+
+### packages for meta-analysis
+# install.packages("remotes")
+# remotes::install_github("guido-s/meta", ref = "develop")
+### or an old version that supports R3.6
+# url <- 'https://cran.r-project.org/src/contrib/Archive/meta/meta_4.15-0.tar.gz'
+# install.packages(url, repos=NULL, type="source")
+library(meta)
+library(metafor)
+
+```
+
+
+```{r - functions}
+source('./code/func_plot_freq.R')
+source('./code/func_alluvial.R')
+source('./code/func_ggsave.R')
+```
+
+
+
 # Meta-analysis
 
 ## Correlation
@@ -35,6 +77,9 @@ output: html_document
  - []
 
 ```{r}
+
+dir.input <- paste0(dirname(getwd()), '/meta-analysis-nature-health/data/0301-MA-input/')
+
 ## 
 mh_tool_obs <- c('GHQ-12', 'SF-12', 'SF-36', 'WEMWBS', 'WHO-5', 'PSS'); design <- 'obs'
 
@@ -134,7 +179,7 @@ predict(res, transf=transf.ztor) ## ztor: z to r
   
   Here is how we could report the amount of heterogeneity we found in our example:
 
-  ```The between-study heterogeneity variance was estimated at ^τ2 = 0.08 (95%CI: 0.03-0.35), with an I2 value of 63% (95%CI: 38-78%). The prediction interval ranged from g = -0.06 to 1.21, indicating that negative intervention effects cannot be ruled out for future studies.```
+  *The between-study heterogeneity variance was estimated at ^τ2 = 0.08 (95%CI: 0.03-0.35), with an I2 value of 63% (95%CI: 38-78%). The prediction interval ranged from g = -0.06 to 1.21, indicating that negative intervention effects cannot be ruled out for future studies.*
 
 
 ### Forest plot

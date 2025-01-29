@@ -15,7 +15,6 @@ dir.output <- './data/0302-MA-output/'
 
 ## load functions
 source('./code/func_expand_col_to_long.R')
-source('./code/func_clean_geo.R')
 source('./code/func_clean_indicators.R')
 source('./code/func_clean_indicatorsPro.R')
 source('./code/func_clean_tools.R')
