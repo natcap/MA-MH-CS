@@ -16,6 +16,7 @@ remove(list = ls())
 
 
 ## Load common packages
+<<<<<<< HEAD
 source(file = "./code/_pkgs_dirs.R")
 
 ## Additional packages
@@ -43,6 +44,16 @@ library(metafor)
 ```{r - functions}
 source('./code/func_plot_freq.R')
 source('./code/func_alluvial.R')
+=======
+source("./code/_pkgs_dirs.R")
+library(tidyr)
+```
+
+
+
+```{r - functions}
+source('./code/func_clean_indicatorsPro.R')
+>>>>>>> 9e645176f3239a0f5eef2d4ad545fe7ef5f1a6f8
 source('./code/func_ggsave.R')
 ```
 
@@ -87,7 +98,7 @@ mh_tool_obs <- c('GHQ-12', 'SF-12', 'SF-36', 'WEMWBS', 'WHO-5', 'PSS'); design <
 # Add wildcard after each element and collapse into a single regex pattern
 pattern <- paste("sub_(", paste(paste0(mh_tool_obs, ".*"), collapse = "|"), ")_cleaned.csv$", sep = "")
 files  <- list.files(path = dir.input, pattern = pattern, full.names = T) %>% unique() %>% sort()
-# Exclude files containing "PSS_cleaned"
+# Exclude files containing "PSS_cleaned", which belongs to experimental study data
 filtered_files <- grep("PSS_cleaned", files, invert = TRUE, value = TRUE)
 filtered_files
 
@@ -107,15 +118,127 @@ data_obs_cor <- data_obs_combined %>%
   # dplyr::filter(mean <=1 & mean >=-0.6) %>% ## ???
   # dplyr::mutate() %>%
   dplyr::mutate(
-      nature_type_o1 = case_when(
+    
+    ##' fix `nature_type_o1`
+    nature_type_o1 = case_when(
         str_to_sentence(nature_type_o1) %in% c("Other natural space/element", "Public natural spaces") ~ "Greenspace", 
-        T ~ nature_type_o1)) %>%
+        T ~ nature_type_o1),
+    
+    ##' fix `nature_quantity_o1`
+    nature_quantity_o1 = ifelse(is.na(nature_quantity_o1), nature_quantity, nature_quantity_o1),
+    nature_quantity_o1 = case_when(
+      nature_quantity_o1 %in% c('Percentage green space', 'Percentage Green Space', 
+                                'Percentage of Green space', 'Percentage of green', 
+                                'Green space proportion', 'Green space coverage') ~ 'Percentage of greenspace',
+      nature_quantity_o1 %in% c('Percentage of blue', 'percentage cover of all fresh- and saltwater bodies', 
+                                'proportion of water area', 'Blue space coverage') ~ 'Percentage of bluespace',
+      T ~ nature_quantity_o1),
+    
+    ##' fix `MH_indicator_o1`
+    MH_indicator_o1 = ifelse(is.na(MH_indicator_o1), Indicator, MH_indicator_o1),
+    MH_indicator_o1 = str_to_title(MH_indicator_o1)) %>%
+  
+  dplyr::filter(!grepl("how much nature|distance to|frequency|presence|Green view|Binary|Area of parks|Amount of|POS accessibility|POS area|Home Year Vegetation|Per capita", nature_quantity_o1, ignore.case = TRUE)) %>%
+  dplyr::filter(!grepl("Tree cover|tree canopy", nature_quantity_o1, ignore.case = TRUE)) %>%
+  dplyr::filter(!is.na(nature_quantity_o1)) %>%
+  dplyr::filter(!study_label %in% c('984_1')) %>% # exclude as the `nature_quantity_o1` == 'Coastal proximity'
+  dplyr::filter(!id %in% c('121')) %>% # exclude because it took low % greenspace as the reference group 
   as.data.frame()
+
+data_obs_cor_check <- data_obs_cor %>%
+  select(study_label, nature_quantity, nature_quantity_o1, 
+         nature_type, nature_type_o1,
+         everything()) %>%
+  arrange(nature_quantity_o1)
 
 MH_tool_o1_list <- unique(data_obs_cor$MH_tool_o1); MH_tool_o1_list
 ```
 
 
+
+```{r - data desc}
+# names(data_obs_cor)
+
+unique(data_obs_cor$MH_tool_o1)
+unique(data_obs_cor$MH_indicator_o1) ## need to fix the NA if any
+
+unique(data_obs_cor$nature_quantity)
+unique(data_obs_cor$nature_quantity_o1)
+
+```
+
+
+```{r - nature_quantity}
+source('./code/func_alluvial.R')
+
+df_q <- data_obs_cor %>%
+  dplyr::select(1:2, Indicator, Tools, MH_tool_o1, nature_type, nature_quantity, nature_quantity_o1, 
+         # buffer, buffer_unit, 
+         exposure_type) %>%
+  dplyr::filter(!nature_quantity_o1 %in% c('', NA, 'NA'))
+
+
+df_q_filter <- df_q %>%
+  dplyr::select(nature_quantity_o1, MH_tool_o1) %>%
+  group_by(MH_tool_o1, nature_quantity_o1) %>%
+  tally() %>%
+  as.data.frame() %>%  
+  pivot_longer(names_to  = 'dimension', 
+               values_to = 'layers', 
+               cols = c('nature_quantity_o1', 'MH_tool_o1')) %>%
+  group_by(dimension) %>%
+  dplyr::mutate(id_within_layers = row_number(dimension)) %>%
+  arrange(dimension) %>%
+  dplyr::rename(freq = n) %>%
+  group_by(layers) %>%
+  dplyr::mutate(total = sum(freq, na.rm = T)) %>%
+  dplyr::mutate(dimension = factor(x = dimension, levels = c('nature_quantity_o1', 'MH_tool_o1'))) %>%
+  as.data.frame()
+
+indicator_n_min <- 2 ## only map indicators with more than n times
+# Labeling small strata
+labele_small <- 1
+
+
+func_alluvial(data = df_q_filter, 
+              first_column = 'nature_quantity_o1', 
+              indicator_n_min = indicator_n_min, 
+              width_my = 0.5, w_p = 7,
+              show_y_ticks = T, add_flow_label = F,
+              filename.prefix = '', filename.postfix = 'tool_quantity_OBS')
+```
+
+
+
+```{r - NDVI only}
+
+data_obs_ndvi <- data_obs_cor %>%
+  dplyr::filter(nature_quantity_o1 %in% c('NDVI')) %>%
+  select(-c(model_id, Tools, Indicator, nature_type, nature_quantity, exposure_type,
+            Mean, effect_size_indices_raw, exp,
+            duration_mins, duration_group, `p value`, N, n_participants,
+            Other_covariates_o2:Notes_o2)) %>%
+  # select(buffers, buffers_unit, buffer_o1, everything()) %>%
+  mutate(
+    buffer_o1 = as.numeric(buffer_o1), 
+    buffer_o1 = case_when(
+      is.na(buffer_o1) ~ as.numeric(buffers), 
+      !is.na(buffer_o1) & buffer_o1 < 10 & buffers_unit == 'km' ~ buffer_o1 * 1000,
+      T ~ buffer_o1)) %>%
+  select(1:mean, effect_size_indice_o1, everything()) %>%
+  select(1:MH_ind, MH_indicator_o1, MH_tool_o1, everything())
+
+
+obs_ndvi_ghq <- data_obs_ndvi %>%
+  dplyr::filter(MH_tool_o1 == 'GHQ-12')
+
+obs_ndvi_who <- data_obs_ndvi %>%
+  dplyr::filter(MH_tool_o1 == 'WHO-5')
+
+
+cat('# of GHQ-12 unique papers:', length(unique(obs_ndvi_ghq$id)))
+cat('# of WHO-5  unique papers:', length(unique(obs_ndvi_who$id)))
+```
 
 
 ## MA
@@ -179,12 +302,16 @@ predict(res, transf=transf.ztor) ## ztor: z to r
   
   Here is how we could report the amount of heterogeneity we found in our example:
 
+<<<<<<< HEAD
   *The between-study heterogeneity variance was estimated at ^τ2 = 0.08 (95%CI: 0.03-0.35), with an I2 value of 63% (95%CI: 38-78%). The prediction interval ranged from g = -0.06 to 1.21, indicating that negative intervention effects cannot be ruled out for future studies.*
+=======
+```
+  The between-study heterogeneity variance was estimated at ^τ2 = 0.08 (95%CI: 0.03-0.35), with an I2 value of 63% (95%CI: 38-78%). The prediction interval ranged from g = -0.06 to 1.21, indicating that negative intervention effects cannot be ruled out for future studies.
+```
+>>>>>>> 9e645176f3239a0f5eef2d4ad545fe7ef5f1a6f8
 
 
 ### Forest plot
-
-
 
 ```{r - forest - meta}
 width_forestPlot = 40
