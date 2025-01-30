@@ -15,10 +15,6 @@ knitr::opts_chunk$set(echo = TRUE)
 remove(list = ls())
 
 
-## Load common packages
-<<<<<<< HEAD
-source(file = "./code/_pkgs_dirs.R")
-
 ## Additional packages
 library(googlesheets4)
 library(rprojroot)
@@ -30,11 +26,6 @@ library(rworldmap)
 library(ggpubr)
 
 ### packages for meta-analysis
-# install.packages("remotes")
-# remotes::install_github("guido-s/meta", ref = "develop")
-### or an old version that supports R3.6
-# url <- 'https://cran.r-project.org/src/contrib/Archive/meta/meta_4.15-0.tar.gz'
-# install.packages(url, repos=NULL, type="source")
 library(meta)
 library(metafor)
 
@@ -44,7 +35,6 @@ library(metafor)
 ```{r - functions}
 source('./code/func_plot_freq.R')
 source('./code/func_alluvial.R')
-=======
 source("./code/_pkgs_dirs.R")
 library(tidyr)
 ```
@@ -53,7 +43,6 @@ library(tidyr)
 
 ```{r - functions}
 source('./code/func_clean_indicatorsPro.R')
->>>>>>> 9e645176f3239a0f5eef2d4ad545fe7ef5f1a6f8
 source('./code/func_ggsave.R')
 ```
 
@@ -90,6 +79,13 @@ source('./code/func_ggsave.R')
 ```{r}
 
 dir.input <- paste0(dirname(getwd()), '/meta-analysis-nature-health/data/0301-MA-input/')
+
+
+f <- paste0(dir.input, 'id_region_match.rds')
+id_region_match <- readRDS(f) %>%
+  select(-c("Region", "continent"))
+
+
 
 ## 
 mh_tool_obs <- c('GHQ-12', 'SF-12', 'SF-36', 'WEMWBS', 'WHO-5', 'PSS'); design <- 'obs'
@@ -143,6 +139,10 @@ data_obs_cor <- data_obs_combined %>%
   dplyr::filter(!is.na(nature_quantity_o1)) %>%
   dplyr::filter(!study_label %in% c('984_1')) %>% # exclude as the `nature_quantity_o1` == 'Coastal proximity'
   dplyr::filter(!id %in% c('121')) %>% # exclude because it took low % greenspace as the reference group 
+  ## add countty name info
+  left_join(., id_region_match, by = 'id') %>%
+  select(1:Region, Country, iso3c, everything()) %>%
+  select(1:buffers, buffer_o1, everything()) %>%
   as.data.frame()
 
 data_obs_cor_check <- data_obs_cor %>%
@@ -151,7 +151,7 @@ data_obs_cor_check <- data_obs_cor %>%
          everything()) %>%
   arrange(nature_quantity_o1)
 
-MH_tool_o1_list <- unique(data_obs_cor$MH_tool_o1); MH_tool_o1_list
+
 ```
 
 
@@ -214,31 +214,102 @@ func_alluvial(data = df_q_filter,
 
 data_obs_ndvi <- data_obs_cor %>%
   dplyr::filter(nature_quantity_o1 %in% c('NDVI')) %>%
+  ##' remove rows with total effect or indirectly effect 
+  dplyr::filter(!grepl("total effect", subgroup_other_o1, ignore.case = TRUE)) %>%
   select(-c(model_id, Tools, Indicator, nature_type, nature_quantity, exposure_type,
             Mean, effect_size_indices_raw, exp,
             duration_mins, duration_group, `p value`, N, n_participants,
             Other_covariates_o2:Notes_o2)) %>%
   # select(buffers, buffers_unit, buffer_o1, everything()) %>%
-  mutate(
+  dplyr::rename(
+    "x_mean"   = "exp_mean",
+    'x_sd'     = 'exp_SD', 
+    'x_MinMax' = "exp_MinMax",
+    "x_unit"   = "exp_unit", 
+    
+    "y_mean"   = "MH_ind_mean", 
+    'y_sd'     = 'MH_ind_SD',
+    "y_MinMax" = "MH_ind_MinMax") %>%
+  
+  ##' address data gap in `x_sd`, `y_sd`
+  ##'   SD = 1/sqrt(12) * [(max-min)^2 + (min-2*median+max)^2/4)]^0.2; when n<=15
+  ##'   SD = (max-min)/4; when 15<n<=70
+  ##'   SD = (max-min)/6; when n>70
+  tidyr::separate(x_MinMax, into = c("x_min", "x_max"), sep = ";", remove = F, convert = TRUE) %>%
+  tidyr::separate(y_MinMax, into = c("y_min", "y_max"), sep = ";", remove = F, convert = TRUE) %>%
+  dplyr::mutate(
+    x_min = as.numeric(x_min),
+    x_max = as.numeric(x_max),
+    y_min = as.numeric(y_min),
+    y_max = as.numeric(y_max),
+    x_sd  = as.numeric(x_sd),
+    y_sd  = as.numeric(y_sd),
+    
+    x_sd = case_when(
+      is.na(x_sd) & !is.na(x_min) & n > 70  ~ (x_max-x_min)/6,
+      is.na(x_sd) & !is.na(x_min) & n <= 70 ~ (x_max-x_min)/4,
+      TRUE  ~ x_sd),
+    y_sd = case_when(
+      is.na(y_sd) & !is.na(y_min) & n > 70  ~ (y_max-y_min)/6,
+      is.na(y_sd) & !is.na(y_min) & n <= 70 ~ (y_max-y_min)/4,
+      TRUE  ~ y_sd)
+    ) %>%
+  
+  dplyr::mutate(
     buffer_o1 = as.numeric(buffer_o1), 
     buffer_o1 = case_when(
       is.na(buffer_o1) ~ as.numeric(buffers), 
       !is.na(buffer_o1) & buffer_o1 < 10 & buffers_unit == 'km' ~ buffer_o1 * 1000,
       T ~ buffer_o1)) %>%
-  select(1:mean, effect_size_indice_o1, everything()) %>%
-  select(1:MH_ind, MH_indicator_o1, MH_tool_o1, everything())
+  
+  ##' convert `b` to `beta`
+  dplyr::mutate(
+    beta = case_when(
+      effect_size_indice_o1 == 'coef_MLR_standardized' ~ mean,
+      effect_size_indice_o1 %in% c('unstandardized_coef', 'coef_MLR_unstandardized', 'coef_SLR_unstandardized') & 
+        !is.na(x_sd) & 
+        !is.na(y_sd) ~ mean*x_sd/y_sd,
+      T ~ NA
+    ),
+    
+    beta_se = case_when(
+      effect_size_indice_o1 == 'coef_MLR_standardized' ~ sd_r/(n^0.5),
+      effect_size_indice_o1 %in% c('unstandardized_coef', 'coef_MLR_unstandardized', 'coef_SLR_unstandardized') & 
+        !is.na(x_sd) & 
+        !is.na(y_sd) ~ sd_r/(n^0.5)*x_sd/y_sd,
+      T ~ NA
+    ),
+  ) %>%
+  dplyr::select(1:mean, beta, beta_se, everything()) %>%
+  dplyr::select(1:mean, effect_size_indice_o1, everything()) %>%
+  dplyr::select(1:MH_ind, MH_indicator_o1, MH_tool_o1, everything())
 
 
 obs_ndvi_ghq <- data_obs_ndvi %>%
   dplyr::filter(MH_tool_o1 == 'GHQ-12')
+  
 
 obs_ndvi_who <- data_obs_ndvi %>%
   dplyr::filter(MH_tool_o1 == 'WHO-5')
 
 
-cat('# of GHQ-12 unique papers:', length(unique(obs_ndvi_ghq$id)))
-cat('# of WHO-5  unique papers:', length(unique(obs_ndvi_who$id)))
+
+cat('\n# of GHQ-12 unique papers:', length(unique(obs_ndvi_ghq$id)))
+cat('\n# of WHO-5  unique papers:', length(unique(obs_ndvi_who$id)))
 ```
+
+
+```{r - To-do}
+
+##' For #2661, it is possible to use t values to fill the data gap in `sd(b)` or `se(b)`;
+##'   given t = F^0.5, and 
+##'   SE(b) = abs(b)/t
+
+##' Or, if SD(x), SD(y), and R2 are available, 
+##'   SE(b) = ((1-R2)/(N-2))^0.5 * SD(y)/SD(x)
+
+```
+
 
 
 ## MA
@@ -258,10 +329,19 @@ cat('# of WHO-5  unique papers:', length(unique(obs_ndvi_who$id)))
       * "ZCOR" for Fisher's r-to-z transformed correlation coefficient (Fisher, 1921).
       
       
+```{r - data}
+
+data_input <- obs_ndvi_ghq
+data_input <- obs_ndvi_who
+  
+MH_tool_o1_list <- unique(data_input$MH_tool_o1); MH_tool_o1_list
+```
+
+      
 ```{r - use `meta`}
 m.cor <- meta::metacor(
-  data = data_obs_cor,
-  cor = mean, 
+  data = data_input,
+  cor = beta, 
   n = n,
   studlab = study_label,
   fixed = FALSE,
@@ -279,7 +359,7 @@ summary(m.cor)
 # load the metafor package
 library(metafor)
 
-dat <- metafor::escalc(data=data_obs_cor, measure="ZCOR", ri=mean, ni=n)
+dat <- metafor::escalc(data=data_input, measure="ZCOR", ri=beta, ni=n)
 study_label <- paste(dat$id, dat$model_id, sep = '_')
 
 
@@ -302,20 +382,15 @@ predict(res, transf=transf.ztor) ## ztor: z to r
   
   Here is how we could report the amount of heterogeneity we found in our example:
 
-<<<<<<< HEAD
   *The between-study heterogeneity variance was estimated at ^τ2 = 0.08 (95%CI: 0.03-0.35), with an I2 value of 63% (95%CI: 38-78%). The prediction interval ranged from g = -0.06 to 1.21, indicating that negative intervention effects cannot be ruled out for future studies.*
-=======
-```
-  The between-study heterogeneity variance was estimated at ^τ2 = 0.08 (95%CI: 0.03-0.35), with an I2 value of 63% (95%CI: 38-78%). The prediction interval ranged from g = -0.06 to 1.21, indicating that negative intervention effects cannot be ruled out for future studies.
-```
->>>>>>> 9e645176f3239a0f5eef2d4ad545fe7ef5f1a6f8
+
 
 
 ### Forest plot
 
 ```{r - forest - meta}
-width_forestPlot = 40
-height_cm <- nrow(data_obs_cor)/1.1
+width_forestPlot = 20
+height_cm <- nrow(data_input)*1.5
 
 f <- paste0('./figures/', 'forest_cor/', paste(MH_tool_o1_list, collapse = "_"), '_all_', today, '_meta.png'); f
 png(filename = f, 
@@ -347,7 +422,6 @@ p_forest <- meta::forest(
 # p_forest
 
 dev.off()
-
 ```
 
 
@@ -471,7 +545,7 @@ for (subgroup_select in subgroups) {
   
   print(subgroup_select)
   
-  ma_cor_data <- data_obs_cor %>%
+  ma_cor_data <- data_input %>%
     dplyr::filter(!is.na(exposure_o1)) %>%
     dplyr::mutate(subgroup_selected = !!sym(subgroup_select)) 
   
