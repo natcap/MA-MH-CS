@@ -34,6 +34,13 @@ library(ggpubr)
 All the data that support the findings of this study are publicly available. 
 The complete list of studies included in the systematic review is saved as a CSV file in the `data` folder. 
 
+```
+data
+  |
+  |-- 0301-MA-input
+  |        |-- id_region_match.rds
+  |
+```
 
 ## Code
 
