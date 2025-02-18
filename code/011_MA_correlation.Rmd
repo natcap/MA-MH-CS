@@ -19,6 +19,7 @@ remove(list = ls())
 library(googlesheets4)
 library(rprojroot)
 library(tidyverse)
+library(tidyr)
 library(stringr)
 library(splitstackshape) ## `cSplit()`
 library(Hmisc)
@@ -32,18 +33,16 @@ library(metafor)
 ```
 
 
-```{r - functions}
+```{r - functions and dirs}
 source('./code/func_plot_freq.R')
 source('./code/func_alluvial.R')
 source("./code/_pkgs_dirs.R")
-library(tidyr)
-```
 
-
-
-```{r - functions}
 source('./code/func_clean_indicatorsPro.R')
 source('./code/func_ggsave.R')
+
+
+dir.input  <- paste0(dirname(getwd()), '/meta-analysis-nature-health/data/0301-MA-input/')
 ```
 
 
@@ -77,9 +76,6 @@ source('./code/func_ggsave.R')
  - []
 
 ```{r}
-
-dir.input <- paste0(dirname(getwd()), '/meta-analysis-nature-health/data/0301-MA-input/')
-
 
 f <- paste0(dir.input, 'id_region_match.rds')
 id_region_match <- readRDS(f) %>%
@@ -143,6 +139,7 @@ data_obs_cor <- data_obs_combined %>%
   left_join(., id_region_match, by = 'id') %>%
   select(1:Region, Country, iso3c, everything()) %>%
   select(1:buffers, buffer_o1, everything()) %>%
+  mutate(study_label = paste0(iso3c, '-', study_label)) %>%
   as.data.frame()
 
 data_obs_cor_check <- data_obs_cor %>%
@@ -293,10 +290,32 @@ obs_ndvi_who <- data_obs_ndvi %>%
   dplyr::filter(MH_tool_o1 == 'WHO-5')
 
 
-
-cat('\n# of GHQ-12 unique papers:', length(unique(obs_ndvi_ghq$id)))
-cat('\n# of WHO-5  unique papers:', length(unique(obs_ndvi_who$id)))
+cat('\n')
+cat('\n GHQ-12 - # unique papers:', length(unique(obs_ndvi_ghq$id)), '\t# studies:', nrow(obs_ndvi_ghq))
+cat('\n WHO-5  - # unique papers:', length(unique(obs_ndvi_who$id)), '\t# studies:', nrow(obs_ndvi_who))
 ```
+
+```{r - buffer stats}
+
+data_obs_ndvi_filter <- data_obs_ndvi %>%
+  dplyr::filter(MH_tool_o1 %in% c('WHO-5', 'GHQ-12')) 
+
+data_obs_ndvi_filter %>%
+  ggplot() +
+  geom_histogram(aes(x = buffer_o1, fill = MH_tool_o1), 
+                 # binwidth = 200,
+                 boundary = 0) +
+  scale_x_continuous(breaks = seq(0, max(data_obs_ndvi_filter$buffer_o1, na.rm = T), 200)) + 
+  scale_fill_discrete(direction = -1) +
+  theme_bw() +
+  theme(legend.position = c(0.8, 0.8), 
+        axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+        panel.grid.minor = element_blank())
+
+fname <- paste0(dir.fig, 'buffer_ndvi_', today, '.png'); fname
+func_ggsave(fname, w = 5, h = 5, save_png = T)
+```
+
 
 
 ```{r - To-do}
@@ -363,7 +382,7 @@ dat <- metafor::escalc(data=data_input, measure="ZCOR", ri=beta, ni=n)
 study_label <- paste(dat$id, dat$model_id, sep = '_')
 
 
-res <- metafor::rma(yi, vi, data=dat, slab = study_label)
+res <- metafor::rma(yi = yi, vi = vi, data=dat, slab = study_label)
 res
 predict(res, transf=transf.ztor) ## ztor: z to r
 
@@ -390,9 +409,9 @@ predict(res, transf=transf.ztor) ## ztor: z to r
 
 ```{r - forest - meta}
 width_forestPlot = 20
-height_cm <- nrow(data_input)*1.5
+height_cm <- nrow(data_input)*1.15
 
-f <- paste0('./figures/', 'forest_cor/', paste(MH_tool_o1_list, collapse = "_"), '_all_', today, '_meta.png'); f
+f <- paste0('./figures/', 'forest_cor/', paste(MH_tool_o1_list, collapse = "_"), '_all_meta_', today, '.png'); f
 png(filename = f, 
     # width = 3000, height = 3000, units = "px", pointsize = 22,
     width = width_forestPlot, height = height_cm, units = "cm", res = 100);
@@ -400,10 +419,10 @@ png(filename = f,
   
 p_forest <- meta::forest(
   m.cor, 
-  # sortvar = TE,
-  # prediction = TRUE, 
-  # print.tau2 = T,
-  addpred=TRUE, 
+  sortvar = TE,
+  # prediction = TRUE,
+  # addpred=TRUE, 
+  print.tau2 = T,
   header=TRUE, 
   digits=2, 
   print.I2 = T,
@@ -411,13 +430,13 @@ p_forest <- meta::forest(
   overall = T,
   overall.hetstat = T,
   
-  col.by = "black",
-  col.square = "black",
-  col.inside = "black",
+  col.square = "black", 
   col.square.lines = "black",
+  col.diamond.lines = 'red',
+  col.diamond.random = 'orange',
   shade=TRUE,
   layout = "RevMan5",
-  slab = study_label, shade=TRUE,
+  slab = study_label,
   leftlabs = c("Study ID", "g", "SE"))
 # p_forest
 
@@ -427,102 +446,28 @@ dev.off()
 
   https://wviechtb.github.io/metafor/reference/forest.rma.html
 ```{r - forest - metafor, warning=FALSE}
-### forest plot --------------------------------------------------------------------------
+
 # forest(res)
 # forest(res, addpred=TRUE, header=TRUE)
 # print(forest(res, addpred=TRUE, header=TRUE))
 xlim_custmize = c(-1,1)
 
-f <- paste0('./figures/', 'forest_cor/', paste(MH_tool_o1_list, collapse = "_"), '_all_', today ,'.png'); f
-png(file=f, 
-    # width = 3.5, height = 4, units = 'in', 
-    width = 1000, height = 1000, units = "px", pointsize = 22,
-    # res = 200
-    ) 
+# f <- paste0('./figures/', 'forest_cor/', paste(MH_tool_o1_list, collapse = "_"), '_all_metafor_', today ,'.png'); f
+# png(file=f, 
+#     # width = 3.5, height = 4, units = 'in', 
+#     width = 1000, height = 1000, units = "px", pointsize = 22,
+#     # res = 200
+#     ) 
 meta::forest(res, 
-             addpred=TRUE, header=TRUE, 
-             digits=2, 
+             addpred=TRUE, header=TRUE,
+             # xlim=xlim_custmize, 
+             slab = study_label,
+             digits=2,
              print.I2 = T,
              layout = "RevMan5", 
-             xlim=xlim_custmize, slab = study_label, shade=TRUE)
-dev.off() 
+             shade=TRUE)
+# dev.off() 
 
-
-
-# forest(res, addpred=TRUE, header=TRUE, xlim=xlim_custmize, slab = study_label) # showweights=TRUE
-# forest(res, addpred=TRUE, header=TRUE, xlim=xlim_custmize, atransf=exp)
-# #' optional argument to specify a function to transform the x-axis labels and annotations (e.g., atransf=exp)
-# forest(res, addpred=TRUE, header=TRUE, xlim=xlim_custmize, atransf=exp, at=log(c(.6, .8, 1, 1.2, 1.4)))
-```
-
-
-
-
-* NOT in use
-```{r - subgroup - to be fixed, eval=FALSE, include=FALSE}
-# a little helper function to add Q-test, I^2, and tau^2 estimate info
-mlabfun <- function(text, res) {
-   list(bquote(paste(.(text),
-      " (Q = ", .(formatC(res$QE, digits=2, format="f")),
-      ", df = ", .(res$k - res$p),
-      ", p ", .(metafor:::.pval(res$QEp, digits=2, showeq=TRUE, sep=" ")), "; ",
-      I^2, " = ", .(formatC(res$I2, digits=1, format="f")), "%, ",
-      tau^2, " = ", .(formatC(res$tau2, digits=2, format="f")), ")")))}
-
-# set up forest plot (with 2x2 table counts added; the 'rows' argument is
-# used to specify in which rows the outcomes will be plotted)
-# forest(res, addpred=TRUE, header=TRUE, xlim=xlim_custmize, slab = study_label)
-forest(res, 
-       addpred=TRUE, 
-       slab = study_label,
-       # xlim=c(-16, 4.6), at=log(c(0.05, 0.25, 1, 4)), 
-       # atransf=exp,
-       # ilab=cbind(dat$tpos, dat$tneg, dat$cpos, dat$cneg),
-       # ilab.xpos=c(-9.5,-8,-6,-4.5), cex=0.90, 
-       # ylim=c(-1, 27),            ## add extra space in plot
-       order=dat$nature_quantity, 
-       # rows=c(3:4,9:15,20:23),    ## set positions
-       mlab=mlabfun("RE Model for All Studies", res),
-       psize=1, header="Author(s) and Year")
-
-# set font expansion factor (as in forest() above) and use a bold font
-op <- par(cex=0.90, font=2)
-
-
-# switch to bold italic font
-par(font=4)
-
-# add text for the subgroups
-text(-16, c(24,16,5), pos=4, c("Systematic Allocation",
-                               "Random Allocation",
-                               "Alternate Allocation"))
-
-# set par back to the original settings
-par(op)
-
-# fit random-effects model in the three subgroups
-res.s <- rma(yi, vi, subset=(nature_quantity=="NDVI"), data=dat)
-res.r <- rma(yi, vi, subset=(nature_quantity=="Percentage of greenspace"),     data=dat)
-res.a <- rma(yi, vi, subset=(nature_quantity=="Other: Percentage of greenspace; Percentage of bluespace; presence of a garden"),  data=dat)
-
-# add summary polygons for the three subgroups
-addpoly(res.s, row=18.5, cex=0.90, 
-        # atransf=exp, 
-        mlab=mlabfun("RE Model for Subgroup", res.s))
-addpoly(res.r, row= 7.5, cex=0.90, 
-        # atransf=exp, 
-        mlab=mlabfun("RE Model for Subgroup", res.r))
-addpoly(res.a, row= 1.5, cex=0.90, 
-        # atransf=exp, 
-        mlab=mlabfun("RE Model for Subgroup", res.a))
-
-# fit meta-regression model to test for subgroup differences
-res <- rma(yi, vi, mods = ~ nature_quantity, data=dat)
-
-# add text for the test of subgroup differences
-text(x = -16, y = -1.8, pos=4, cex=0.90, bquote(paste("Test for Subgroup Differences: ",
-     Q[M], " = ", .(formatC(res$QM, digits=2, format="f")), ", df = ", .(res$p - 1),
-     ", p = ", .(formatC(res$QMp, digits=2, format="f")))))
 ```
 
 
@@ -555,7 +500,7 @@ for (subgroup_select in subgroups) {
   
   ma_cor <- meta::metacor(
     data = ma_cor_data,
-    cor = mean, 
+    cor = beta, 
     n = n,
     studlab = study_label,
     fixed = FALSE,
@@ -647,12 +592,12 @@ for (subgroup_select in subgroups) {
   
   ## save MA result 
   cat('\n')
-  fname <- paste0('./data/0302-MA-output/', 
+  fname <- paste0('./data/output/', 
                   paste('ma_result.overall_', paste(MH_tool_o1_list, collapse = "_"), '.rds', sep = '')); fname
   saveRDS(ma_result.overall, file = fname)
   
   if (add_subgroup_analysis == T) {
-    fname <- paste0('./data/0302-MA-output/', 
+    fname <- paste0('./data/output/', 
                     paste('ma_result.subgroup', paste(MH_tool_o1_list, collapse = "_"), subgroup_select, '.rds', sep = '_')); 
     print(basename(fname))
     saveRDS(ma_result.subgroup, file = fname)
@@ -669,7 +614,7 @@ for (subgroup_select in subgroups) {
 f <- paste0('./figures/', 'forest_cor/', paste(MH_tool_o1_list, collapse = "_"), '_', postfix_subgroup, '_',  today, '_meta.png'); f
 png(filename = f, 
     # width = 3000, height = 3000, units = "px", pointsize = 22,
-    width = width_forestPlot/2, height = height_cm*h_just, units = "cm", res = 100)
+    width = width_forestPlot, height = width_forestPlot+nrow(data_input)/10, units = "cm", res = 100)
 
 p_forest <- meta::forest(
   ma_cor, 
@@ -685,9 +630,11 @@ p_forest <- meta::forest(
   overall.hetstat = T,
   
   col.by = "black",
-  col.square = "black",
   col.inside = "black",
+  col.square = "black", 
   col.square.lines = "black",
+  col.diamond.lines = 'red',
+  col.diamond.random = 'orange',
   shade=TRUE,
   layout = "RevMan5",
   slab = study_label, shade=TRUE,
@@ -705,10 +652,9 @@ dev.off()
 source('./code/func_plot_ma.R')
 source('./code/func_color_bygroup.R')
 
-mh_tool_ls <- c('GHQ-12')
-mh_tool_ls <- c('GHQ-12', "SF-12", "SF-36", 'WEMWBS', 'WHO-5', 'PSS')
+mh_tool_ls <- c('WHO-5', 'GHQ-12')
 
-fs <- list.files(path = "./data/0302-MA-output/", 
+fs <- list.files(path = "./data/output/", 
                  pattern = paste('^ma_result.*_', mh_tool_ls, collapse = '|', sep = ''), 
                  full.names = T);
 cat('\n This', length(fs), 'files will be included:\n')
@@ -738,12 +684,16 @@ data %>%
                            text_size = 11,
                            show_legend = T) +
   scale_x_continuous(limits = c(-x_limit_max, x_limit_max)) +
-  theme(legend.position.inside = c(0.85, 0.9),
+  theme(legend.position = c(0.85, 0.9),
         # legend.spacing.y = unit(0, 'cm'),
         legend.spacing.x = unit(0.2, 'cm'),
         legend.key.size = unit(0.2, 'cm'),
         plot.margin = margin(t=0, r=0, b=0, l=0, "pt")) +
   guides(color = guide_legend(title="MH Tools"))
+
+
+fname <- paste0(dir.fig, 'es_comb_css_', today, '.png'); fname
+func_ggsave(fname, w = 6, h = 5.5, save_png = T)
 ```
 
 
